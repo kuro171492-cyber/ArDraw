@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AR Трафарет v1.2</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Базовые стили для предотвращения прокрутки и выделения */
+        body, html {
+            margin: 0; padding: 0; width: 100%; height: 100%;
+            overflow: hidden; background-color: #000; touch-action: none;
+            -webkit-user-select: none; user-select: none;
+        }
+
+        /* Стиль для референсного изображения */
+        #referenceImage {
+            transform-origin: center center;
+            will-change: transform;
+            max-width: 95vw; max-height: 95vh;
+            object-fit: contain;
+            pointer-events: none; /* Касания ловит контейнер */
+        }
+
+        /* Анимации для интерфейса */
+        .ui-transition { transition: transform 0.3s ease-in-out, opacity 0.3s ease-in-out; }
+        .hidden-ui { transform: translateY(150%); opacity: 0; pointer-events: none; }
+        
+        /* Сетка для помощи в рисовании */
+        #drawingGrid {
+            background-image: 
+                linear-gradient(to right, rgba(255,255,255,0.15) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(255,255,255,0.15) 1px, transparent 1px);
+            background-size: 50px 50px;
+            pointer-events: none;
+            display: none;
+            z-index: 5;
+        }
+
+        /* Стиль ползунка (кастомный акцент) */
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 24px;
+            width: 24px;
+            border-radius: 50%;
+            background: #6366f1;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(0,0,0,0.5);
+        }
+    </style>
+</head>
+<body class="text-white font-sans">
+
+    <!-- Основной слой приложения -->
+    <div id="touchContainer" class="relative w-full h-full flex items-center justify-center overflow-hidden">
+        
+        <!-- Слой 0: Видео поток с камеры -->
+        <video id="cameraFeed" autoplay playsinline class="absolute inset-0 w-full h-full object-cover z-0"></video>
+
+        <!-- Слой 1: Вспомогательная сетка -->
+        <div id="drawingGrid" class="absolute inset-0"></div>
+
+        <!-- Слой 2: Контейнер для референса -->
+        <div class="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
+            <img id="referenceImage" src="" alt="" style="display: none; opacity: 0.5;">
+        </div>
+
+        <!-- Слой 3: Сообщения об ошибках или статусе -->
+        <div id="statusMessage" class="absolute z-50 bg-gray-900/95 border border-indigo-500/50 p-8 rounded-3xl text-center max-w-[85%] shadow-2xl backdrop-blur-md">
+            <div id="statusIcon" class="text-5xl mb-4">📸</div>
+            <div id="statusText" class="text-xl font-bold mb-2">Доступ к камере</div>
+            <div id="statusSubtext" class="text-sm text-gray-400 leading-relaxed">
+                Пожалуйста, разрешите доступ к камере. <br>
+                Приложение должно работать через <b>HTTPS</b>.
+            </div>
+        </div>
+
+        <!-- Слой 4: Нижняя панель управления -->
+        <div id="uiPanel" class="absolute bottom-6 left-4 right-4 z-40 bg-gray-950/90 backdrop-blur-2xl p-6 rounded-[2.5rem] shadow-[0_-10px_40px_rgba(0,0,0,0.5)] ui-transition flex flex-col gap-5 border border-white/10">
+            
+            <!-- Кнопки действий -->
+            <div class="flex justify-between items-center gap-3">
+                <label class="bg-indigo-600 hover:bg-indigo-500 active:scale-95 transition-all px-5 py-4 rounded-2xl cursor-pointer font-black flex-1 text-center shadow-lg text-xs uppercase tracking-[0.1em]">
+                    🖼️ Выбрать фото
+                    <input type="file" id="imageInput" accept="image/*" class="hidden">
+                </label>
+                
+                <button id="gridBtn" class="bg-gray-800 hover:bg-gray-700 active:scale-90 transition-all p-4 rounded-2xl shadow-lg w-14 h-14 flex items-center justify-center text-xl" title="Сетка">
+                    #
+                </button>
+
+                <button id="lockBtn" class="bg-gray-800 hover:bg-gray-700 active:scale-90 transition-all p-4 rounded-2xl shadow-lg w-14 h-14 flex items-center justify-center text-xl" title="Заблокировать">
+                    🔓
+                </button>
+                
+                <button id="resetBtn" class="bg-gray-800 hover:bg-gray-700 active:scale-90 transition-all p-4 rounded-2xl shadow-lg w-14 h-14 flex items-center justify-center" title="Сбросить масштаб">
+                    🔄
+                </button>
+                
+                <button id="hideUiBtn" class="bg-rose-600 hover:bg-rose-500 active:scale-90 transition-all p-4 rounded-2xl shadow-lg w-14 h-14 flex items-center justify-center text-xl" title="Скрыть меню">
+                    👁️
+                </button>
+            </div>
+
+            <!-- Управление прозрачностью -->
+            <div class="flex flex-col gap-3 bg-white/5 p-4 rounded-2xl border border-white/5">
+                <div class="flex justify-between items-end">
+                    <span class="text-[10px] font-black uppercase tracking-widest text-indigo-400">Прозрачность референса</span>
+                    <span id="opacityValue" class="text-sm font-mono font-bold text-white">50%</span>
+                </div>
+                <input type="range" id="opacitySlider" min="0.01" max="1" step="0.01" value="0.5" class="w-full h-1.5 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-indigo-500">
+            </div>
+        </div>
+
+        <!-- Кнопка вызова меню (когда оно скрыто) -->
+        <button id="showUiBtn" class="absolute bottom-8 right-8 z-50 bg-indigo-600/90 backdrop-blur-md border border-white/20 p-5 rounded-full shadow-2xl transform scale-0 opacity-0 transition-all duration-300 text-2xl active:scale-75">
+            ⚙️
+        </button>
+
+    </div>
+
+    <script>
+        // Глобальные переменные и настройки
+        const video = document.getElementById('cameraFeed');
+        const imageInput = document.getElementById('imageInput');
+        const referenceImage = document.getElementById('referenceImage');
+        const opacitySlider = document.getElementById('opacitySlider');
+        const opacityValueDisplay = document.getElementById('opacityValue');
+        const statusMessage = document.getElementById('statusMessage');
+        const statusIcon = document.getElementById('statusIcon');
+        const statusText = document.getElementById('statusText');
+        const statusSubtext = document.getElementById('statusSubtext');
+        const uiPanel = document.getElementById('uiPanel');
+        const showUiBtn = document.getElementById('showUiBtn');
+        const lockBtn = document.getElementById('lockBtn');
+        const gridBtn = document.getElementById('gridBtn');
+        const drawingGrid = document.getElementById('drawingGrid');
+        const touchContainer = document.getElementById('touchContainer');
+
+        let scale = 1, posX = 0, posY = 0;
+        let isDragging = false, startDragX = 0, startDragY = 0, startDistance = 0, startScale = 1;
+        let isLocked = false, isGridVisible = false;
+
+        // 1. Восстановление сохраненной прозрачности
+        const savedOpacity = localStorage.getItem('arStencilOpacity');
+        if (savedOpacity) {
+            opacitySlider.value = savedOpacity;
+            referenceImage.style.opacity = savedOpacity;
+            opacityValueDisplay.innerText = Math.round(savedOpacity * 100) + '%';
+        }
+
+        // 2. Инициализация камеры (только HTTPS)
+        async function startApp() {
+            if (location.protocol !== 'https:' && !['localhost', '127.0.0.1'].includes(location.hostname)) {
+                updateStatus("⚠️ Ошибка HTTPS", "Камера не запустится. Загрузите файл на хостинг с поддержкой HTTPS (например, GitHub Pages).", "🔐");
+                return;
+            }
+
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { 
+                        facingMode: 'environment', // Приоритет задней камере
+                        width: { ideal: 1920 },
+                        height: { ideal: 1080 }
+                    }
+                });
+                video.srcObject = stream;
+                video.onloadedmetadata = () => {
+                    statusMessage.style.opacity = '0';
+                    setTimeout(() => statusMessage.style.display = 'none', 300);
+                };
+            } catch (err) {
+                updateStatus("Камера недоступна", "Нажмите 'Разрешить' при запросе браузера или проверьте настройки разрешений.", "🚫");
+            }
+        }
+
+        function updateStatus(title, sub, icon) {
+            statusIcon.innerText = icon;
+            statusText.innerText = title;
+            statusSubtext.innerText = sub;
+            statusMessage.classList.add('border-rose-500');
+        }
+
+        startApp();
+
+        // 3. Обработка загрузки файла
+        imageInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (ev) => {
+                    referenceImage.src = ev.target.result;
+                    referenceImage.style.display = 'block';
+                    resetTransform();
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // 4. Управление прозрачностью
+        opacitySlider.addEventListener('input', (e) => {
+            const val = e.target.value;
+            referenceImage.style.opacity = val;
+            opacityValueDisplay.innerText = Math.round(val * 100) + '%';
+            localStorage.setItem('arStencilOpacity', val);
+        });
+
+        // 5. Логика трансформаций (Перемещение и Масштабирование)
+        function applyTransform() {
+            referenceImage.style.transform = `translate(${posX}px, ${posY}px) scale(${scale})`;
+        }
+
+        function resetTransform() {
+            scale = 1; posX = 0; posY = 0;
+            applyTransform();
+        }
+
+        document.getElementById('resetBtn').addEventListener('click', resetTransform);
+
+        // 6. Сетка
+        gridBtn.addEventListener('click', () => {
+            isGridVisible = !isGridVisible;
+            drawingGrid.style.display = isGridVisible ? 'block' : 'none';
+            gridBtn.classList.toggle('bg-indigo-600', isGridVisible);
+            gridBtn.classList.toggle('bg-gray-800', !isGridVisible);
+        });
+
+        // 7. Обработка Touch-событий (Жесты)
+        touchContainer.addEventListener('touchstart', (e) => {
+            if (e.target.closest('#uiPanel') || e.target.closest('#showUiBtn') || isLocked) return;
+            
+            if (e.touches.length === 1) {
+                isDragging = true;
+                startDragX = e.touches[0].clientX - posX;
+                startDragY = e.touches[0].clientY - posY;
+            } else if (e.touches.length === 2) {
+                isDragging = false;
+                startDistance = Math.hypot(
+                    e.touches[0].clientX - e.touches[1].clientX,
+                    e.touches[0].clientY - e.touches[1].clientY
+                );
+                startScale = scale;
+            }
+        }, { passive: false });
+
+        touchContainer.addEventListener('touchmove', (e) => {
+            if (e.target.closest('#uiPanel') || e.target.closest('#showUiBtn')) return;
+            
+            // Предотвращаем системные жесты браузера (свайп вниз для обновления и т.д.)
+            e.preventDefault(); 
+            
+            if (isLocked) return;
+
+            if (e.touches.length === 1 && isDragging) {
+                posX = e.touches[0].clientX - startDragX;
+                posY = e.touches[0].clientY - startDragY;
+            } else if (e.touches.length === 2) {
+                const currentDist = Math.hypot(
+                    e.touches[0].clientX - e.touches[1].clientX,
+                    e.touches[0].clientY - e.touches[1].clientY
+                );
+                if (startDistance > 0) {
+                    scale = startScale * (currentDist / startDistance);
+                    scale = Math.max(0.05, Math.min(scale, 15)); // Лимиты зума
+                }
+            }
+            applyTransform();
+        }, { passive: false });
+
+        touchContainer.addEventListener('touchend', () => {
+            isDragging = false;
+        });
+
+        // 8. Видимость интерфейса
+        document.getElementById('hideUiBtn').addEventListener('click', () => {
+            uiPanel.classList.add('hidden-ui');
+            showUiBtn.classList.remove('scale-0', 'opacity-0');
+        });
+
+        showUiBtn.addEventListener('click', () => {
+            uiPanel.classList.remove('hidden-ui');
+            showUiBtn.classList.add('scale-0', 'opacity-0');
+        });
+
+        // 9. Блокировка (Замок)
+        lockBtn.addEventListener('click', () => {
+            isLocked = !isLocked;
+            lockBtn.innerHTML = isLocked ? '🔒' : '🔓';
+            lockBtn.classList.toggle('bg-indigo-600', isLocked);
+            lockBtn.classList.toggle('bg-gray-800', !isLocked);
+        });
+
+        // Автоматическая подстройка под размер экрана при повороте
+        window.addEventListener('resize', resetTransform);
+
+    </script>
+</body>
+</html>
