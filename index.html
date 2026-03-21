@@ -2,263 +2,214 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AR Pin & Overlay Tool</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
-    <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebXR Wall Projector</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <style>
-        body { margin: 0; overflow: hidden; background-color: #000; font-family: sans-serif; }
-        .ui-layer { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1000; }
-        .ui-layer * { pointer-events: auto; }
-        .controls { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); width: 94%; max-width: 500px; background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(12px); border-radius: 24px; padding: 18px; color: white; box-shadow: 0 10px 30px rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.1); }
-        #grid-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; display: none; z-index: 10; }
-        .ar-hint { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.6); padding: 10px 20px; border-radius: 30px; color: #fff; font-size: 14px; text-align: center; z-index: 1001; transition: all 0.3s ease; }
-        .status-dot { inline-size: 8px; block-size: 8px; background: red; border-radius: 50%; display: inline-block; margin-inline-end: 8px; }
-        .status-active { background: #00ff00; box-shadow: 0 0 10px #00ff00; }
+        body { margin: 0; overflow: hidden; font-family: sans-serif; }
+        #overlay {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            width: 90%;
+        }
+        .controls {
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 12px;
+            color: white;
+            display: none;
+        }
+        #ar-button {
+            padding: 15px 30px;
+            background: #2196F3;
+            color: white;
+            border: none;
+            border-radius: 50px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        }
+        input[type=range] { width: 200px; }
+        .info-msg {
+            position: absolute;
+            top: 20px;
+            width: 100%;
+            text-align: center;
+            color: white;
+            text-shadow: 1px 1px 2px black;
+            pointer-events: none;
+        }
     </style>
 </head>
 <body>
 
-    <div class="ar-hint" id="ar-hint">
-        <span id="status-dot" class="status-dot"></span>
-        <span id="hint-text">Направьте камеру на маркер Hiro</span>
-    </div>
-
-    <canvas id="grid-overlay"></canvas>
-
-    <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;" vr-mode-ui="enabled: false">
-        <a-assets>
-            <img id="dynamic-texture" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7">
-        </a-assets>
-
-        <!-- Маркер Hiro -->
-        <a-marker preset="hiro" id="marker">
-            <!-- Контейнер для изображения внутри маркера -->
-            <a-entity id="marker-content-container">
-                <a-plane 
-                    id="ar-plane"
-                    position="0 0 0" 
-                    rotation="-90 0 0" 
-                    width="1" 
-                    height="1" 
-                    material="src: #dynamic-texture; transparent: true; opacity: 0.5; side: double">
-                </a-plane>
-            </a-entity>
-        </a-marker>
-
-        <!-- Камера -->
-        <a-entity camera></a-entity>
-    </a-scene>
-
-    <div class="ui-layer">
-        <div class="controls flex flex-col gap-3">
-            <!-- Верхний ряд управления файлами и сеткой -->
-            <div class="flex justify-between items-center gap-2">
-                <label class="bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-xl cursor-pointer text-xs transition flex-1 text-center font-medium">
-                    Загрузить фото
-                    <input type="file" id="file-input" accept="image/*" class="hidden">
-                </label>
-                <button id="toggle-grid" class="bg-gray-700 hover:bg-gray-600 text-white p-2 rounded-xl text-xs transition flex-1 text-center">Сетка</button>
-                <button id="reset-all" class="bg-red-900/40 hover:bg-red-800 text-white p-2 rounded-xl text-xs transition flex-1 text-center">Сброс</button>
-            </div>
-
-            <!-- Кнопки фиксации -->
-            <div class="flex justify-between items-center gap-2">
-                <button id="pin-button" class="bg-green-600 hover:bg-green-700 disabled:bg-gray-800 disabled:opacity-50 text-white py-3 rounded-xl text-sm transition flex-[2] font-bold shadow-lg">
-                    📌 Закрепить на листе
-                </button>
-                <button id="unpin-button" class="bg-orange-600 hover:bg-orange-700 text-white py-3 rounded-xl text-sm transition flex-1 font-bold hidden">
-                    🔓 Открепить
-                </button>
-            </div>
-
-            <div class="space-y-2 border-t border-white/10 pt-2">
-                <div class="flex flex-col gap-1">
-                    <div class="flex justify-between text-[10px] text-gray-400">
-                        <span>Прозрачность</span>
-                        <span id="opacity-val">0.5</span>
-                    </div>
-                    <input type="range" id="opacity-slider" min="0" max="1" step="0.01" value="0.5" class="w-full h-1.5 bg-gray-700 rounded-lg appearance-none cursor-pointer">
-                </div>
-
-                <div class="flex flex-col gap-1">
-                    <div class="flex justify-between text-[10px] text-gray-400">
-                        <span>Размер (масштаб)</span>
-                        <span id="scale-val">1.0</span>
-                    </div>
-                    <input type="range" id="scale-slider" min="0.1" max="5" step="0.1" value="1" class="w-full h-1.5 bg-gray-700 rounded-lg appearance-none cursor-pointer">
-                </div>
-            </div>
+    <div id="overlay">
+        <div id="info" class="info-msg">Поиск стены...</div>
+        <div id="controls" class="controls">
+            <label>Размер: </label>
+            <input type="range" id="scale-range" min="0.1" max="3" step="0.1" value="1">
+            <button id="reset-btn" style="margin-left: 10px;">Сброс</button>
         </div>
+        <button id="ar-button">Запустить AR</button>
     </div>
 
-<script>
-    const fileInput = document.getElementById('file-input');
-    const arPlane = document.getElementById('ar-plane');
-    const markerContent = document.getElementById('marker-content-container');
-    const scene = document.querySelector('a-scene');
-    const marker = document.getElementById('marker');
-    
-    const pinBtn = document.getElementById('pin-button');
-    const unpinBtn = document.getElementById('unpin-button');
-    const opacitySlider = document.getElementById('opacity-slider');
-    const scaleSlider = document.getElementById('scale-slider');
-    const gridCanvas = document.getElementById('grid-overlay');
-    const statusDot = document.getElementById('status-dot');
-    const hintText = document.getElementById('hint-text');
+    <script type="module">
+        let container;
+        let camera, scene, renderer;
+        let reticle; // Кольцо-маркер для поиска поверхности
+        let hitTestSource = null;
+        let hitTestSourceRequested = false;
+        let projectedImage = null;
 
-    let isPinned = false;
-    let gridVisible = false;
-    let markerVisible = false;
+        const arButton = document.getElementById('ar-button');
+        const controls = document.getElementById('controls');
+        const info = document.getElementById('info');
+        const scaleRange = document.getElementById('scale-range');
+        const resetBtn = document.getElementById('reset-btn');
 
-    // --- Логика фиксации (Pin/Unpin) ---
+        // Инициализация при нажатии кнопки
+        arButton.addEventListener('click', () => {
+            init();
+        });
 
-    pinBtn.onclick = () => {
-        if (!markerVisible || isPinned) return;
-
-        // Получаем мировые координаты и ротацию текущего изображения
-        const worldPos = new THREE.Vector3();
-        const worldQuat = new THREE.Quaternion();
-        const worldScale = new THREE.Vector3();
-        
-        arPlane.object3D.getWorldPosition(worldPos);
-        arPlane.object3D.getWorldQuaternion(worldQuat);
-        arPlane.object3D.getWorldScale(worldScale);
-
-        // Перемещаем плоскость из маркера в корень сцены
-        scene.object3D.add(arPlane.object3D);
-        
-        // Устанавливаем сохраненные мировые координаты
-        arPlane.object3D.position.copy(worldPos);
-        arPlane.object3D.quaternion.copy(worldQuat);
-        arPlane.object3D.scale.copy(worldScale);
-
-        isPinned = true;
-        pinBtn.classList.add('hidden');
-        unpinBtn.classList.remove('hidden');
-        hintText.innerText = "Изображение зафиксировано в пространстве";
-    };
-
-    unpinBtn.onclick = () => {
-        if (!isPinned) return;
-
-        // Возвращаем плоскость обратно в контейнер маркера
-        markerContent.object3D.add(arPlane.object3D);
-        
-        // Сбрасываем локальные координаты относительно маркера
-        arPlane.object3D.position.set(0, 0, 0);
-        arPlane.object3D.quaternion.setFromEuler(new THREE.Euler(THREE.MathUtils.degToRad(-90), 0, 0));
-        
-        // Восстанавливаем масштаб из слайдера
-        const s = scaleSlider.value;
-        arPlane.object3D.scale.set(s, s, s);
-
-        isPinned = false;
-        pinBtn.classList.remove('hidden');
-        unpinBtn.classList.add('hidden');
-        updateStatus();
-    };
-
-    // --- Управление маркером ---
-
-    function updateStatus() {
-        if (isPinned) return;
-        if (markerVisible) {
-            statusDot.classList.add('status-active');
-            hintText.innerText = "Маркер найден. Можно закреплять!";
-            pinBtn.disabled = false;
-        } else {
-            statusDot.classList.remove('status-active');
-            hintText.innerText = "Направьте камеру на маркер Hiro";
-            pinBtn.disabled = true;
-        }
-    }
-
-    marker.addEventListener('markerFound', () => {
-        markerVisible = true;
-        updateStatus();
-    });
-
-    marker.addEventListener('markerLost', () => {
-        markerVisible = false;
-        updateStatus();
-    });
-
-    // --- Загрузка фото ---
-
-    fileInput.onchange = (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                const textureImg = document.getElementById('dynamic-texture');
-                textureImg.setAttribute('src', event.target.result);
+        async function init() {
+            if (navigator.xr) {
+                const sessionInit = { requiredFeatures: ['hit-test'] };
+                const session = await navigator.xr.requestSession('immersive-ar', sessionInit);
                 
-                const tempImg = new Image();
-                tempImg.onload = function() {
-                    const aspect = this.width / this.height;
-                    const w = aspect > 1 ? aspect : 1;
-                    const h = aspect > 1 ? 1 : 1/aspect;
-                    arPlane.setAttribute('width', w);
-                    arPlane.setAttribute('height', h);
-                };
-                tempImg.src = event.target.result;
-            };
-            reader.readAsDataURL(file);
+                setupRenderer(session);
+                arButton.style.display = 'none';
+                controls.style.display = 'block';
+                info.innerText = "Наведите камеру на стену с текстурой";
+            } else {
+                alert("Ваш браузер или устройство не поддерживают WebXR");
+            }
         }
-    };
 
-    // --- Настройки отображения ---
+        function setupRenderer(session) {
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 20);
 
-    opacitySlider.oninput = (e) => {
-        const val = e.target.value;
-        arPlane.setAttribute('material', `src: #dynamic-texture; transparent: true; opacity: ${val}; side: double`);
-        document.getElementById('opacity-val').innerText = val;
-    };
+            const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
+            scene.add(light);
 
-    scaleSlider.oninput = (e) => {
-        const s = e.target.value;
-        arPlane.object3D.scale.set(s, s, s);
-        document.getElementById('scale-val').innerText = s;
-    };
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.xr.enabled = true;
+            document.body.appendChild(renderer.domElement);
 
-    document.getElementById('reset-all').onclick = () => {
-        if (isPinned) unpinBtn.click();
-        scaleSlider.value = 1;
-        opacitySlider.value = 0.5;
-        document.getElementById('opacity-val').innerText = "0.5";
-        document.getElementById('scale-val').innerText = "1.0";
-        arPlane.setAttribute('scale', '1 1 1');
-        arPlane.setAttribute('material', `src: #dynamic-texture; transparent: true; opacity: 0.5; side: double`);
-    };
+            renderer.xr.setSession(session);
 
-    // --- Сетка ---
+            // Создаем маркер (кольцо), которое будет "бегать" по стене
+            reticle = new THREE.Mesh(
+                new THREE.RingGeometry(0.08, 0.1, 32).rotateX(-Math.PI / 2),
+                new THREE.MeshBasicMaterial({ color: 0xffffff })
+            );
+            reticle.matrixAutoUpdate = false;
+            reticle.visible = false;
+            scene.add(reticle);
 
-    function drawGrid() {
-        const ctx = gridCanvas.getContext('2d');
-        gridCanvas.width = window.innerWidth;
-        gridCanvas.height = window.innerHeight;
-        ctx.clearRect(0, 0, gridCanvas.width, gridCanvas.height);
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
-        ctx.lineWidth = 1;
-        const step = 50; 
-        for (let x = 0; x <= gridCanvas.width; x += step) {
-            ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, gridCanvas.height); ctx.stroke();
+            // Обработка клика для установки изображения
+            session.addEventListener('select', onSelect);
+
+            renderer.setAnimationLoop(render);
         }
-        for (let y = 0; y <= gridCanvas.height; y += step) {
-            ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(gridCanvas.width, y); ctx.stroke();
+
+        function onSelect() {
+            if (reticle.visible) {
+                // Если изображение уже есть, перемещаем его, иначе создаем
+                if (!projectedImage) {
+                    const textureLoader = new THREE.TextureLoader();
+                    // Используем заглушку. Пользователь может заменить URL
+                    const texture = textureLoader.load('https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?w=500&auto=format&fit=crop&q=60');
+                    
+                    const geometry = new THREE.PlaneGeometry(1, 1);
+                    const material = new THREE.MeshBasicMaterial({ 
+                        map: texture, 
+                        transparent: true, 
+                        opacity: 0.7, // Полупрозрачность для удобства рисования
+                        side: THREE.DoubleSide 
+                    });
+                    
+                    projectedImage = new THREE.Mesh(geometry, material);
+                    scene.add(projectedImage);
+                }
+
+                // Устанавливаем позицию и поворот как у ретикула
+                reticle.matrix.decompose(projectedImage.position, projectedImage.quaternion, projectedImage.scale);
+                
+                // Корректируем поворот, чтобы картинка стояла вертикально на стене
+                // По умолчанию Plane смотрит в Z, а ретикул лежит в XZ
+                projectedImage.rotateX(Math.PI / 2);
+                
+                info.innerText = "Изображение закреплено. Используйте слайдер для размера.";
+            }
         }
-    }
 
-    document.getElementById('toggle-grid').onclick = () => {
-        gridVisible = !gridVisible;
-        gridCanvas.style.display = gridVisible ? 'block' : 'none';
-        if (gridVisible) drawGrid();
-    };
+        // Изменение масштаба
+        scaleRange.addEventListener('input', (e) => {
+            if (projectedImage) {
+                const s = parseFloat(e.target.value);
+                projectedImage.scale.set(s, s, s);
+            }
+        });
 
-    window.onresize = () => { if (gridVisible) drawGrid(); };
+        resetBtn.addEventListener('click', () => {
+            if (projectedImage) {
+                scene.remove(projectedImage);
+                projectedImage = null;
+                info.innerText = "Наведите на стену и кликните";
+            }
+        });
 
-</script>
+        function render(timestamp, frame) {
+            if (frame) {
+                const referenceSpace = renderer.xr.getReferenceSpace();
+                const session = renderer.xr.getSession();
+
+                if (!hitTestSourceRequested) {
+                    session.requestReferenceSpace('viewer').then((referenceSpace) => {
+                        session.requestHitTestSource({ space: referenceSpace }).then((source) => {
+                            hitTestSource = source;
+                        });
+                    });
+                    session.addEventListener('end', () => {
+                        hitTestSourceRequested = false;
+                        hitTestSource = null;
+                    });
+                    hitTestSourceRequested = true;
+                }
+
+                if (hitTestSource) {
+                    const hitTestResults = frame.getHitResults(hitTestSource);
+                    if (hitTestResults.length) {
+                        const hit = hitTestResults[0];
+                        const pose = hit.getPose(referenceSpace);
+
+                        reticle.visible = true;
+                        reticle.matrix.fromArray(pose.transform.matrix);
+                    } else {
+                        reticle.visible = false;
+                    }
+                }
+            }
+            renderer.render(scene, camera);
+        }
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
 </body>
 </html>
