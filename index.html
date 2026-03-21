@@ -7,6 +7,7 @@
     <!-- Подключение стабильных версий библиотек -->
     <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.2/dist/mindar-image-aframe.prod.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lucide@0.344.0/dist/umd/lucide.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { margin: 0; overflow: hidden; font-family: sans-serif; background: #000; }
@@ -58,7 +59,9 @@
     <!-- Шаг 1: Экран настройки -->
     <div id="setup-screen">
         <div class="mb-8 p-6 bg-white/5 rounded-3xl border border-white/10">
-            <svg class="w-16 h-16 mx-auto mb-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+            <div class="w-16 h-16 mx-auto mb-4 bg-blue-500/20 rounded-2xl flex items-center justify-center">
+                <i data-lucide="image" class="text-blue-400 w-8 h-8"></i>
+            </div>
             <h1 class="text-2xl font-bold mb-2 text-white">AR Трафарет</h1>
             <p class="text-gray-400 text-sm">Выберите фото для перерисовки</p>
         </div>
@@ -77,13 +80,13 @@
     </div>
 
     <!-- Интерфейс AR -->
-    <div id="ar-ui" class="ui-overlay inset-0 pointer-events-none flex flex-col justify-between p-6 opacity-0 transition-opacity">
+    <div id="ar-ui" class="ui-overlay inset-0 pointer-events-none flex flex-col justify-between p-6 opacity-0 transition-opacity duration-500">
         <div class="flex justify-between items-start pointer-events-auto">
             <div id="statusTag" class="bg-black/60 backdrop-blur-xl border border-white/20 px-4 py-2 rounded-full flex items-center gap-2">
                 <div id="statusDot" class="w-3 h-3 rounded-full bg-amber-500 animate-pulse"></div>
                 <span id="statusText" class="text-xs font-bold uppercase tracking-widest text-white">Поиск маркера...</span>
             </div>
-            <button id="helpBtn" class="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center text-white border border-white/20">?</button>
+            <button id="helpBtn" class="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center text-white border border-white/20 font-bold">?</button>
         </div>
 
         <div class="bg-black/70 backdrop-blur-2xl border border-white/10 p-6 rounded-[2.5rem] pointer-events-auto flex flex-col gap-5 shadow-2xl text-white">
@@ -97,8 +100,8 @@
                 </div>
 
                 <div class="flex gap-2">
-                   <button id="minusBtn" class="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center border border-white/10">-</button>
-                   <button id="plusBtn" class="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center border border-white/10">+</button>
+                   <button id="minusBtn" class="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center border border-white/10 text-xl font-bold">−</button>
+                   <button id="plusBtn" class="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center border border-white/10 text-xl font-bold">+</button>
                 </div>
             </div>
         </div>
@@ -108,8 +111,8 @@
     <div id="target-preview">
         <h3 class="font-bold text-lg mb-2">Наведите на маркер</h3>
         <p class="text-sm text-gray-500 mb-6">Положите это изображение рядом с листом бумаги.</p>
-        <img src="https://raw.githubusercontent.com/hiukim/mind-ar-js/master/examples/image-tracking/assets/card-example/card.png" class="w-56 mx-auto mb-6 rounded-2xl shadow-xl">
-        <button id="closeHelpBtn" class="w-full bg-blue-600 text-white py-4 rounded-2xl font-bold">Ясно</button>
+        <img src="https://raw.githubusercontent.com/hiukim/mind-ar-js/master/examples/image-tracking/assets/card-example/card.png" crossorigin="anonymous" class="w-56 mx-auto mb-6 rounded-2xl shadow-xl">
+        <button id="closeHelpBtn" class="w-full bg-blue-600 text-white py-4 rounded-2xl font-bold">Понятно</button>
     </div>
 
     <!-- AR Сцена -->
@@ -120,14 +123,15 @@
         vr-mode-ui="enabled: false" 
         device-orientation-permission-ui="enabled: false">
         
-        <a-assets id="assets-list"></a-assets>
+        <a-assets id="assets-list">
+            <!-- Динамический ассет будет вставлен сюда -->
+        </a-assets>
 
         <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
         <a-entity id="ar-target" mindar-image-target="targetIndex: 0">
-            <!-- Параметр material="depthTest: false" критичен, чтобы картинка была поверх всего -->
             <a-image id="ar-image" 
-                position="0 0 0.01" 
+                position="0 0 0.02" 
                 height="1" 
                 width="1" 
                 opacity="0.5" 
@@ -138,6 +142,9 @@
     </a-scene>
 
     <script>
+        // Инициализация иконок
+        lucide.createIcons();
+
         const imageLoader = document.getElementById('imageLoader');
         const arImage = document.getElementById('ar-image');
         const imgThumb = document.getElementById('img-thumb');
@@ -146,6 +153,7 @@
         const selectedPreview = document.getElementById('selected-preview');
         const arUi = document.getElementById('ar-ui');
         const sceneEl = document.querySelector('a-scene');
+        const assetsList = document.getElementById('assets-list');
         
         const opacityRange = document.getElementById('opacityRange');
         const opacityLabel = document.getElementById('opacityLabel');
@@ -164,20 +172,20 @@
                 imgThumb.src = url;
                 selectedPreview.classList.remove('hidden');
                 
-                // Настройка AR объекта
-                const img = new Image();
-                img.onload = () => {
-                    const ratio = img.width / img.height;
+                // Создаем ассет для A-Frame
+                assetsList.innerHTML = '';
+                const imgAsset = document.createElement('img');
+                imgAsset.id = 'user-stencil';
+                imgAsset.src = url;
+                imgAsset.crossOrigin = "anonymous";
+                assetsList.appendChild(imgAsset);
+
+                imgAsset.onload = () => {
+                    const ratio = imgAsset.width / imgAsset.height;
                     arImage.setAttribute('width', ratio);
                     arImage.setAttribute('height', 1);
-                    // Важно: обновляем src после установки размеров
-                    arImage.setAttribute('src', url);
-                    // Принудительное обновление материала для A-Frame
-                    if (arImage.getObject3D('mesh')) {
-                        arImage.components.material.update();
-                    }
+                    arImage.setAttribute('src', '#user-stencil');
                 };
-                img.src = url;
             }
         });
 
@@ -188,8 +196,21 @@
                 setupScreen.style.display = 'none';
                 preview.style.display = 'block';
                 
-                const arSystem = sceneEl.systems["mindar-image-system"];
-                arSystem.start(); 
+                try {
+                    const arSystem = sceneEl.systems["mindar-image-system"];
+                    if (arSystem) {
+                        // Принудительно запускаем систему
+                        arSystem.start(); 
+                        
+                        // Попытка принудительно запустить видео, если оно зависло
+                        setTimeout(() => {
+                            const video = document.querySelector('video');
+                            if (video) video.play().catch(() => {});
+                        }, 1000);
+                    }
+                } catch (err) {
+                    console.error("AR Start Error:", err);
+                }
                 
                 arUi.classList.remove('opacity-0');
                 arUi.style.opacity = '1';
@@ -214,6 +235,7 @@
             arImage.setAttribute('scale', `${currentScale} ${currentScale} ${currentScale}`);
         };
 
+        // События MindAR
         targetEntity.addEventListener("targetFound", () => {
             statusDot.classList.replace('bg-amber-500', 'bg-green-500');
             statusDot.classList.remove('animate-pulse');
@@ -225,6 +247,12 @@
             statusDot.classList.add('animate-pulse');
             statusText.innerText = "Поиск маркера...";
         });
+
+        // Обработка глобальных ошибок для предотвращения падения скрипта
+        window.onerror = function(msg, url, line) {
+            console.warn("Caught Script Error:", msg, "at", url, ":", line);
+            return true; // Предотвращает вывод ошибки в консоль Canvas
+        };
     </script>
 </body>
 </html>
