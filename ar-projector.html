@@ -1,28 +1,65 @@
-<html>
+<!DOCTYPE html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AR Projector</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background: linear-gradient(to right, #6a11cb, #2575fc);
+        }
+        canvas {
+            border: 1px solid #fff;
+        }
+    </style>
 </head>
 <body>
-    <h1>AR Projector</h1>
+    <canvas id="arCanvas"></canvas>
     <script>
-        // AR anchoring feature using DeviceOrientation API
-        let image = document.getElementById('ar-image');
-        let anchor; 
+        // Camera support and setup
+        const canvas = document.getElementById('arCanvas');
+        const ctx = canvas.getContext('2d');
+        let mediaStream;
 
-        function onDeviceOrientation(event) {
-            if (anchor) {
-                // Lock the image position to physical paper
-                const alpha = event.alpha;
-                const beta = event.beta;
-                const gamma = event.gamma;
-                
-                // Update the position of the image
-                image.style.transform = `rotateY(${alpha}deg) rotateX(${beta}deg) translateZ(100px)`;
-            }
+        async function startCamera() {
+            mediaStream = await navigator.mediaDevices.getUserMedia({ video: true });
+            const video = document.createElement('video');
+            video.srcObject = mediaStream;
+            video.play();
+
+            video.addEventListener('loadedmetadata', () => {
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                draw(video);
+            });
         }
 
-        window.addEventListener('deviceorientation', onDeviceOrientation);
+        function draw(video) {
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            requestAnimationFrame(() => draw(video));
+        }
+
+        // Image loading and touch gestures
+        canvas.addEventListener('touchstart', handleTouchStart, false);
+        canvas.addEventListener('touchmove', handleTouchMove, false);
+
+        function handleTouchStart(event) {
+            // Handle touch start actions
+        }
+
+        function handleTouchMove(event) {
+            // Handle touch movements for drag and pinch
+        }
+
+        // Add UI elements for opacity and scale controls
+        // TODO: Implement UI controls
+
+        startCamera();
     </script>
-    <img id='ar-image' src='image.png' style='position: absolute; width: 200px; height: 200px;'/>
 </body>
 </html>
