@@ -10,7 +10,7 @@
             margin: 0; 
             overflow: hidden; 
             font-family: sans-serif; 
-            background-color: #000; /* Темный фон до запуска камеры */
+            background-color: #000; 
         }
         #overlay {
             position: absolute;
@@ -89,18 +89,17 @@
         const scaleRange = document.getElementById('scale-range');
         const resetBtn = document.getElementById('reset-btn');
 
-        // Проверка поддержки при загрузке
         if (navigator.xr) {
             navigator.xr.isSessionSupported('immersive-ar').then((supported) => {
                 if (supported) {
-                    info.innerText = "AR доступен. Нажмите кнопку ниже.";
+                    info.innerText = "AR доступен. Нажмите кнопку.";
                 } else {
-                    info.innerText = "Ваш браузер поддерживает WebXR, но не для AR.";
+                    info.innerText = "AR не поддерживается этим браузером.";
                     arButton.disabled = true;
                 }
             });
         } else {
-            info.innerText = "WebXR не поддерживается. Используйте Chrome на Android.";
+            info.innerText = "WebXR не найден. Используйте Chrome на Android.";
             arButton.disabled = true;
         }
 
@@ -110,22 +109,34 @@
 
         async function init() {
             try {
-                // Изменение: hit-test перенесен в optionalFeatures для повышения совместимости
+                // Изменение: Минимизируем requiredFeatures, переносим всё в optional.
+                // Также проверяем наличие domOverlay более аккуратно.
                 const sessionInit = { 
-                    requiredFeatures: ['local'], 
-                    optionalFeatures: ['hit-test', 'dom-overlay'],
-                    domOverlay: { root: document.getElementById('overlay') }
+                    optionalFeatures: ['hit-test', 'dom-overlay', 'local-floor'],
                 };
                 
+                // Пробуем добавить dom-overlay только если мы уверены в элементе
+                if (document.getElementById('overlay')) {
+                    sessionInit.domOverlay = { root: document.getElementById('overlay') };
+                }
+
                 const session = await navigator.xr.requestSession('immersive-ar', sessionInit);
                 setupRenderer(session);
                 
                 arButton.style.display = 'none';
                 controls.style.display = 'block';
-                info.innerText = "Медленно ведите камерой вдоль стены";
+                info.innerText = "Наведите камеру на стену и немного подвигайте";
             } catch (e) {
-                console.error(e);
-                alert("Ошибка: " + e.message);
+                console.error("Session Error:", e);
+                // Если не сработало с наложением, пробуем совсем без него (крайний случай)
+                try {
+                    const fallbackSession = await navigator.xr.requestSession('immersive-ar');
+                    setupRenderer(fallbackSession);
+                    arButton.style.display = 'none';
+                    info.innerText = "Режим совместимости запущен";
+                } catch (e2) {
+                    alert("Не удалось запустить AR: " + e2.message);
+                }
             }
         }
 
@@ -133,13 +144,13 @@
             scene = new THREE.Scene();
             camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 20);
 
-            const light = new THREE.AmbientLight(0xffffff, 1);
+            const light = new THREE.AmbientLight(0xffffff, 1.2);
             scene.add(light);
 
             renderer = new THREE.WebGLRenderer({ 
                 antialias: true, 
-                alpha: true, 
-                preserveDrawingBuffer: true 
+                alpha: true,
+                preserveDrawingBuffer: true
             });
             renderer.setPixelRatio(window.devicePixelRatio);
             renderer.setSize(window.innerWidth, window.innerHeight);
@@ -148,7 +159,6 @@
 
             renderer.xr.setSession(session);
 
-            // Создаем маркер-ретикул (зеленое кольцо)
             reticle = new THREE.Mesh(
                 new THREE.RingGeometry(0.04, 0.05, 32).rotateX(-Math.PI / 2),
                 new THREE.MeshBasicMaterial({ color: 0x00ff00 })
@@ -165,7 +175,6 @@
             if (reticle.visible) {
                 if (!projectedImage) {
                     const textureLoader = new THREE.TextureLoader();
-                    // Загружаем тестовую картинку. Можно заменить на свою.
                     const texture = textureLoader.load('https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?w=500&auto=format&fit=crop&q=60');
                     
                     const geometry = new THREE.PlaneGeometry(1, 1);
@@ -180,7 +189,6 @@
                     scene.add(projectedImage);
                 }
 
-                // Копируем позицию и ориентацию из маркера
                 const position = new THREE.Vector3();
                 const quaternion = new THREE.Quaternion();
                 const scale = new THREE.Vector3();
@@ -188,10 +196,9 @@
 
                 projectedImage.position.copy(position);
                 projectedImage.quaternion.copy(quaternion);
-                // Поворачиваем, чтобы плоскость была вертикальной относительно поверхности
                 projectedImage.rotateX(Math.PI / 2);
                 
-                info.innerText = "Закреплено! Можно настраивать размер.";
+                info.innerText = "Изображение установлено";
             }
         }
 
@@ -206,7 +213,7 @@
             if (projectedImage) {
                 scene.remove(projectedImage);
                 projectedImage = null;
-                info.innerText = "Ищите стену...";
+                info.innerText = "Ищите плоскость стены...";
             }
         });
 
@@ -219,7 +226,7 @@
                     session.requestReferenceSpace('viewer').then((referenceSpace) => {
                         session.requestHitTestSource({ space: referenceSpace }).then((source) => {
                             hitTestSource = source;
-                        });
+                        }).catch(err => console.log("Hit test not supported yet"));
                     });
                     hitTestSourceRequested = true;
                 }
