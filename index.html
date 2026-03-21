@@ -2,24 +2,30 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
+    <!-- Отключаем масштабирование для корректной работы UI на смартфонах -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>AR Stencil Pro</title>
-    <!-- Подключение стабильных версий библиотек -->
+    
+    <!-- Подключение библиотек -->
     <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.2/dist/mindar-image-aframe.prod.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/lucide@0.344.0/dist/umd/lucide.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/樂/dist/tailwind.min.js"></script>
+    <!-- Официальный скрипт Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    
     <style>
         body { margin: 0; overflow: hidden; font-family: sans-serif; background: #000; }
         .ui-overlay { z-index: 1000; position: absolute; }
         
-        .mindar-ui-overlay { z-index: 500 !important; }
+        /* Скрываем стандартные UI элементы MindAR (надпись Scanning и т.д.), так как мы делаем свой UI */
+        .mindar-ui-overlay { display: none !important; }
+        
         video { 
             position: absolute; 
             top: 0; left: 0; 
             width: 100%; height: 100%; 
             object-fit: cover; 
+            z-index: -1;
         }
 
         #setup-screen {
@@ -34,6 +40,7 @@
             padding: 2rem;
             text-align: center;
             color: white;
+            transition: opacity 0.5s ease;
         }
 
         #target-preview {
@@ -108,7 +115,7 @@
         </div>
     </div>
 
-    <!-- Инструкция -->
+    <!-- Инструкция (модальное окно) -->
     <div id="target-preview">
         <h3 class="font-bold text-lg mb-2">Наведите на маркер</h3>
         <p class="text-sm text-gray-500 mb-6">Положите это изображение (карточку) рядом с листом бумаги.</p>
@@ -117,37 +124,35 @@
     </div>
 
     <!-- AR Сцена -->
+    <!-- Используем стандартный тестовый маркер MindAR (racoon) -->
     <a-scene 
         id="main-scene"
-        mindar-image="imageTargetSrc: https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.2/examples/image-tracking/assets/card-example/card.mind; autoStart: false; uiScanning: no;" 
+        mindar-image="imageTargetSrc: https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.2/examples/image-tracking/assets/card-example/card.mind; autoStart: false; uiScanning: no; uiLoading: no;" 
         embedded
+        color-space="sRGB"
         renderer="colorManagement: true, physicallyCorrectLights: true"
         vr-mode-ui="enabled: false" 
         device-orientation-permission-ui="enabled: false">
         
-        <a-assets id="assets-list">
-            <!-- Динамический ассет будет вставлен сюда -->
-        </a-assets>
-
         <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
         <a-entity id="ar-target" mindar-image-target="targetIndex: 0">
-            <!-- Используем плоскую шейдерную модель и отключаем тест глубины для отрисовки "поверх" -->
+            <!-- ar-image изначально без src, мы добавим его через JS -->
             <a-image id="ar-image" 
-                position="0 0 0.05" 
+                position="0 0 0" 
                 height="1" 
                 width="1" 
                 opacity="0.5" 
-                transparent="true"
                 material="depthTest: false; shader: flat; side: double; transparent: true">
             </a-image>
         </a-entity>
     </a-scene>
 
     <script>
-        // Инициализация иконок
+        // Инициализация иконок Lucide
         lucide.createIcons();
 
+        // DOM элементы
         const imageLoader = document.getElementById('imageLoader');
         const arImage = document.getElementById('ar-image');
         const imgThumb = document.getElementById('img-thumb');
@@ -156,7 +161,6 @@
         const selectedPreview = document.getElementById('selected-preview');
         const arUi = document.getElementById('ar-ui');
         const sceneEl = document.querySelector('a-scene');
-        const assetsList = document.getElementById('assets-list');
         
         const opacityRange = document.getElementById('opacityRange');
         const opacityLabel = document.getElementById('opacityLabel');
@@ -166,75 +170,80 @@
         const preview = document.getElementById('target-preview');
 
         let currentScale = 1;
+        let loadedImageUrl = null;
 
-        // Загрузка изображения
+        // 1. Обработка загрузки изображения пользователем
         imageLoader.addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (file) {
-                const url = URL.createObjectURL(file);
-                imgThumb.src = url;
+                // Создаем временный URL для файла
+                loadedImageUrl = URL.createObjectURL(file);
+                imgThumb.src = loadedImageUrl;
                 selectedPreview.classList.remove('hidden');
-                
-                // Создаем ассет для A-Frame
-                assetsList.innerHTML = '';
-                const imgAsset = document.createElement('img');
-                imgAsset.id = 'user-stencil';
-                imgAsset.src = url;
-                imgAsset.crossOrigin = "anonymous";
-                assetsList.appendChild(imgAsset);
-
-                imgAsset.onload = () => {
-                    const ratio = imgAsset.width / imgAsset.height;
-                    // Сначала обновляем геометрию
-                    arImage.setAttribute('width', ratio);
-                    arImage.setAttribute('height', 1);
-                    // Затем привязываем текстуру через ID ассета
-                    arImage.setAttribute('src', '#user-stencil');
-                    
-                    // Принудительное обновление компонента для устранения бага "невидимости"
-                    if (arImage.components && arImage.components.material) {
-                        arImage.components.material.update();
-                    }
-                };
             }
         });
 
-        // Запуск AR
-        startArBtn.addEventListener('click', () => {
-            setupScreen.style.opacity = '0';
-            setTimeout(() => {
-                setupScreen.style.display = 'none';
-                preview.style.display = 'block';
-                
-                try {
-                    const arSystem = sceneEl.systems["mindar-image-system"];
-                    if (arSystem) {
-                        arSystem.start(); 
-                        
-                        // Дополнительная попытка воспроизведения видео для мобильных
-                        document.body.addEventListener('click', () => {
-                            const video = document.querySelector('video');
-                            if (video && video.paused) video.play().catch(() => {});
-                        }, { once: true });
-                    }
-                } catch (err) {
-                    console.error("AR Start Error:", err);
+        // 2. Функция запуска AR движка
+        const startArSystem = () => {
+            try {
+                const arSystem = sceneEl.systems["mindar-image-system"];
+                if (arSystem) {
+                    arSystem.start();
+                } else {
+                    console.error("Система MindAR не найдена!");
                 }
+            } catch (err) {
+                console.error("Ошибка запуска AR:", err);
+            }
+        };
+
+        // 3. Запуск AR по кнопке
+        startArBtn.addEventListener('click', () => {
+            if (!loadedImageUrl) return;
+
+            // Определяем пропорции картинки, чтобы она не сплющивалась
+            const img = new Image();
+            img.onload = function() {
+                const ratio = this.width / this.height;
+                arImage.setAttribute('width', ratio);
+                arImage.setAttribute('height', 1);
                 
-                arUi.classList.remove('opacity-0');
-                arUi.style.opacity = '1';
-            }, 500);
+                // Устанавливаем текстуру напрямую в A-Frame
+                arImage.setAttribute('src', loadedImageUrl);
+                
+                // Прячем экран настройки
+                setupScreen.style.opacity = '0';
+                
+                setTimeout(() => {
+                    setupScreen.style.display = 'none';
+                    preview.style.display = 'block'; // Показываем подсказку
+                    
+                    // Безопасный запуск: ждем, пока сцена A-Frame будет готова
+                    if (sceneEl.hasLoaded) {
+                        startArSystem();
+                    } else {
+                        sceneEl.addEventListener('loaded', startArSystem);
+                    }
+                    
+                    arUi.classList.remove('opacity-0');
+                    arUi.style.opacity = '1';
+                }, 500);
+            };
+            img.src = loadedImageUrl;
         });
 
+        // Обработчики кнопок UI
         document.getElementById('closeHelpBtn').onclick = () => preview.style.display = 'none';
         document.getElementById('helpBtn').onclick = () => preview.style.display = 'block';
 
+        // Настройка прозрачности
         opacityRange.addEventListener('input', (e) => {
             const val = e.target.value;
             arImage.setAttribute('opacity', val);
             opacityLabel.innerText = Math.round(val * 100) + '%';
         });
 
+        // Настройка масштаба
         document.getElementById('plusBtn').onclick = () => {
             currentScale *= 1.1;
             arImage.setAttribute('scale', `${currentScale} ${currentScale} ${currentScale}`);
@@ -244,24 +253,19 @@
             arImage.setAttribute('scale', `${currentScale} ${currentScale} ${currentScale}`);
         };
 
-        // События MindAR
+        // События MindAR: Маркер найден
         targetEntity.addEventListener("targetFound", () => {
             statusDot.classList.replace('bg-amber-500', 'bg-green-500');
             statusDot.classList.remove('animate-pulse');
             statusText.innerText = "Закреплено";
-            // Принудительно показываем изображение при нахождении
-            arImage.setAttribute('visible', true);
         });
 
+        // События MindAR: Маркер потерян
         targetEntity.addEventListener("targetLost", () => {
             statusDot.classList.replace('bg-green-500', 'bg-amber-500');
             statusDot.classList.add('animate-pulse');
             statusText.innerText = "Поиск маркера...";
         });
-
-        window.onerror = function(msg, url, line) {
-            return true; 
-        };
     </script>
 </body>
 </html>
