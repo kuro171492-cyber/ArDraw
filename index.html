@@ -2,264 +2,277 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Web AR Конструктор</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>AR Конструктор</title>
   
-  <!-- Подключаем React и ReactDOM -->
-  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
-  
-  <!-- Подключаем Babel -->
+  <!-- Библиотеки -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  
-  <!-- Подключаем Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
 
   <style>
-    #arjs-video {
-      max-width: none !important;
-      width: 100% !important;
-      height: 100% !important;
-      position: absolute;
-      top: 0;
-      left: 0;
-      z-index: -1;
+    /* Глобальные сбросы для предотвращения смещения камеры */
+    html, body, #root {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background-color: #000;
     }
+
+    /* Принудительная фиксация видеопотока AR.js */
+    video#arjs-video {
+      object-fit: cover !important;
+      width: 100vw !important;
+      height: 100vh !important;
+      position: fixed !important;
+      top: 0 !important;
+      left: 0 !important;
+      z-index: -2 !important;
+    }
+
+    /* Холст A-Frame */
     .a-canvas {
-      position: absolute;
-      top: 0;
-      left: 0;
-      z-index: 0;
+      z-index: -1 !important;
     }
-    .preview-overlay {
-      pointer-events: none;
+
+    /* Кастомный ползунок */
+    input[type=range] {
+      -webkit-appearance: none;
+      background: transparent;
     }
-    .controls-panel {
-      pointer-events: auto;
+    input[type=range]::-webkit-slider-runnable-track {
+      width: 100%;
+      height: 6px;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 3px;
+    }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      height: 20px;
+      width: 20px;
+      border-radius: 50%;
+      background: #3b82f6;
+      margin-top: -7px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.5);
     }
   </style>
 </head>
-<body class="bg-slate-900 m-0 p-0 overflow-hidden text-slate-100 font-sans">
-  
+<body>
   <div id="root"></div>
 
   <script type="text/babel">
-    const { useState, useEffect, memo, useRef } = React;
+    const { useState, useEffect, useRef, memo } = React;
 
-    // Иконки (SVG)
-    const UploadIcon = () => (
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+    // Компоненты-иконки
+    const StatusIndicator = ({ active }) => (
+      <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full backdrop-blur-md border transition-all ${active ? 'bg-green-500/20 border-green-500 text-green-400' : 'bg-red-500/20 border-red-500 text-red-400'}`}>
+        <div className={`w-2 h-2 rounded-full animate-pulse ${active ? 'bg-green-400' : 'bg-red-400'}`} />
+        <span className="text-[10px] font-bold uppercase tracking-widest">
+          {active ? 'Маркер найден' : 'Поиск маркера'}
+        </span>
+      </div>
     );
-    const SettingsIcon = () => (
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
-    );
-
-    const loadScript = (src) => {
-      return new Promise((resolve, reject) => {
-        if (document.querySelector(`script[src="${src}"]`)) {
-          resolve();
-          return;
-        }
-        const script = document.createElement('script');
-        script.src = src;
-        script.crossOrigin = "anonymous";
-        script.onload = resolve;
-        script.onerror = reject;
-        document.head.appendChild(script);
-      });
-    };
 
     function App() {
-      const [step, setStep] = useState('setup'); // setup, preview, ar
-      const [loading, setLoading] = useState(false);
       const [image, setImage] = useState(null);
-      const [opacity, setOpacity] = useState(0.8);
+      const [isCameraReady, setIsCameraReady] = useState(false);
+      const [isMarkerFound, setIsMarkerFound] = useState(false);
+      const [opacity, setOpacity] = useState(0.7);
       const [scale, setScale] = useState(1.0);
+      const [isAdjusting, setIsAdjusting] = useState(true);
       const fileInputRef = useRef(null);
 
-      const handleFileChange = (e) => {
+      // Инициализация AR.js один раз
+      useEffect(() => {
+        const initAR = async () => {
+          const loadScript = (src) => new Promise((res) => {
+            const s = document.createElement('script');
+            s.src = src;
+            s.onload = res;
+            document.head.appendChild(s);
+          });
+
+          await loadScript('https://aframe.io/releases/1.4.0/aframe.min.js');
+          await loadScript('https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js');
+          
+          setIsCameraReady(true);
+        };
+        initAR();
+      }, []);
+
+      // Обработка событий маркера
+      useEffect(() => {
+        const handleMarkerFound = () => setIsMarkerFound(true);
+        const handleMarkerLost = () => setIsMarkerFound(false);
+
+        window.addEventListener('markerFound', handleMarkerFound);
+        window.addEventListener('markerLost', handleMarkerLost);
+        return () => {
+          window.removeEventListener('markerFound', handleMarkerFound);
+          window.removeEventListener('markerLost', handleMarkerLost);
+        };
+      }, [isCameraReady]);
+
+      const handleFileUpload = (e) => {
         const file = e.target.files[0];
         if (file) {
           const reader = new FileReader();
-          reader.onload = (event) => setImage(event.target.result);
+          reader.onload = (ev) => setImage(ev.target.result);
           reader.readAsDataURL(file);
-          setStep('preview');
         }
       };
 
-      const startAR = async () => {
-        setLoading(true);
-        try {
-          await loadScript('https://aframe.io/releases/1.4.0/aframe.min.js');
-          await loadScript('https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js');
-          setStep('ar');
-        } catch (err) {
-          alert("Ошибка загрузки AR библиотек");
-        } finally {
-          setLoading(false);
-        }
-      };
-
-      // Экран настройки
-      if (step === 'setup') {
+      if (!isCameraReady) {
         return (
-          <div className="min-h-screen flex items-center justify-center p-6 text-center">
-            <div className="max-w-sm w-full bg-slate-800 p-8 rounded-3xl shadow-2xl border border-slate-700">
-              <h1 className="text-2xl font-bold mb-4">Шаг 1: Изображение</h1>
-              <p className="text-slate-400 mb-8">Выберите картинку, которую хотите наложить на лист бумаги.</p>
-              
-              <input 
-                type="file" 
-                ref={fileInputRef} 
-                onChange={handleFileChange} 
-                className="hidden" 
-                accept="image/*"
-              />
-              
-              <button 
-                onClick={() => fileInputRef.current.click()}
-                className="w-full bg-blue-600 hover:bg-blue-500 py-4 rounded-xl flex items-center justify-center gap-2 font-bold transition-all active:scale-95"
-              >
-                <UploadIcon /> Выбрать фото
-              </button>
-            </div>
+          <div className="flex flex-col items-center justify-center h-full text-white gap-4">
+            <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+            <p className="text-sm font-medium animate-pulse">Запуск модуля AR...</p>
           </div>
         );
       }
 
-      // Экран предпросмотра и настройки (камера уже работает в фоне)
       return (
-        <div className="fixed inset-0 overflow-hidden">
-          {/* Слой с камерой и AR (если запущен) */}
-          <div className={`absolute inset-0 ${step === 'preview' ? 'opacity-50 blur-sm' : ''}`}>
-            {step === 'ar' && <ARScene imageUrl={image} opacity={opacity} scale={scale} />}
-          </div>
+        <div className="relative w-full h-full">
+          {/* Сцена AR (Всегда работает в фоне) */}
+          <a-scene
+            embedded
+            arjs="sourceType: webcam; debugUIEnabled: false; trackingMethod: best; displayHeight: 100vh; displayWidth: 100vw;"
+            vr-mode-ui="enabled: false"
+            renderer="logarithmicDepthBuffer: true; antialias: true; alpha: true"
+          >
+            <a-assets>
+              {image && <img id="userTex" src={image} crossOrigin="anonymous" />}
+            </a-assets>
 
-          {/* Интерфейс настройки */}
-          {step === 'preview' && (
-            <div className="absolute inset-0 flex flex-col items-center justify-between p-6 z-50 bg-slate-900/40 backdrop-blur-sm">
-              <div className="w-full max-w-xs text-center">
-                <h2 className="text-xl font-bold">Настройка наложения</h2>
-                <p className="text-xs text-slate-200 mt-2">Отрегулируйте масштаб и прозрачность картинки</p>
-              </div>
-
-              {/* Реальное превью картинки */}
-              <div className="relative border-4 border-blue-500/30 rounded-lg overflow-hidden shadow-2xl" 
-                   style={{ width: '250px', height: '250px' }}>
-                <img 
-                  src={image} 
-                  className="w-full h-full object-contain" 
-                  style={{ opacity, transform: `scale(${scale})` }}
+            <a-marker preset="hiro" id="mainMarker">
+              {image && !isAdjusting && (
+                <a-image
+                  src="#userTex"
+                  position="0 0.1 0"
+                  rotation="-90 0 0"
+                  width={scale * 2}
+                  height={scale * 2}
+                  opacity={opacity}
+                  transparent="true"
                 />
-              </div>
+              )}
+              <a-plane position="0 0.01 0" rotation="-90 0 0" width="2" height="2" color="#3b82f6" opacity="0.1" />
+            </a-marker>
+            <a-entity camera />
+          </a-scene>
 
-              <div className="w-full max-w-md bg-slate-800/90 p-6 rounded-3xl border border-slate-700 space-y-6">
-                <div className="space-y-2">
-                  <div className="flex justify-between text-xs font-bold uppercase tracking-wider text-slate-400">
-                    <span>Прозрачность</span>
-                    <span>{Math.round(opacity * 100)}%</span>
-                  </div>
-                  <input 
-                    type="range" min="0.1" max="1" step="0.05" 
-                    value={opacity} onChange={(e) => setOpacity(e.target.value)}
-                    className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <div className="flex justify-between text-xs font-bold uppercase tracking-wider text-slate-400">
-                    <span>Масштаб</span>
-                    <span>x{scale}</span>
-                  </div>
-                  <input 
-                    type="range" min="0.5" max="3" step="0.1" 
-                    value={scale} onChange={(e) => setScale(e.target.value)}
-                    className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
-                  />
-                </div>
-
-                <div className="flex gap-3">
-                  <button 
-                    onClick={() => setStep('setup')}
-                    className="flex-1 bg-slate-700 py-3 rounded-xl font-semibold hover:bg-slate-600"
-                  >
-                    Назад
-                  </button>
-                  <button 
-                    onClick={startAR}
-                    disabled={loading}
-                    className="flex-[2] bg-blue-600 py-3 rounded-xl font-bold hover:bg-blue-500 active:scale-95 transition-all shadow-lg shadow-blue-500/30"
-                  >
-                    {loading ? 'Загрузка AR...' : 'Привязать к AR'}
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Интерфейс во время режима AR */}
-          {step === 'ar' && (
-            <div className="absolute top-0 left-0 w-full p-4 flex justify-between items-start pointer-events-none z-50">
-              <div className="bg-black/70 text-white px-4 py-3 rounded-2xl backdrop-blur-md border border-white/10 pointer-events-auto">
-                <p className="text-sm font-medium">Готово! Наведите на маркер Hiro</p>
-                <p className="text-[10px] opacity-60">Изображение "прилипнет" к нему</p>
-              </div>
+          {/* Слой интерфейса */}
+          <div className="absolute inset-0 flex flex-col pointer-events-none p-6">
+            
+            {/* Верхняя панель */}
+            <div className="flex justify-between items-start w-full pointer-events-auto">
+              <StatusIndicator active={isMarkerFound} />
               <button 
-                onClick={() => window.location.reload()} 
-                className="bg-red-500 text-white p-3 rounded-full pointer-events-auto shadow-xl active:scale-90"
+                onClick={() => window.location.reload()}
+                className="p-2 bg-black/40 backdrop-blur-md rounded-full border border-white/20 text-white"
               >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"/></svg>
               </button>
             </div>
-          )}
+
+            {/* Центральная зона - Превью при настройке */}
+            <div className="flex-1 flex items-center justify-center">
+              {isAdjusting && image && (
+                <div className="relative w-64 h-64 border-2 border-dashed border-blue-400/50 flex items-center justify-center">
+                  <img 
+                    src={image} 
+                    className="max-w-full max-h-full object-contain transition-all"
+                    style={{ opacity, transform: `scale(${scale})` }}
+                  />
+                  <div className="absolute -top-8 text-[10px] text-blue-400 font-bold uppercase tracking-widest">Область наложения</div>
+                </div>
+              )}
+              {!image && isAdjusting && (
+                <div className="p-8 bg-black/40 backdrop-blur-xl border border-white/10 rounded-3xl text-center pointer-events-auto max-w-xs">
+                  <h2 className="text-xl font-bold mb-2">Начнем работу</h2>
+                  <p className="text-sm text-white/60 mb-6">Загрузите фото, которое хотите увидеть на листе бумаги.</p>
+                  <button 
+                    onClick={() => fileInputRef.current.click()}
+                    className="w-full py-4 bg-blue-600 rounded-2xl font-bold shadow-xl shadow-blue-500/20 active:scale-95 transition-all"
+                  >
+                    Выбрать изображение
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Нижняя панель управления */}
+            {image && (
+              <div className="w-full bg-black/60 backdrop-blur-2xl border border-white/10 rounded-3xl p-6 pointer-events-auto space-y-5 shadow-2xl">
+                {isAdjusting ? (
+                  <>
+                    <div className="space-y-4">
+                      <div className="space-y-1">
+                        <div className="flex justify-between text-[10px] text-white/40 uppercase font-bold">
+                          <span>Прозрачность</span>
+                          <span className="text-blue-400">{Math.round(opacity * 100)}%</span>
+                        </div>
+                        <input 
+                          type="range" min="0.1" max="1" step="0.01" value={opacity} 
+                          onChange={(e) => setOpacity(parseFloat(e.target.value))}
+                          className="w-full"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <div className="flex justify-between text-[10px] text-white/40 uppercase font-bold">
+                          <span>Размер</span>
+                          <span className="text-blue-400">x{scale}</span>
+                        </div>
+                        <input 
+                          type="range" min="0.5" max="3" step="0.05" value={scale} 
+                          onChange={(e) => setScale(parseFloat(e.target.value))}
+                          className="w-full"
+                        />
+                      </div>
+                    </div>
+                    <div className="flex gap-3">
+                      <button 
+                        onClick={() => setImage(null)}
+                        className="p-4 bg-white/5 rounded-2xl border border-white/10"
+                      >
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                      </button>
+                      <button 
+                        onClick={() => setIsAdjusting(false)}
+                        className="flex-1 py-4 bg-blue-600 rounded-2xl font-bold active:scale-95 transition-all"
+                      >
+                        Привязать к листу
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-center space-y-4">
+                    <p className="text-sm font-medium">✨ Изображение зафиксировано на маркере</p>
+                    <button 
+                      onClick={() => setIsAdjusting(true)}
+                      className="w-full py-4 bg-white/10 rounded-2xl font-bold border border-white/10 hover:bg-white/20 transition-all"
+                    >
+                      Вернуться к настройкам
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          <input 
+            type="file" 
+            ref={fileInputRef} 
+            onChange={handleFileUpload} 
+            accept="image/*" 
+            className="hidden" 
+          />
         </div>
       );
     }
-
-    const ARScene = memo(({ imageUrl, opacity, scale }) => {
-      // Подгоняем размер под AR единицы (A-Frame)
-      const arScale = scale * 2; 
-
-      return (
-        <div className="absolute inset-0">
-          <a-scene
-            embedded
-            arjs="sourceType: webcam; debugUIEnabled: false; trackingMethod: best;"
-            renderer="logarithmicDepthBuffer: true; antialias: true; alpha: true"
-            vr-mode-ui="enabled: false"
-          >
-            <a-assets>
-              <img id="userImage" src={imageUrl} crossOrigin="anonymous" />
-            </a-assets>
-
-            <a-marker preset="hiro">
-              {/* Прозрачная рамка-подложка для визуализации зоны листа */}
-              <a-plane 
-                position="0 0.01 0" 
-                rotation="-90 0 0" 
-                width="2.1" 
-                height="2.1" 
-                color="white" 
-                opacity="0.1"
-              ></a-plane>
-
-              {/* Само изображение пользователя */}
-              <a-image
-                src="#userImage"
-                position="0 0.05 0"
-                rotation="-90 0 0"
-                width={arScale}
-                height={arScale}
-                opacity={opacity}
-                transparent="true"
-              ></a-image>
-            </a-marker>
-            
-            <a-entity camera></a-entity>
-          </a-scene>
-        </div>
-      );
-    });
 
     const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<App />);
