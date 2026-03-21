@@ -85,18 +85,29 @@
 
       // Функция включения камеры
       const startCamera = async () => {
-        try {
-          const stream = await navigator.mediaDevices.getUserMedia({ 
-            video: { facingMode: "environment" }, 
-            audio: false 
-          });
-          if (videoRef.current) {
-            videoRef.current.srcObject = stream;
-            setIsCameraActive(true);
+        const constraints = [
+          { video: { facingMode: "environment" }, audio: false }, // Приоритет: задняя камера
+          { video: true, audio: false } // Запасной вариант: любая камера
+        ];
+
+        let stream = null;
+        let lastError = null;
+
+        for (const config of constraints) {
+          try {
+            stream = await navigator.mediaDevices.getUserMedia(config);
+            if (stream) break;
+          } catch (err) {
+            lastError = err;
           }
-        } catch (err) {
-          console.error("Ошибка доступа к камере:", err);
-          alert("Не удалось включить камеру. Пожалуйста, дайте разрешение в настройках браузера.");
+        }
+
+        if (stream && videoRef.current) {
+          videoRef.current.srcObject = stream;
+          setIsCameraActive(true);
+        } else {
+          console.error("Ошибка доступа к камере:", lastError);
+          alert("Не удалось включить камеру. Убедитесь, что у вас есть подключенная камера и вы дали разрешение в браузере.");
         }
       };
 
