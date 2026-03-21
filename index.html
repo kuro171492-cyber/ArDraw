@@ -6,7 +6,12 @@
     <title>WebXR Wall Projector</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <style>
-        body { margin: 0; overflow: hidden; font-family: sans-serif; }
+        body { 
+            margin: 0; 
+            overflow: hidden; 
+            font-family: sans-serif; 
+            background-color: transparent; /* Делаем фон прозрачным */
+        }
         #overlay {
             position: absolute;
             bottom: 20px;
@@ -46,25 +51,25 @@
             color: white;
             text-shadow: 1px 1px 2px black;
             pointer-events: none;
+            z-index: 11;
         }
     </style>
 </head>
 <body>
 
     <div id="overlay">
-        <div id="info" class="info-msg">Поиск стены...</div>
+        <div id="info" class="info-msg">Нажмите кнопку для запуска AR</div>
         <div id="controls" class="controls">
             <label>Размер: </label>
-            <input type="range" id="scale-range" min="0.1" max="3" step="0.1" value="1">
+            <input type="range" id="scale-range" min="0.1" max="5" step="0.1" value="1">
             <button id="reset-btn" style="margin-left: 10px;">Сброс</button>
         </div>
         <button id="ar-button">Запустить AR</button>
     </div>
 
     <script type="module">
-        let container;
         let camera, scene, renderer;
-        let reticle; // Кольцо-маркер для поиска поверхности
+        let reticle; 
         let hitTestSource = null;
         let hitTestSourceRequested = false;
         let projectedImage = null;
@@ -75,22 +80,26 @@
         const scaleRange = document.getElementById('scale-range');
         const resetBtn = document.getElementById('reset-btn');
 
-        // Инициализация при нажатии кнопки
         arButton.addEventListener('click', () => {
             init();
         });
 
         async function init() {
             if (navigator.xr) {
-                const sessionInit = { requiredFeatures: ['hit-test'] };
-                const session = await navigator.xr.requestSession('immersive-ar', sessionInit);
-                
-                setupRenderer(session);
-                arButton.style.display = 'none';
-                controls.style.display = 'block';
-                info.innerText = "Наведите камеру на стену с текстурой";
+                try {
+                    const sessionInit = { requiredFeatures: ['hit-test'] };
+                    const session = await navigator.xr.requestSession('immersive-ar', sessionInit);
+                    
+                    setupRenderer(session);
+                    
+                    arButton.style.display = 'none';
+                    controls.style.display = 'block';
+                    info.innerText = "Наведите камеру на стену и дождитесь появления круга";
+                } catch (e) {
+                    alert("Ошибка запуска AR: " + e.message + "\nУбедитесь, что используете HTTPS.");
+                }
             } else {
-                alert("Ваш браузер или устройство не поддерживают WebXR");
+                alert("WebXR не поддерживается вашим браузером. На Android используйте Chrome, на iOS - WebXR Viewer.");
             }
         }
 
@@ -101,7 +110,11 @@
             const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
             scene.add(light);
 
-            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer = new THREE.WebGLRenderer({ 
+                antialias: true, 
+                alpha: true, 
+                preserveDrawingBuffer: true 
+            });
             renderer.setPixelRatio(window.devicePixelRatio);
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.xr.enabled = true;
@@ -109,34 +122,31 @@
 
             renderer.xr.setSession(session);
 
-            // Создаем маркер (кольцо), которое будет "бегать" по стене
+            // Создаем маркер-ретикул
             reticle = new THREE.Mesh(
-                new THREE.RingGeometry(0.08, 0.1, 32).rotateX(-Math.PI / 2),
-                new THREE.MeshBasicMaterial({ color: 0xffffff })
+                new THREE.RingGeometry(0.04, 0.05, 32).rotateX(-Math.PI / 2),
+                new THREE.MeshBasicMaterial({ color: 0x00ff00 }) // Сделаем зеленым для заметности
             );
             reticle.matrixAutoUpdate = false;
             reticle.visible = false;
             scene.add(reticle);
 
-            // Обработка клика для установки изображения
             session.addEventListener('select', onSelect);
-
             renderer.setAnimationLoop(render);
         }
 
         function onSelect() {
             if (reticle.visible) {
-                // Если изображение уже есть, перемещаем его, иначе создаем
                 if (!projectedImage) {
                     const textureLoader = new THREE.TextureLoader();
-                    // Используем заглушку. Пользователь может заменить URL
+                    // Тестовая картинка
                     const texture = textureLoader.load('https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?w=500&auto=format&fit=crop&q=60');
                     
                     const geometry = new THREE.PlaneGeometry(1, 1);
                     const material = new THREE.MeshBasicMaterial({ 
                         map: texture, 
                         transparent: true, 
-                        opacity: 0.7, // Полупрозрачность для удобства рисования
+                        opacity: 0.6,
                         side: THREE.DoubleSide 
                     });
                     
@@ -144,18 +154,14 @@
                     scene.add(projectedImage);
                 }
 
-                // Устанавливаем позицию и поворот как у ретикула
                 reticle.matrix.decompose(projectedImage.position, projectedImage.quaternion, projectedImage.scale);
-                
-                // Корректируем поворот, чтобы картинка стояла вертикально на стене
-                // По умолчанию Plane смотрит в Z, а ретикул лежит в XZ
+                // Поворот плоскости под вертикаль стены
                 projectedImage.rotateX(Math.PI / 2);
                 
-                info.innerText = "Изображение закреплено. Используйте слайдер для размера.";
+                info.innerText = "Закреплено! Можно рисовать.";
             }
         }
 
-        // Изменение масштаба
         scaleRange.addEventListener('input', (e) => {
             if (projectedImage) {
                 const s = parseFloat(e.target.value);
@@ -167,7 +173,7 @@
             if (projectedImage) {
                 scene.remove(projectedImage);
                 projectedImage = null;
-                info.innerText = "Наведите на стену и кликните";
+                info.innerText = "Ищите стену...";
             }
         });
 
@@ -181,10 +187,6 @@
                         session.requestHitTestSource({ space: referenceSpace }).then((source) => {
                             hitTestSource = source;
                         });
-                    });
-                    session.addEventListener('end', () => {
-                        hitTestSourceRequested = false;
-                        hitTestSource = null;
                     });
                     hitTestSourceRequested = true;
                 }
