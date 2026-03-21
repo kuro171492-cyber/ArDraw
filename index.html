@@ -3,30 +3,47 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Overlay & Grid Tool</title>
+    <title>AR Overlay & Grid Tool</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Подключаем A-Frame и AR.js для функционала дополненной реальности -->
+    <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
+    <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
     <style>
         body {
-            touch-action: none;
+            margin: 0;
             overflow: hidden;
-            background-color: #1a1a1a;
+            background-color: #000;
+            font-family: sans-serif;
         }
-        #canvas-container {
-            position: relative;
-            width: 100vw;
-            height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            overflow: hidden;
-        }
-        video, #overlay-img {
-            position: absolute;
-            user-select: none;
+        /* Стили для элементов интерфейса поверх AR-сцены */
+        .ui-layer {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
             pointer-events: none;
+            z-index: 1000;
+        }
+        .ui-layer * {
+            pointer-events: auto;
+        }
+        .controls {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 90%;
+            max-width: 500px;
+            background: rgba(0, 0, 0, 0.75);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 15px;
+            color: white;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
         }
         #grid-overlay {
-            position: absolute;
+            position: fixed;
             top: 0;
             left: 0;
             width: 100%;
@@ -35,145 +52,170 @@
             display: none;
             z-index: 10;
         }
-        .controls {
+        /* Инструкция для пользователя */
+        .ar-hint {
             position: fixed;
-            bottom: 20px;
+            top: 20px;
             left: 50%;
             transform: translateX(-50%);
-            z-index: 100;
-            width: 90%;
-            max-width: 500px;
-            background: rgba(0, 0, 0, 0.7);
-            backdrop-filter: blur(10px);
-            border-radius: 20px;
-            padding: 15px;
-            color: white;
-        }
-        .gesture-area {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 5;
-            touch-action: none;
+            background: rgba(0,0,0,0.6);
+            padding: 10px 20px;
+            border-radius: 30px;
+            color: #fff;
+            font-size: 14px;
+            text-align: center;
+            z-index: 1001;
         }
     </style>
 </head>
-<body class="bg-gray-900">
+<body>
 
-<div id="canvas-container">
-    <!-- Камера -->
-    <video id="camera-stream" autoplay playsinline class="w-full h-full object-cover"></video>
-    
-    <!-- Загруженное изображение -->
-    <img id="overlay-img" src="" alt="" style="display: none; transform-origin: center;">
+    <!-- Подсказка для AR режима -->
+    <div class="ar-hint" id="ar-hint">
+        Направьте камеру на маркер "Hiro" или белый лист
+    </div>
 
-    <!-- Сетка -->
+    <!-- Холст для сетки -->
     <canvas id="grid-overlay"></canvas>
 
-    <!-- Область для жестов -->
-    <div class="gesture-area" id="gesture-zone"></div>
-</div>
-
-<div class="controls shadow-2xl flex flex-col gap-4">
-    <div class="flex justify-between items-center gap-2">
-        <label class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-full cursor-pointer text-sm transition flex-1 text-center">
-            Открыть фото
-            <input type="file" id="file-input" accept="image/*" class="hidden">
-        </label>
+    <!-- AR Сцена -->
+    <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;" vr-mode-ui="enabled: false">
         
-        <button id="toggle-camera" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-full text-sm transition flex-1">
-            Камера: Вкл/Выкл
-        </button>
+        <!-- Ассеты -->
+        <a-assets>
+            <!-- Плейсхолдер для загруженного изображения -->
+            <img id="dynamic-texture" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7">
+        </a-assets>
 
-        <button id="toggle-grid" class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-full text-sm transition flex-1 text-center">
-            Сетка
-        </button>
-    </div>
+        <!-- Маркер (используем стандартный маркер Hiro) -->
+        <!-- Вы можете распечатать маркер Hiro или использовать его изображение на другом экране -->
+        <a-marker preset="hiro" id="marker">
+            <!-- Плоскость, на которую накладывается изображение -->
+            <a-plane 
+                id="ar-plane"
+                position="0 0 0" 
+                rotation="-90 0 0" 
+                width="1" 
+                height="1" 
+                material="src: #dynamic-texture; transparent: true; opacity: 0.5; side: double">
+            </a-plane>
+        </a-marker>
 
-    <div class="flex flex-col gap-1">
-        <label class="text-xs text-gray-300">Прозрачность изображения</label>
-        <input type="range" id="opacity-slider" min="0" max="1" step="0.01" value="0.5" class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer">
-    </div>
+        <a-entity camera></a-entity>
+    </a-scene>
 
-    <div class="text-[10px] text-gray-400 text-center">
-        Управление: 1 палец — перемещение, 2 пальца — масштаб и поворот
+    <!-- UI Интерфейс -->
+    <div class="ui-layer">
+        <div class="controls flex flex-col gap-4">
+            <div class="flex justify-between items-center gap-2">
+                <label class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-full cursor-pointer text-sm transition flex-1 text-center font-medium">
+                    Выбрать фото
+                    <input type="file" id="file-input" accept="image/*" class="hidden">
+                </label>
+                
+                <button id="toggle-grid" class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-full text-sm transition flex-1 text-center">
+                    Сетка
+                </button>
+
+                <button id="reset-transform" class="bg-red-900/50 hover:bg-red-800 text-white px-4 py-2 rounded-full text-sm transition flex-1 text-center">
+                    Сброс
+                </button>
+            </div>
+
+            <div class="flex flex-col gap-1">
+                <div class="flex justify-between">
+                    <label class="text-xs text-gray-300">Прозрачность</label>
+                    <span id="opacity-val" class="text-xs text-blue-400">0.5</span>
+                </div>
+                <input type="range" id="opacity-slider" min="0" max="1" step="0.01" value="0.5" class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer">
+            </div>
+
+            <div class="flex flex-col gap-1">
+                <div class="flex justify-between">
+                    <label class="text-xs text-gray-300">Размер изображения в AR</label>
+                </div>
+                <input type="range" id="scale-slider" min="0.1" max="5" step="0.1" value="1" class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer">
+            </div>
+
+            <div class="text-[10px] text-gray-400 text-center uppercase tracking-wider">
+                Положите маркер Hiro на лист бумаги
+            </div>
+        </div>
     </div>
-</div>
 
 <script>
     const fileInput = document.getElementById('file-input');
-    const overlayImg = document.getElementById('overlay-img');
-    const video = document.getElementById('camera-stream');
-    const toggleCameraBtn = document.getElementById('toggle-camera');
+    const arPlane = document.getElementById('ar-plane');
+    const textureImg = document.getElementById('dynamic-texture');
+    const opacitySlider = document.getElementById('opacity-slider');
+    const opacityVal = document.getElementById('opacity-val');
+    const scaleSlider = document.getElementById('scale-slider');
     const toggleGridBtn = document.getElementById('toggle-grid');
     const gridCanvas = document.getElementById('grid-overlay');
-    const opacitySlider = document.getElementById('opacity-slider');
-    const gestureZone = document.getElementById('gesture-zone');
+    const resetBtn = document.getElementById('reset-transform');
+    const marker = document.getElementById('marker');
+    const hint = document.getElementById('ar-hint');
 
-    let stream = null;
     let gridVisible = false;
 
-    // Состояние трансформации
-    let state = {
-        x: 0,
-        y: 0,
-        scale: 1,
-        rotation: 0,
-        lastX: 0,
-        lastY: 0,
-        lastDist: 0,
-        lastAngle: 0
-    };
-
-    // --- Камера ---
-    async function initCamera() {
-        if (stream) {
-            stream.getTracks().forEach(track => track.stop());
-            video.srcObject = null;
-            stream = null;
-            return;
-        }
-        try {
-            stream = await navigator.mediaDevices.getUserMedia({ 
-                video: { facingMode: "environment" }, 
-                audio: false 
-            });
-            video.srcObject = stream;
-        } catch (err) {
-            console.error("Ошибка доступа к камере:", err);
-            alert("Не удалось включить камеру. Проверьте разрешения.");
-        }
-    }
-
-    toggleCameraBtn.onclick = initCamera;
-
-    // --- Загрузка фото ---
+    // --- Загрузка изображения ---
     fileInput.onchange = (e) => {
         const file = e.target.files[0];
         if (file) {
             const reader = new FileReader();
             reader.onload = (event) => {
-                overlayImg.src = event.target.result;
-                overlayImg.style.display = 'block';
-                overlayImg.style.pointerEvents = 'none';
-                // Сброс позиции
-                state.x = 0; state.y = 0; state.scale = 0.5; state.rotation = 0;
-                applyTransform();
+                // Обновляем src ассета
+                textureImg.setAttribute('src', event.target.result);
+                
+                // Ждем загрузки картинки, чтобы скорректировать пропорции плоскости
+                const tempImg = new Image();
+                tempImg.onload = function() {
+                    const aspect = this.width / this.height;
+                    if (aspect > 1) {
+                        arPlane.setAttribute('width', aspect);
+                        arPlane.setAttribute('height', 1);
+                    } else {
+                        arPlane.setAttribute('width', 1);
+                        arPlane.setAttribute('height', 1 / aspect);
+                    }
+                };
+                tempImg.src = event.target.result;
             };
             reader.readAsDataURL(file);
         }
     };
 
-    // --- Сетка ---
+    // --- Прозрачность ---
+    opacitySlider.oninput = (e) => {
+        const val = e.target.value;
+        arPlane.setAttribute('material', `src: #dynamic-texture; transparent: true; opacity: ${val}; side: double`);
+        opacityVal.innerText = val;
+    };
+
+    // --- Масштаб в AR ---
+    scaleSlider.oninput = (e) => {
+        const s = e.target.value;
+        arPlane.setAttribute('scale', `${s} ${s} ${s}`);
+    };
+
+    // --- Сброс ---
+    resetBtn.onclick = () => {
+        scaleSlider.value = 1;
+        opacitySlider.value = 0.5;
+        opacityVal.innerText = "0.5";
+        arPlane.setAttribute('scale', '1 1 1');
+        arPlane.setAttribute('material', `src: #dynamic-texture; transparent: true; opacity: 0.5; side: double`);
+        arPlane.setAttribute('rotation', '-90 0 0');
+    };
+
+    // --- Сетка (2D overlay) ---
     function drawGrid() {
         const ctx = gridCanvas.getContext('2d');
         gridCanvas.width = window.innerWidth;
         gridCanvas.height = window.innerHeight;
         
         ctx.clearRect(0, 0, gridCanvas.width, gridCanvas.height);
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
         ctx.lineWidth = 1;
 
         const step = 50; 
@@ -191,78 +233,18 @@
         if (gridVisible) drawGrid();
     };
 
-    window.onresize = () => { if (gridVisible) drawGrid(); };
-
-    // --- Прозрачность ---
-    opacitySlider.oninput = (e) => {
-        overlayImg.style.opacity = e.target.value;
-    };
-
-    // --- Жесты (Touch Events) ---
-    function applyTransform() {
-        overlayImg.style.transform = `translate(${state.x}px, ${state.y}px) scale(${state.scale}) rotate(${state.rotation}deg)`;
-    }
-
-    let activeTouches = [];
-
-    gestureZone.addEventListener('touchstart', (e) => {
-        activeTouches = Array.from(e.touches);
-        if (activeTouches.length === 1) {
-            state.lastX = activeTouches[0].clientX;
-            state.lastY = activeTouches[0].clientY;
-        } else if (activeTouches.length === 2) {
-            state.lastDist = Math.hypot(
-                activeTouches[0].clientX - activeTouches[1].clientX,
-                activeTouches[0].clientY - activeTouches[1].clientY
-            );
-            state.lastAngle = Math.atan2(
-                activeTouches[1].clientY - activeTouches[0].clientY,
-                activeTouches[1].clientX - activeTouches[0].clientX
-            ) * 180 / Math.PI;
-        }
+    // События обнаружения маркера для подсказок
+    marker.addEventListener('markerFound', () => {
+        hint.innerText = "Маркер найден!";
+        hint.style.background = "rgba(0, 150, 0, 0.7)";
     });
 
-    gestureZone.addEventListener('touchmove', (e) => {
-        e.preventDefault();
-        const touches = Array.from(e.touches);
+    marker.addEventListener('markerLost', () => {
+        hint.innerText = "Направьте камеру на маркер Hiro";
+        hint.style.background = "rgba(0, 0, 0, 0.6)";
+    });
 
-        if (touches.length === 1) {
-            // Перемещение
-            const dx = touches[0].clientX - state.lastX;
-            const dy = touches[0].clientY - state.lastY;
-            state.x += dx;
-            state.y += dy;
-            state.lastX = touches[0].clientX;
-            state.lastY = touches[0].clientY;
-        } else if (touches.length === 2) {
-            // Масштаб
-            const dist = Math.hypot(
-                touches[0].clientX - touches[1].clientX,
-                touches[0].clientY - touches[1].clientY
-            );
-            const scaleFactor = dist / state.lastDist;
-            state.scale *= scaleFactor;
-            state.lastDist = dist;
-
-            // Поворот
-            const angle = Math.atan2(
-                touches[1].clientY - touches[0].clientY,
-                touches[1].clientX - touches[0].clientX
-            ) * 180 / Math.PI;
-            const da = angle - state.lastAngle;
-            state.rotation += da;
-            state.lastAngle = angle;
-        }
-        applyTransform();
-    }, { passive: false });
-
-    // Поддержка колесика мыши для масштаба на ПК
-    gestureZone.addEventListener('wheel', (e) => {
-        e.preventDefault();
-        const delta = e.deltaY > 0 ? 0.9 : 1.1;
-        state.scale *= delta;
-        applyTransform();
-    }, { passive: false });
+    window.onresize = () => { if (gridVisible) drawGrid(); };
 
 </script>
 </body>
