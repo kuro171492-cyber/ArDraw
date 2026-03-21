@@ -1,421 +1,298 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>ArDraw - AR Projector</title>
-    <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/ar.js@3.4.5/three.js/r128/ar.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@r128/build/three.min.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AR Трафарет v1.2</title>
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            -webkit-user-select: none;
-            user-select: none;
+        /* Базовые стили для предотвращения прокрутки и выделения */
+        body, html {
+            margin: 0; padding: 0; width: 100%; height: 100%;
+            overflow: hidden; background-color: #000; touch-action: none;
+            -webkit-user-select: none; user-select: none;
         }
+
+        /* Стиль для референсного изображения */
+        #referenceImage {
+            transform-origin: center center;
+            will-change: transform;
+            max-width: 95vw; max-height: 95vh;
+            object-fit: contain;
+            pointer-events: none; /* Касания ловит контейнер */
+        }
+
+        /* Анимации для интерфейса */
+        .ui-transition { transition: transform 0.3s ease-in-out, opacity 0.3s ease-in-out; }
+        .hidden-ui { transform: translateY(150%); opacity: 0; pointer-events: none; }
         
-        html, body {
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
-
-        #arContainer {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 1;
-        }
-
-        #uiPanel {
-            position: fixed;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 100;
-            background: rgba(0, 0, 0, 0.8);
-            backdrop-filter: blur(10px);
-            border-radius: 15px;
-            padding: 15px;
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-            justify-content: center;
-            max-width: 90vw;
-        }
-
-        .control-btn {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border: none;
-            color: white;
-            padding: 12px 16px;
-            border-radius: 8px;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
-        }
-
-        .control-btn:active {
-            transform: scale(0.95);
-            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.6);
-        }
-
-        .control-btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-
-        #topPanel {
-            position: fixed;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 100;
-            background: rgba(0, 0, 0, 0.8);
-            backdrop-filter: blur(10px);
-            border-radius: 15px;
-            padding: 15px;
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-            justify-content: center;
-            max-width: 90vw;
-        }
-
-        #imageLoader {
-            display: none;
-        }
-
-        .slider-container {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            background: rgba(255, 255, 255, 0.1);
-            padding: 8px 12px;
-            border-radius: 8px;
-        }
-
-        .slider-label {
-            color: white;
-            font-size: 12px;
-            min-width: 60px;
-        }
-
-        input[type="range"] {
-            width: 120px;
-            height: 6px;
-            cursor: pointer;
-        }
-
-        .status-text {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            z-index: 50;
-            color: white;
-            font-size: 18px;
-            text-align: center;
-            background: rgba(0, 0, 0, 0.7);
-            padding: 20px;
-            border-radius: 10px;
-            display: none;
+        /* Сетка для помощи в рисовании */
+        #drawingGrid {
+            background-image: 
+                linear-gradient(to right, rgba(255,255,255,0.15) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(255,255,255,0.15) 1px, transparent 1px);
+            background-size: 50px 50px;
             pointer-events: none;
+            display: none;
+            z-index: 5;
         }
 
-        .info-panel {
-            position: fixed;
-            top: 80px;
-            right: 20px;
-            z-index: 100;
-            background: rgba(0, 0, 0, 0.8);
-            backdrop-filter: blur(10px);
-            border-radius: 10px;
-            padding: 12px;
-            color: white;
-            font-size: 12px;
-            min-width: 120px;
-        }
-
-        .info-panel div {
-            margin: 4px 0;
-        }
-
-        .info-label {
-            color: #667eea;
-            font-weight: 600;
-        }
-
-        @media (max-width: 480px) {
-            #uiPanel, #topPanel {
-                padding: 12px;
-                gap: 8px;
-                bottom: 10px;
-                top: 10px;
-            }
-
-            .control-btn {
-                padding: 10px 12px;
-                font-size: 12px;
-            }
-
-            .info-panel {
-                top: 10px;
-                right: 10px;
-                padding: 8px;
-                font-size: 11px;
-            }
+        /* Стиль ползунка (кастомный акцент) */
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 24px;
+            width: 24px;
+            border-radius: 50%;
+            background: #6366f1;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(0,0,0,0.5);
         }
     </style>
 </head>
-<body>
-    <div id="arContainer">
-        <a-scene
-            embedded
-            arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono; matrixCodeType: 3x3;"
-            renderer="antialias: true; alpha: true; precision: mediump;"
-            vr-mode-ui="enabled: false"
-        >
-            <a-camera position="0 0 0" look-controls="enabled: false" wasd-controls="enabled: false"></a-camera>
-            
-            <a-entity
-                id="referenceImageEntity"
-                geometry="primitive: plane; width: 1; height: 1"
-                material="src: #defaultImage; transparent: true; side: double;"
-                position="0 0 0"
-                rotation="0 0 0"
-                scale="1 1 1"
-            ></a-entity>
+<body class="text-white font-sans">
 
-            <img id="defaultImage" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect width='100' height='100' fill='%23ddd'/%3E%3Ctext x='50' y='50' font-size='14' text-anchor='middle' dy='.3em' fill='%23999'%3ENo Image%3C/text%3E%3C/svg%3E" alt="default">
-        </a-scene>
-    </div>
-
-    <div id="topPanel">
-        <input type="file" id="imageLoader" accept="image/*">
-        <button class="control-btn" id="loadImageBtn">📁 Load Image</button>
-        <button class="control-btn" id="resetBtn">🔄 Reset</button>
-    </div>
-
-    <div id="uiPanel">
-        <div class="slider-container">
-            <span class="slider-label">Opacity</span>
-            <input type="range" id="opacitySlider" min="0" max="1" step="0.1" value="0.8">
-        </div>
+    <!-- Основной слой приложения -->
+    <div id="touchContainer" class="relative w-full h-full flex items-center justify-center overflow-hidden">
         
-        <div class="slider-container">
-            <span class="slider-label">Scale</span>
-            <input type="range" id="scaleSlider" min="0.1" max="5" step="0.1" value="1">
+        <!-- Слой 0: Видео поток с камеры -->
+        <video id="cameraFeed" autoplay playsinline class="absolute inset-0 w-full h-full object-cover z-0"></video>
+
+        <!-- Слой 1: Вспомогательная сетка -->
+        <div id="drawingGrid" class="absolute inset-0"></div>
+
+        <!-- Слой 2: Контейнер для референса -->
+        <div class="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
+            <img id="referenceImage" src="" alt="" style="display: none; opacity: 0.5;">
         </div>
 
-        <button class="control-btn" id="rotateLeftBtn">↺ Rotate L</button>
-        <button class="control-btn" id="rotateRightBtn">↻ Rotate R</button>
-        <button class="control-btn" id="toggleStabilizeBtn">🎯 Stabilize</button>
-    </div>
+        <!-- Слой 3: Сообщения об ошибках или статусе -->
+        <div id="statusMessage" class="absolute z-50 bg-gray-900/95 border border-indigo-500/50 p-8 rounded-3xl text-center max-w-[85%] shadow-2xl backdrop-blur-md">
+            <div id="statusIcon" class="text-5xl mb-4">📸</div>
+            <div id="statusText" class="text-xl font-bold mb-2">Доступ к камере</div>
+            <div id="statusSubtext" class="text-sm text-gray-400 leading-relaxed">
+                Пожалуйста, разрешите доступ к камере. <br>
+                Приложение должно работать через <b>HTTPS</b>.
+            </div>
+        </div>
 
-    <div id="statusText" class="status-text"></div>
+        <!-- Слой 4: Нижняя панель управления -->
+        <div id="uiPanel" class="absolute bottom-6 left-4 right-4 z-40 bg-gray-950/90 backdrop-blur-2xl p-6 rounded-[2.5rem] shadow-[0_-10px_40px_rgba(0,0,0,0.5)] ui-transition flex flex-col gap-5 border border-white/10">
+            
+            <!-- Кнопки действий -->
+            <div class="flex justify-between items-center gap-3">
+                <label class="bg-indigo-600 hover:bg-indigo-500 active:scale-95 transition-all px-5 py-4 rounded-2xl cursor-pointer font-black flex-1 text-center shadow-lg text-xs uppercase tracking-[0.1em]">
+                    🖼️ Выбрать фото
+                    <input type="file" id="imageInput" accept="image/*" class="hidden">
+                </label>
+                
+                <button id="gridBtn" class="bg-gray-800 hover:bg-gray-700 active:scale-90 transition-all p-4 rounded-2xl shadow-lg w-14 h-14 flex items-center justify-center text-xl" title="Сетка">
+                    #
+                </button>
 
-    <div class="info-panel">
-        <div><span class="info-label">Status:</span> <span id="statusInfo">Ready</span></div>
-        <div><span class="info-label">Distance:</span> <span id="distanceInfo">--</span></div>
-        <div><span class="info-label">Rotation:</span> <span id="rotationInfo">0°</span></div>
-        <div><span class="info-label">Scale:</span> <span id="scaleInfo">1.0</span></div>
+                <button id="lockBtn" class="bg-gray-800 hover:bg-gray-700 active:scale-90 transition-all p-4 rounded-2xl shadow-lg w-14 h-14 flex items-center justify-center text-xl" title="Заблокировать">
+                    🔓
+                </button>
+                
+                <button id="resetBtn" class="bg-gray-800 hover:bg-gray-700 active:scale-90 transition-all p-4 rounded-2xl shadow-lg w-14 h-14 flex items-center justify-center" title="Сбросить масштаб">
+                    🔄
+                </button>
+                
+                <button id="hideUiBtn" class="bg-rose-600 hover:bg-rose-500 active:scale-90 transition-all p-4 rounded-2xl shadow-lg w-14 h-14 flex items-center justify-center text-xl" title="Скрыть меню">
+                    👁️
+                </button>
+            </div>
+
+            <!-- Управление прозрачностью -->
+            <div class="flex flex-col gap-3 bg-white/5 p-4 rounded-2xl border border-white/5">
+                <div class="flex justify-between items-end">
+                    <span class="text-[10px] font-black uppercase tracking-widest text-indigo-400">Прозрачность референса</span>
+                    <span id="opacityValue" class="text-sm font-mono font-bold text-white">50%</span>
+                </div>
+                <input type="range" id="opacitySlider" min="0.01" max="1" step="0.01" value="0.5" class="w-full h-1.5 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-indigo-500">
+            </div>
+        </div>
+
+        <!-- Кнопка вызова меню (когда оно скрыто) -->
+        <button id="showUiBtn" class="absolute bottom-8 right-8 z-50 bg-indigo-600/90 backdrop-blur-md border border-white/20 p-5 rounded-full shadow-2xl transform scale-0 opacity-0 transition-all duration-300 text-2xl active:scale-75">
+            ⚙️
+        </button>
+
     </div>
 
     <script>
-        // AR Projector Application for Artists
-        class ARProjector {
-            constructor() {
-                this.imageEntity = document.getElementById('referenceImageEntity');
-                this.loadImageBtn = document.getElementById('loadImageBtn');
-                this.imageLoader = document.getElementById('imageLoader');
-                this.resetBtn = document.getElementById('resetBtn');
-                this.opacitySlider = document.getElementById('opacitySlider');
-                this.scaleSlider = document.getElementById('scaleSlider');
-                this.rotateLeftBtn = document.getElementById('rotateLeftBtn');
-                this.rotateRightBtn = document.getElementById('rotateRightBtn');
-                this.toggleStabilizeBtn = document.getElementById('toggleStabilizeBtn');
-                this.statusText = document.getElementById('statusText');
+        // Глобальные переменные и настройки
+        const video = document.getElementById('cameraFeed');
+        const imageInput = document.getElementById('imageInput');
+        const referenceImage = document.getElementById('referenceImage');
+        const opacitySlider = document.getElementById('opacitySlider');
+        const opacityValueDisplay = document.getElementById('opacityValue');
+        const statusMessage = document.getElementById('statusMessage');
+        const statusIcon = document.getElementById('statusIcon');
+        const statusText = document.getElementById('statusText');
+        const statusSubtext = document.getElementById('statusSubtext');
+        const uiPanel = document.getElementById('uiPanel');
+        const showUiBtn = document.getElementById('showUiBtn');
+        const lockBtn = document.getElementById('lockBtn');
+        const gridBtn = document.getElementById('gridBtn');
+        const drawingGrid = document.getElementById('drawingGrid');
+        const touchContainer = document.getElementById('touchContainer');
 
-                // State
-                this.currentRotation = 0;
-                this.currentScale = 1;
-                this.currentOpacity = 0.8;
-                this.isStabilized = false;
-                this.stabilizedPosition = { x: 0, y: 0, z: 0 };
-                this.stabilizedRotation = { x: 0, y: 0, z: 0 };
-                this.initialDistance = null;
-                this.lastPinchDistance = 0;
+        let scale = 1, posX = 0, posY = 0;
+        let isDragging = false, startDragX = 0, startDragY = 0, startDistance = 0, startScale = 1;
+        let isLocked = false, isGridVisible = false;
 
-                this.init();
+        // 1. Восстановление сохраненной прозрачности
+        const savedOpacity = localStorage.getItem('arStencilOpacity');
+        if (savedOpacity) {
+            opacitySlider.value = savedOpacity;
+            referenceImage.style.opacity = savedOpacity;
+            opacityValueDisplay.innerText = Math.round(savedOpacity * 100) + '%';
+        }
+
+        // 2. Инициализация камеры (только HTTPS)
+        async function startApp() {
+            if (location.protocol !== 'https:' && !['localhost', '127.0.0.1'].includes(location.hostname)) {
+                updateStatus("⚠️ Ошибка HTTPS", "Камера не запустится. Загрузите файл на хостинг с поддержкой HTTPS (например, GitHub Pages).", "🔐");
+                return;
             }
 
-            init() {
-                // Event listeners
-                this.loadImageBtn.addEventListener('click', () => this.imageLoader.click());
-                this.imageLoader.addEventListener('change', (e) => this.handleImageUpload(e));
-                this.resetBtn.addEventListener('click', () => this.reset());
-                this.opacitySlider.addEventListener('input', (e) => this.updateOpacity(e.target.value));
-                this.scaleSlider.addEventListener('input', (e) => this.updateScale(e.target.value));
-                this.rotateLeftBtn.addEventListener('click', () => this.rotateImage(-15));
-                this.rotateRightBtn.addEventListener('click', () => this.rotateImage(15));
-                this.toggleStabilizeBtn.addEventListener('click', () => this.toggleStabilization());
-
-                // Touch events for distance-based zoom
-                document.addEventListener('touchmove', (e) => this.handlePinchZoom(e), { passive: false });
-
-                // Animation loop
-                this.animate();
-                this.showStatus('Ready to load image');
-            }
-
-            handleImageUpload(event) {
-                const file = event.target.files[0];
-                if (file) {
-                    const reader = new FileReader();
-                    reader.onload = (e) => {
-                        const dataUrl = e.target.result;
-                        const img = document.createElement('img');
-                        img.src = dataUrl;
-                        img.id = 'uploadedImage';
-                        
-                        // Store image in head
-                        const existingImg = document.getElementById('uploadedImage');
-                        if (existingImg) {
-                            existingImg.remove();
-                        }
-                        img.style.display = 'none';
-                        document.head.appendChild(img);
-
-                        // Update material
-                        this.imageEntity.setAttribute('material', `src: #uploadedImage; transparent: true; side: double; opacity: ${this.currentOpacity}`);
-                        
-                        this.showStatus('✓ Image loaded successfully');
-                        localStorage.setItem('lastImage', dataUrl);
-                    };
-                    reader.readAsDataURL(file);
-                }
-            }
-
-            updateOpacity(value) {
-                this.currentOpacity = parseFloat(value);
-                this.imageEntity.setAttribute('material', `opacity: ${this.currentOpacity}`);
-                document.getElementById('statusInfo').textContent = `Opacity: ${(this.currentOpacity * 100).toFixed(0)}%`;
-            }
-
-            updateScale(value) {
-                this.currentScale = parseFloat(value);
-                const scale = `${this.currentScale} ${this.currentScale} 1`;
-                this.imageEntity.setAttribute('scale', scale);
-                document.getElementById('scaleInfo').textContent = this.currentScale.toFixed(1);
-            }
-
-            rotateImage(degrees) {
-                this.currentRotation += degrees;
-                const rad = (this.currentRotation * Math.PI) / 180;
-                this.imageEntity.setAttribute('rotation', `0 0 ${this.currentRotation}`);
-                document.getElementById('rotationInfo').textContent = `${this.currentRotation}°`;
-            }
-
-            toggleStabilization() {
-                this.isStabilized = !this.isStabilized;
-                if (this.isStabilized) {
-                    const pos = this.imageEntity.getAttribute('position');
-                    const rot = this.imageEntity.getAttribute('rotation');
-                    this.stabilizedPosition = { ...pos };
-                    this.stabilizedRotation = { ...rot };
-                    this.toggleStabilizeBtn.style.background = 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)';
-                    this.showStatus('🎯 Stabilization ON - Position locked');
-                } else {
-                    this.toggleStabilizeBtn.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
-                    this.showStatus('🎯 Stabilization OFF');
-                }
-            }
-
-            handlePinchZoom(event) {
-                const touches = event.touches;
-                if (touches.length === 2) {
-                    event.preventDefault();
-                    const touch1 = touches[0];
-                    const touch2 = touches[1];
-                    
-                    const distance = Math.hypot(
-                        touch2.clientX - touch1.clientX,
-                        touch2.clientY - touch1.clientY
-                    );
-
-                    if (this.lastPinchDistance > 0) {
-                        const scale = distance / this.lastPinchDistance;
-                        let newScale = this.currentScale * scale;
-                        newScale = Math.max(0.1, Math.min(5, newScale));
-                         
-                        this.scaleSlider.value = newScale;
-                        this.updateScale(newScale);
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { 
+                        facingMode: 'environment', // Приоритет задней камере
+                        width: { ideal: 1920 },
+                        height: { ideal: 1080 }
                     }
-                    this.lastPinchDistance = distance;
-                } else {
-                    this.lastPinchDistance = 0;
-                }
-            }
-
-            animate() {
-                if (this.isStabilized) {
-                    this.imageEntity.setAttribute('position', 
-                        `${this.stabilizedPosition.x} ${this.stabilizedPosition.y} ${this.stabilizedPosition.z}`
-                    );
-                    document.getElementById('statusInfo').textContent = 'Stabilized';
-                }
-
-                // Distance-based auto-zoom simulation
-                if (this.initialDistance === null) {
-                    this.initialDistance = 1;
-                }
-
-                requestAnimationFrame(() => this.animate());
-            }
-
-            showStatus(message) {
-                this.statusText.textContent = message;
-                this.statusText.style.display = 'block';
-                setTimeout(() => {
-                    this.statusText.style.display = 'none';
-                }, 2000);
-            }
-
-            reset() {
-                this.currentRotation = 0;
-                this.currentScale = 1;
-                this.currentOpacity = 0.8;
-                this.isStabilized = false;
-
-                this.imageEntity.setAttribute('position', '0 0 0');
-                this.imageEntity.setAttribute('rotation', '0 0 0');
-                this.imageEntity.setAttribute('scale', '1 1 1');
-                this.imageEntity.setAttribute('material', 'opacity: 0.8');
-
-                this.opacitySlider.value = 0.8;
-                this.scaleSlider.value = 1;
-                this.toggleStabilizeBtn.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
-
-                this.showStatus('🔄 Reset to defaults');
+                });
+                video.srcObject = stream;
+                video.onloadedmetadata = () => {
+                    statusMessage.style.opacity = '0';
+                    setTimeout(() => statusMessage.style.display = 'none', 300);
+                };
+            } catch (err) {
+                updateStatus("Камера недоступна", "Нажмите 'Разрешить' при запросе браузера или проверьте настройки разрешений.", "🚫");
             }
         }
 
-        // Initialize when document is ready
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', () => {
-                new ARProjector();
-            });
-        } else {
-            new ARProjector();
+        function updateStatus(title, sub, icon) {
+            statusIcon.innerText = icon;
+            statusText.innerText = title;
+            statusSubtext.innerText = sub;
+            statusMessage.classList.add('border-rose-500');
         }
+
+        startApp();
+
+        // 3. Обработка загрузки файла
+        imageInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (ev) => {
+                    referenceImage.src = ev.target.result;
+                    referenceImage.style.display = 'block';
+                    resetTransform();
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // 4. Управление прозрачностью
+        opacitySlider.addEventListener('input', (e) => {
+            const val = e.target.value;
+            referenceImage.style.opacity = val;
+            opacityValueDisplay.innerText = Math.round(val * 100) + '%';
+            localStorage.setItem('arStencilOpacity', val);
+        });
+
+        // 5. Логика трансформаций (Перемещение и Масштабирование)
+        function applyTransform() {
+            referenceImage.style.transform = `translate(${posX}px, ${posY}px) scale(${scale})`;
+        }
+
+        function resetTransform() {
+            scale = 1; posX = 0; posY = 0;
+            applyTransform();
+        }
+
+        document.getElementById('resetBtn').addEventListener('click', resetTransform);
+
+        // 6. Сетка
+        gridBtn.addEventListener('click', () => {
+            isGridVisible = !isGridVisible;
+            drawingGrid.style.display = isGridVisible ? 'block' : 'none';
+            gridBtn.classList.toggle('bg-indigo-600', isGridVisible);
+            gridBtn.classList.toggle('bg-gray-800', !isGridVisible);
+        });
+
+        // 7. Обработка Touch-событий (Жесты)
+        touchContainer.addEventListener('touchstart', (e) => {
+            if (e.target.closest('#uiPanel') || e.target.closest('#showUiBtn') || isLocked) return;
+            
+            if (e.touches.length === 1) {
+                isDragging = true;
+                startDragX = e.touches[0].clientX - posX;
+                startDragY = e.touches[0].clientY - posY;
+            } else if (e.touches.length === 2) {
+                isDragging = false;
+                startDistance = Math.hypot(
+                    e.touches[0].clientX - e.touches[1].clientX,
+                    e.touches[0].clientY - e.touches[1].clientY
+                );
+                startScale = scale;
+            }
+        }, { passive: false });
+
+        touchContainer.addEventListener('touchmove', (e) => {
+            if (e.target.closest('#uiPanel') || e.target.closest('#showUiBtn')) return;
+            
+            // Предотвращаем системные жесты браузера (свайп вниз для обновления и т.д.)
+            e.preventDefault(); 
+            
+            if (isLocked) return;
+
+            if (e.touches.length === 1 && isDragging) {
+                posX = e.touches[0].clientX - startDragX;
+                posY = e.touches[0].clientY - startDragY;
+            } else if (e.touches.length === 2) {
+                const currentDist = Math.hypot(
+                    e.touches[0].clientX - e.touches[1].clientX,
+                    e.touches[0].clientY - e.touches[1].clientY
+                );
+                if (startDistance > 0) {
+                    scale = startScale * (currentDist / startDistance);
+                    scale = Math.max(0.05, Math.min(scale, 15)); // Лимиты зума
+                }
+            }
+            applyTransform();
+        }, { passive: false });
+
+        touchContainer.addEventListener('touchend', () => {
+            isDragging = false;
+        });
+
+        // 8. Видимость интерфейса
+        document.getElementById('hideUiBtn').addEventListener('click', () => {
+            uiPanel.classList.add('hidden-ui');
+            showUiBtn.classList.remove('scale-0', 'opacity-0');
+        });
+
+        showUiBtn.addEventListener('click', () => {
+            uiPanel.classList.remove('hidden-ui');
+            showUiBtn.classList.add('scale-0', 'opacity-0');
+        });
+
+        // 9. Блокировка (Замок)
+        lockBtn.addEventListener('click', () => {
+            isLocked = !isLocked;
+            lockBtn.innerHTML = isLocked ? '🔒' : '🔓';
+            lockBtn.classList.toggle('bg-indigo-600', isLocked);
+            lockBtn.classList.toggle('bg-gray-800', !isLocked);
+        });
+
+        // Автоматическая подстройка под размер экрана при повороте
+        window.addEventListener('resize', resetTransform);
+
     </script>
 </body>
 </html>
