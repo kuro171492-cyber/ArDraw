@@ -20,7 +20,6 @@
       background-color: #0f172a;
     }
 
-    /* Видео на весь экран */
     #camera-stream {
       width: 100vw;
       height: 100vh;
@@ -31,14 +30,13 @@
       z-index: 1;
     }
 
-    /* Слой с накладываемым изображением */
     .overlay-container {
       position: fixed;
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
       z-index: 10;
-      pointer-events: none; /* Чтобы можно было нажимать кнопки под картинкой, если нужно */
+      pointer-events: none;
     }
 
     .overlay-img {
@@ -47,7 +45,6 @@
       transition: all 0.2s ease;
     }
 
-    /* Ползунки */
     input[type=range] {
       -webkit-appearance: none;
       width: 100%;
@@ -73,51 +70,59 @@
   <div id="root"></div>
 
   <script type="text/babel">
-    const { useState, useRef, useEffect } = React;
+    const { useState, useRef } = React;
 
     function App() {
       const [image, setImage] = useState(null);
       const [isCameraActive, setIsCameraActive] = useState(false);
       const [opacity, setOpacity] = useState(0.5);
       const [scale, setScale] = useState(1);
+      const [errorMsg, setErrorMsg] = useState(null);
       const videoRef = useRef(null);
       const fileInputRef = useRef(null);
 
-      // Функция включения камеры
       const startCamera = async () => {
-        const constraints = [
-          { video: { facingMode: "environment" }, audio: false }, // Приоритет: задняя камера
-          { video: true, audio: false } // Запасной вариант: любая камера
+        setErrorMsg(null);
+        
+        // Перебираем варианты настроек для максимальной совместимости
+        const configs = [
+          { video: { facingMode: { exact: "environment" } }, audio: false }, // Принудительно задняя
+          { video: { facingMode: "environment" }, audio: false },           // Желательно задняя
+          { video: true, audio: false }                                     // Любая доступная
         ];
 
         let stream = null;
-        let lastError = null;
 
-        for (const config of constraints) {
+        for (const config of configs) {
           try {
             stream = await navigator.mediaDevices.getUserMedia(config);
             if (stream) break;
           } catch (err) {
-            lastError = err;
+            console.warn("Пропуск конфигурации:", config, err);
           }
         }
 
         if (stream && videoRef.current) {
           videoRef.current.srcObject = stream;
           setIsCameraActive(true);
+          
+          // Дополнительная проверка на запуск потока
+          videoRef.current.onloadedmetadata = () => {
+            videoRef.current.play().catch(e => console.error("Ошибка автовоспроизведения:", e));
+          };
         } else {
-          console.error("Ошибка доступа к камере:", lastError);
-          alert("Не удалось включить камеру. Убедитесь, что у вас есть подключенная камера и вы дали разрешение в браузере.");
+          setErrorMsg("Не удалось подключиться к камере. Попробуйте обновить страницу или проверить разрешения в настройках браузера.");
         }
       };
 
-      // Сброс всего
       const reset = () => {
         if (videoRef.current && videoRef.current.srcObject) {
           videoRef.current.srcObject.getTracks().forEach(track => track.stop());
+          videoRef.current.srcObject = null;
         }
         setIsCameraActive(false);
         setImage(null);
+        setErrorMsg(null);
       };
 
       const handleFileChange = (e) => {
@@ -129,7 +134,6 @@
         }
       };
 
-      // ШАГ 1: Выбор изображения
       if (!image) {
         return (
           <div className="flex flex-col items-center justify-center h-full p-6 text-white">
@@ -137,14 +141,10 @@
               <div className="w-20 h-20 bg-blue-600/20 rounded-full flex items-center justify-center mx-auto mb-6 text-blue-500">
                 <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
               </div>
-              <h1 className="text-2xl font-bold mb-2">Шаг 1</h1>
+              <h1 className="text-2xl font-bold mb-2 text-white">Шаг 1</h1>
               <p className="text-slate-400 mb-8">Выберите картинку для наложения</p>
-              
               <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" className="hidden" />
-              <button 
-                onClick={() => fileInputRef.current.click()}
-                className="w-full py-4 bg-blue-600 hover:bg-blue-500 rounded-2xl font-bold transition-all active:scale-95 shadow-lg shadow-blue-600/20"
-              >
+              <button onClick={() => fileInputRef.current.click()} className="w-full py-4 bg-blue-600 rounded-2xl font-bold shadow-lg shadow-blue-600/20 active:scale-95 transition-all">
                 Выбрать файл
               </button>
             </div>
@@ -152,7 +152,6 @@
         );
       }
 
-      // ШАГ 2: Включение камеры
       if (!isCameraActive) {
         return (
           <div className="flex flex-col items-center justify-center h-full p-6 text-white text-center">
@@ -160,77 +159,56 @@
               <div className="mb-6 mx-auto w-32 h-32 rounded-xl overflow-hidden border-2 border-blue-500 shadow-lg shadow-blue-500/10">
                 <img src={image} className="w-full h-full object-cover" />
               </div>
-              <h1 className="text-2xl font-bold mb-2">Шаг 2</h1>
+              <h1 className="text-2xl font-bold mb-2 text-white">Шаг 2</h1>
               <p className="text-slate-400 mb-8">Изображение готово. Теперь включите камеру.</p>
-              <button 
-                onClick={startCamera}
-                className="w-full py-4 bg-blue-600 hover:bg-blue-500 rounded-2xl font-bold flex items-center justify-center gap-3 transition-all active:scale-95"
-              >
+              
+              {errorMsg && (
+                <div className="mb-6 p-4 bg-red-500/20 border border-red-500/50 rounded-xl text-red-200 text-xs">
+                  {errorMsg}
+                </div>
+              )}
+
+              <button onClick={startCamera} className="w-full py-4 bg-blue-600 rounded-2xl font-bold flex items-center justify-center gap-3 active:scale-95 transition-all">
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
                 Включить камеру
               </button>
-              <button onClick={() => setImage(null)} className="mt-4 text-sm text-slate-500 hover:text-slate-300">Сбросить фото</button>
+              <button onClick={() => setImage(null)} className="mt-4 text-sm text-slate-500 hover:text-slate-300">Назад</button>
             </div>
           </div>
         );
       }
 
-      // ШАГ 3: Режим наложения
       return (
         <div className="relative w-full h-full bg-black">
-          {/* Камера (на фоне) */}
           <video id="camera-stream" ref={videoRef} autoPlay playsInline muted />
-
-          {/* Картинка (сверху в центре) */}
           <div className="overlay-container">
-            <img 
-              src={image} 
-              className="overlay-img" 
-              style={{ opacity: opacity, transform: `scale(${scale})` }} 
-            />
+            <img src={image} className="overlay-img" style={{ opacity: opacity, transform: `scale(${scale})` }} />
           </div>
-
-          {/* Интерфейс управления поверх всего */}
           <div className="absolute inset-0 z-20 pointer-events-none flex flex-col justify-between p-6">
             <div className="flex justify-between items-start pointer-events-auto">
               <div className="bg-black/50 backdrop-blur-md px-4 py-2 rounded-full border border-white/10 text-white text-xs font-bold uppercase tracking-widest">
                 Режим наложения
               </div>
-              <button 
-                onClick={reset}
-                className="w-10 h-10 bg-red-500 text-white rounded-full flex items-center justify-center shadow-lg active:scale-90 transition-all"
-              >
+              <button onClick={reset} className="w-10 h-10 bg-red-500 text-white rounded-full flex items-center justify-center shadow-lg active:scale-90 transition-all">
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"/></svg>
               </button>
             </div>
-
-            {/* Панель настроек снизу */}
             <div className="bg-black/60 backdrop-blur-xl border border-white/10 rounded-3xl p-6 pointer-events-auto space-y-6 shadow-2xl mb-4">
               <div className="space-y-2">
                 <div className="flex justify-between text-[10px] text-white/40 uppercase font-bold tracking-wider">
                   <span>Прозрачность</span>
                   <span className="text-blue-400">{Math.round(opacity * 100)}%</span>
                 </div>
-                <input 
-                  type="range" min="0" max="1" step="0.01" 
-                  value={opacity} onChange={(e) => setOpacity(parseFloat(e.target.value))}
-                />
+                <input type="range" min="0" max="1" step="0.01" value={opacity} onChange={(e) => setOpacity(parseFloat(e.target.value))} />
               </div>
-
               <div className="space-y-2">
                 <div className="flex justify-between text-[10px] text-white/40 uppercase font-bold tracking-wider">
                   <span>Размер</span>
                   <span className="text-blue-400">x{scale.toFixed(1)}</span>
                 </div>
-                <input 
-                  type="range" min="0.2" max="3" step="0.1" 
-                  value={scale} onChange={(e) => setScale(parseFloat(e.target.value))}
-                />
+                <input type="range" min="0.2" max="3" step="0.1" value={scale} onChange={(e) => setScale(parseFloat(e.target.value))} />
               </div>
-              
-              <p className="text-[10px] text-center text-white/30 italic">
-                Наведите камеру на лист и подгоните ползунки
-              </p>
+              <p className="text-[10px] text-center text-white/30 italic">Наведите камеру на лист и подгоните ползунки</p>
             </div>
           </div>
         </div>
