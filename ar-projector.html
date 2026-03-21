@@ -2,64 +2,305 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>AR Projector for Artists</title>
-    <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
     <style>
-        body { margin: 0; overflow: hidden; }
-        #controls { position: absolute; top: 10px; left: 10px; z-index: 1000; background: rgba(0,0,0,0.7); padding: 10px; border-radius: 5px; }
-        button { padding: 8px 12px; margin: 5px; cursor: pointer; background: #007bff; color: white; border: none; border-radius: 4px; }
-        button:hover { background: #0056b3; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            background: #000;
+            font-family: Arial, sans-serif;
+        }
+        
+        #camera-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+        
+        #video {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transform: scaleX(-1);
+        }
+        
+        #canvas-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        
+        #controls {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px;
+            border-radius: 10px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        
+        button {
+            padding: 12px 18px;
+            font-size: 14px;
+            cursor: pointer;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            transition: background 0.3s;
+            font-weight: bold;
+        }
+        
+        button:hover {
+            background: #0056b3;
+        }
+        
+        button:active {
+            transform: scale(0.98);
+        }
+        
+        #info {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 14px;
+            max-width: 300px;
+            z-index: 999;
+        }
+        
+        .slider-container {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            z-index: 999;
+            min-width: 250px;
+        }
+        
+        .slider-group {
+            margin: 10px 0;
+        }
+        
+        .slider-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 12px;
+        }
+        
+        input[type="range"] {
+            width: 100%;
+        }
+        
+        input[type="file"] {
+            display: none;
+        }
+        
+        #file-label {
+            padding: 12px 18px;
+            background: #28a745;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            display: inline-block;
+        }
+        
+        #file-label:hover {
+            background: #218838;
+        }
     </style>
 </head>
 <body>
-    <div id="controls">
-        <button id="load-image">Load Image</button>
-        <button id="zoom-in">Zoom In</button>
-        <button id="zoom-out">Zoom Out</button>
+    <div id="camera-container">
+        <video id="video" playsinline autoplay></video>
+        <canvas id="canvas-overlay"></canvas>
     </div>
-    <a-scene embedded>
-        <a-assets>
-            <img id="loaded-image" src="" />
-        </a-assets>
-        <a-entity camera look-controls position="0 1.6 0"></a-entity>
-        <a-entity id="image-entity" 
-                  geometry="primitive: plane; height: 1; width: 1" 
-                  material="src: #loaded-image" 
-                  position="1 1 -3">
-        </a-entity>
-    </a-scene>
-    <script>
-        let zoomFactor = 1;
-        const imageEntity = document.getElementById('image-entity');
-        const loadImageButton = document.getElementById('load-image');
-        const zoomInButton = document.getElementById('zoom-in');
-        const zoomOutButton = document.getElementById('zoom-out');
+    
+    <div id="info">
+        <p><strong>AR Artist Tool</strong></p>
+        <p id="status">Initializing camera...</p>
+    </div>
+    
+    <div class="slider-container">
+        <div class="slider-group">
+            <label for="opacity">Image Opacity: <span id="opacity-value">100</span>%</label>
+            <input type="range" id="opacity" min="0" max="100" value="100">
+        </div>
+        <div class="slider-group">
+            <label for="scale">Image Scale: <span id="scale-value">1</span>x</label>
+            <input type="range" id="scale" min="0.1" max="3" step="0.1" value="1">
+        </div>
+        <div class="slider-group">
+            <label for="x-offset">X Offset: <span id="x-offset-value">0</span>px</label>
+            <input type="range" id="x-offset" min="-200" max="200" value="0">
+        </div>
+        <div class="slider-group">
+            <label for="y-offset">Y Offset: <span id="y-offset-value">0</span>px</label>
+            <input type="range" id="y-offset" min="-200" max="200" value="0">
+        </div>
+    </div>
+    
+    <div id="controls">
+        <input type="file" id="image-input" accept="image/*">
+        <label for="image-input" id="file-label">📷 Load Image</label>
+        <button id="reset-btn">🔄 Reset</button>
+        <button id="fullscreen-btn">⛶ Fullscreen</button>
+    </div>
 
-        loadImageButton.addEventListener('click', () => {
-            const imageUrl = prompt('Enter image URL:');
-            if (imageUrl && imageUrl.trim() !== '') {
-                const img = new Image();
-                img.onerror = () => alert('Failed to load image. Check the URL.');
-                img.onload = () => {
-                    document.getElementById('loaded-image').src = imageUrl;
-                    console.log('Image loaded successfully');
+    <script>
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas-overlay');
+        const ctx = canvas.getContext('2d');
+        const imageInput = document.getElementById('image-input');
+        const statusEl = document.getElementById('status');
+        
+        let loadedImage = null;
+        let opacity = 1;
+        let scale = 1;
+        let xOffset = 0;
+        let yOffset = 0;
+        
+        // Установите размеры canvas
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+        
+        // Инициализация камеры
+        async function initCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: 'environment' },
+                    audio: false
+                });
+                video.srcObject = stream;
+                statusEl.textContent = '✅ Camera ready. Load an image to start.';
+            } catch (error) {
+                console.error('Camera access error:', error);
+                statusEl.textContent = '❌ Camera access denied. Please enable camera permissions.';
+            }
+        }
+        
+        // Загрузка изображения
+        imageInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    loadedImage = new Image();
+                    loadedImage.onload = () => {
+                        statusEl.textContent = `✅ Image loaded: ${file.name}`;
+                    };
+                    loadedImage.src = event.target.result;
                 };
-                img.src = imageUrl;
+                reader.readAsDataURL(file);
             }
         });
-
-        zoomInButton.addEventListener('click', () => {
-            zoomFactor += 0.1;
-            imageEntity.object3D.scale.set(zoomFactor, zoomFactor, zoomFactor);
-            console.log('Zoom factor:', zoomFactor.toFixed(2));
+        
+        // Слайдеры управления
+        document.getElementById('opacity').addEventListener('input', (e) => {
+            opacity = e.target.value / 100;
+            document.getElementById('opacity-value').textContent = e.target.value;
         });
-
-        zoomOutButton.addEventListener('click', () => {
-            zoomFactor = Math.max(0.1, zoomFactor - 0.1);
-            imageEntity.object3D.scale.set(zoomFactor, zoomFactor, zoomFactor);
-            console.log('Zoom factor:', zoomFactor.toFixed(2));
+        
+        document.getElementById('scale').addEventListener('input', (e) => {
+            scale = parseFloat(e.target.value);
+            document.getElementById('scale-value').textContent = scale.toFixed(1);
         });
+        
+        document.getElementById('x-offset').addEventListener('input', (e) => {
+            xOffset = parseInt(e.target.value);
+            document.getElementById('x-offset-value').textContent = e.target.value;
+        });
+        
+        document.getElementById('y-offset').addEventListener('input', (e) => {
+            yOffset = parseInt(e.target.value);
+            document.getElementById('y-offset-value').textContent = e.target.value;
+        });
+        
+        // Кнопка сброса
+        document.getElementById('reset-btn').addEventListener('click', () => {
+            opacity = 1;
+            scale = 1;
+            xOffset = 0;
+            yOffset = 0;
+            document.getElementById('opacity').value = 100;
+            document.getElementById('scale').value = 1;
+            document.getElementById('x-offset').value = 0;
+            document.getElementById('y-offset').value = 0;
+            document.getElementById('opacity-value').textContent = '100';
+            document.getElementById('scale-value').textContent = '1';
+            document.getElementById('x-offset-value').textContent = '0';
+            document.getElementById('y-offset-value').textContent = '0';
+        });
+        
+        // Fullscreen
+        document.getElementById('fullscreen-btn').addEventListener('click', () => {
+            if (document.documentElement.requestFullscreen) {
+                document.documentElement.requestFullscreen();
+            }
+        });
+        
+        // Рисование на canvas
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            if (loadedImage) {
+                ctx.save();
+                ctx.globalAlpha = opacity;
+                
+                const centerX = canvas.width / 2 + xOffset;
+                const centerY = canvas.height / 2 + yOffset;
+                const scaledWidth = loadedImage.width * scale;
+                const scaledHeight = loadedImage.height * scale;
+                
+                ctx.drawImage(
+                    loadedImage,
+                    centerX - scaledWidth / 2,
+                    centerY - scaledHeight / 2,
+                    scaledWidth,
+                    scaledHeight
+                );
+                
+                ctx.restore();
+            }
+            
+            requestAnimationFrame(draw);
+        }
+        
+        // Запуск
+        initCamera();
+        draw();
     </script>
 </body>
 </html>
