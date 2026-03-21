@@ -79,7 +79,7 @@
     <div id="touchContainer" class="relative w-full h-full flex items-center justify-center overflow-hidden">
         
         <!-- Слой 0: Видео поток с камеры -->
-        <video id="cameraFeed" autoplay playsinline class="absolute inset-0 w-full h-full object-cover z-0"></video>
+        <video id="cameraFeed" autoplay playsinline muted class="absolute inset-0 w-full h-full object-cover z-0"></video>
 
         <!-- Затемнение снизу для лучшей читаемости интерфейса -->
         <div class="absolute bottom-0 left-0 w-full h-64 bg-gradient-to-t from-black/80 to-transparent z-10 pointer-events-none"></div>
@@ -100,7 +100,7 @@
             <div>
                 <div id="statusText" class="text-xl font-bold mb-2 tracking-tight">Камера загружается</div>
                 <div id="statusSubtext" class="text-sm text-gray-300 leading-relaxed">
-                    Для работы приложения требуется доступ к камере через защищенное соединение (HTTPS).
+                    Нажмите на иконку камеры, если она не запустилась автоматически.
                 </div>
             </div>
         </div>
@@ -212,38 +212,66 @@
 
         // 2. Инициализация и Управление Камерой
         async function startCamera() {
-            if (location.protocol !== 'https:' && !['localhost', '127.0.0.1'].includes(location.hostname)) {
+            // Проверка на защищенное соединение (камера работает только в HTTPS)
+            const isLocal = ['localhost', '127.0.0.1'].includes(location.hostname);
+            if (location.protocol !== 'https:' && !isLocal) {
                 updateStatus(
                     "⚠️ Ошибка HTTPS", 
-                    "Камера не запустится. Загрузите файл на хостинг с поддержкой HTTPS.", 
+                    "Камера требует безопасного соединения. Перейдите на HTTPS версию сайта.", 
                     '<svg width="32" height="32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-rose-500"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>'
                 );
                 return;
             }
 
             try {
+                // Остановка старого потока если есть
+                if (currentStream) {
+                    currentStream.getTracks().forEach(track => track.stop());
+                }
+
                 currentStream = await navigator.mediaDevices.getUserMedia({
                     video: { 
-                        facingMode: 'environment', // Приоритет задней камере
+                        facingMode: 'environment',
                         width: { ideal: 1920 },
                         height: { ideal: 1080 }
-                    }
+                    },
+                    audio: false
                 });
+
                 video.srcObject = currentStream;
-                video.onloadedmetadata = () => {
-                    statusMessage.style.opacity = '0';
-                    setTimeout(() => statusMessage.style.display = 'none', 300);
-                };
                 
-                isCameraOn = true;
-                updateCameraBtnUI();
+                // Важно: на многих мобильных устройствах нужно вызвать play() явно после присвоения потока
+                video.onloadedmetadata = async () => {
+                    try {
+                        await video.play();
+                        statusMessage.style.opacity = '0';
+                        setTimeout(() => statusMessage.style.display = 'none', 300);
+                        isCameraOn = true;
+                        updateCameraBtnUI();
+                    } catch (playErr) {
+                        console.error("Ошибка автовоспроизведения:", playErr);
+                        statusText.innerText = "Нажмите для активации";
+                        statusSubtext.innerText = "Браузер заблокировал автозапуск видео.";
+                    }
+                };
 
             } catch (err) {
+                console.error("Ошибка доступа к камере:", err);
                 isCameraOn = false;
                 updateCameraBtnUI();
+                
+                let errorTitle = "Камера недоступна";
+                let errorSub = "Пожалуйста, предоставьте доступ к камере в настройках браузера.";
+                
+                if (err.name === 'NotAllowedError') {
+                    errorTitle = "Доступ отклонен";
+                } else if (err.name === 'NotFoundError') {
+                    errorTitle = "Камера не найдена";
+                }
+
                 updateStatus(
-                    "Камера недоступна", 
-                    "Нажмите 'Разрешить' при запросе браузера или проверьте настройки разрешений.", 
+                    errorTitle, 
+                    errorSub, 
                     '<svg width="32" height="32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-rose-500"><path d="M1 1l22 22"></path><path d="M21 21H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h3m3-3h6l2 3h4a2 2 0 0 1 2 2v9.34m-7.72-2.06a4 4 0 1 1-5.56-5.56"></path></svg>'
                 );
             }
@@ -278,7 +306,6 @@
                 stopCamera();
             } else {
                 statusMessage.style.display = 'flex';
-                // Небольшая задержка перед анимацией появления
                 setTimeout(() => statusMessage.style.opacity = '1', 10);
                 statusText.innerText = "Запуск камеры...";
                 statusSubtext.innerText = "Подождите пару секунд";
@@ -300,8 +327,8 @@
             statusMessage.classList.add('border-rose-500/50');
         }
 
-        // Автозапуск камеры при старте
-        startCamera();
+        // Автозапуск камеры при загрузке страницы
+        window.onload = startCamera;
 
         // 3. Обработка загрузки файла (картинки)
         imageInput.addEventListener('change', (e) => {
@@ -366,7 +393,7 @@
 
         touchContainer.addEventListener('touchmove', (e) => {
             if (e.target.closest('#uiPanel') || e.target.closest('#showUiBtn')) return;
-            e.preventDefault(); // Предотвращаем системные жесты
+            e.preventDefault(); 
             
             if (isLocked) return;
 
@@ -380,7 +407,7 @@
                 );
                 if (startDistance > 0) {
                     scale = startScale * (currentDist / startDistance);
-                    scale = Math.max(0.05, Math.min(scale, 15)); // Лимиты зума
+                    scale = Math.max(0.05, Math.min(scale, 15)); 
                 }
             }
             applyTransform();
@@ -404,20 +431,14 @@
         // 9. Блокировка (Замок)
         lockBtn.addEventListener('click', () => {
             isLocked = !isLocked;
-            
-            // Переключаем иконки
             iconLock.classList.toggle('hidden', !isLocked);
             iconUnlock.classList.toggle('hidden', isLocked);
-            
-            // Меняем стиль кнопки
             lockBtn.classList.toggle('bg-rose-500/80', isLocked);
             lockBtn.classList.toggle('border-rose-400/50', isLocked);
             lockBtn.classList.toggle('bg-white/10', !isLocked);
         });
 
-        // Автоматическая подстройка под размер экрана при повороте
         window.addEventListener('resize', resetTransform);
-
     </script>
 </body>
 </html>
