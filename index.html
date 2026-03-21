@@ -3,142 +3,92 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AR Overlay & Grid Tool</title>
+    <title>AR Pin & Overlay Tool</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Подключаем A-Frame и AR.js для функционала дополненной реальности -->
     <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
     <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
     <style>
-        body {
-            margin: 0;
-            overflow: hidden;
-            background-color: #000;
-            font-family: sans-serif;
-        }
-        /* Стили для элементов интерфейса поверх AR-сцены */
-        .ui-layer {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            z-index: 1000;
-        }
-        .ui-layer * {
-            pointer-events: auto;
-        }
-        .controls {
-            position: fixed;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 90%;
-            max-width: 500px;
-            background: rgba(0, 0, 0, 0.75);
-            backdrop-filter: blur(10px);
-            border-radius: 20px;
-            padding: 15px;
-            color: white;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-        }
-        #grid-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            display: none;
-            z-index: 10;
-        }
-        /* Инструкция для пользователя */
-        .ar-hint {
-            position: fixed;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(0,0,0,0.6);
-            padding: 10px 20px;
-            border-radius: 30px;
-            color: #fff;
-            font-size: 14px;
-            text-align: center;
-            z-index: 1001;
-        }
+        body { margin: 0; overflow: hidden; background-color: #000; font-family: sans-serif; }
+        .ui-layer { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1000; }
+        .ui-layer * { pointer-events: auto; }
+        .controls { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); width: 94%; max-width: 500px; background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(12px); border-radius: 24px; padding: 18px; color: white; box-shadow: 0 10px 30px rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.1); }
+        #grid-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; display: none; z-index: 10; }
+        .ar-hint { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.6); padding: 10px 20px; border-radius: 30px; color: #fff; font-size: 14px; text-align: center; z-index: 1001; transition: all 0.3s ease; }
+        .status-dot { inline-size: 8px; block-size: 8px; background: red; border-radius: 50%; display: inline-block; margin-inline-end: 8px; }
+        .status-active { background: #00ff00; box-shadow: 0 0 10px #00ff00; }
     </style>
 </head>
 <body>
 
-    <!-- Подсказка для AR режима -->
     <div class="ar-hint" id="ar-hint">
-        Направьте камеру на маркер "Hiro" или белый лист
+        <span id="status-dot" class="status-dot"></span>
+        <span id="hint-text">Направьте камеру на маркер Hiro</span>
     </div>
 
-    <!-- Холст для сетки -->
     <canvas id="grid-overlay"></canvas>
 
-    <!-- AR Сцена -->
     <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;" vr-mode-ui="enabled: false">
-        
-        <!-- Ассеты -->
         <a-assets>
-            <!-- Плейсхолдер для загруженного изображения -->
             <img id="dynamic-texture" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7">
         </a-assets>
 
-        <!-- Маркер (используем стандартный маркер Hiro) -->
-        <!-- Вы можете распечатать маркер Hiro или использовать его изображение на другом экране -->
+        <!-- Маркер Hiro -->
         <a-marker preset="hiro" id="marker">
-            <!-- Плоскость, на которую накладывается изображение -->
-            <a-plane 
-                id="ar-plane"
-                position="0 0 0" 
-                rotation="-90 0 0" 
-                width="1" 
-                height="1" 
-                material="src: #dynamic-texture; transparent: true; opacity: 0.5; side: double">
-            </a-plane>
+            <!-- Контейнер для изображения внутри маркера -->
+            <a-entity id="marker-content-container">
+                <a-plane 
+                    id="ar-plane"
+                    position="0 0 0" 
+                    rotation="-90 0 0" 
+                    width="1" 
+                    height="1" 
+                    material="src: #dynamic-texture; transparent: true; opacity: 0.5; side: double">
+                </a-plane>
+            </a-entity>
         </a-marker>
 
+        <!-- Камера -->
         <a-entity camera></a-entity>
     </a-scene>
 
-    <!-- UI Интерфейс -->
     <div class="ui-layer">
-        <div class="controls flex flex-col gap-4">
+        <div class="controls flex flex-col gap-3">
+            <!-- Верхний ряд управления файлами и сеткой -->
             <div class="flex justify-between items-center gap-2">
-                <label class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-full cursor-pointer text-sm transition flex-1 text-center font-medium">
-                    Выбрать фото
+                <label class="bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-xl cursor-pointer text-xs transition flex-1 text-center font-medium">
+                    Загрузить фото
                     <input type="file" id="file-input" accept="image/*" class="hidden">
                 </label>
-                
-                <button id="toggle-grid" class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-full text-sm transition flex-1 text-center">
-                    Сетка
+                <button id="toggle-grid" class="bg-gray-700 hover:bg-gray-600 text-white p-2 rounded-xl text-xs transition flex-1 text-center">Сетка</button>
+                <button id="reset-all" class="bg-red-900/40 hover:bg-red-800 text-white p-2 rounded-xl text-xs transition flex-1 text-center">Сброс</button>
+            </div>
+
+            <!-- Кнопки фиксации -->
+            <div class="flex justify-between items-center gap-2">
+                <button id="pin-button" class="bg-green-600 hover:bg-green-700 disabled:bg-gray-800 disabled:opacity-50 text-white py-3 rounded-xl text-sm transition flex-[2] font-bold shadow-lg">
+                    📌 Закрепить на листе
                 </button>
-
-                <button id="reset-transform" class="bg-red-900/50 hover:bg-red-800 text-white px-4 py-2 rounded-full text-sm transition flex-1 text-center">
-                    Сброс
+                <button id="unpin-button" class="bg-orange-600 hover:bg-orange-700 text-white py-3 rounded-xl text-sm transition flex-1 font-bold hidden">
+                    🔓 Открепить
                 </button>
             </div>
 
-            <div class="flex flex-col gap-1">
-                <div class="flex justify-between">
-                    <label class="text-xs text-gray-300">Прозрачность</label>
-                    <span id="opacity-val" class="text-xs text-blue-400">0.5</span>
+            <div class="space-y-2 border-t border-white/10 pt-2">
+                <div class="flex flex-col gap-1">
+                    <div class="flex justify-between text-[10px] text-gray-400">
+                        <span>Прозрачность</span>
+                        <span id="opacity-val">0.5</span>
+                    </div>
+                    <input type="range" id="opacity-slider" min="0" max="1" step="0.01" value="0.5" class="w-full h-1.5 bg-gray-700 rounded-lg appearance-none cursor-pointer">
                 </div>
-                <input type="range" id="opacity-slider" min="0" max="1" step="0.01" value="0.5" class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer">
-            </div>
 
-            <div class="flex flex-col gap-1">
-                <div class="flex justify-between">
-                    <label class="text-xs text-gray-300">Размер изображения в AR</label>
+                <div class="flex flex-col gap-1">
+                    <div class="flex justify-between text-[10px] text-gray-400">
+                        <span>Размер (масштаб)</span>
+                        <span id="scale-val">1.0</span>
+                    </div>
+                    <input type="range" id="scale-slider" min="0.1" max="5" step="0.1" value="1" class="w-full h-1.5 bg-gray-700 rounded-lg appearance-none cursor-pointer">
                 </div>
-                <input type="range" id="scale-slider" min="0.1" max="5" step="0.1" value="1" class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer">
-            </div>
-
-            <div class="text-[10px] text-gray-400 text-center uppercase tracking-wider">
-                Положите маркер Hiro на лист бумаги
             </div>
         </div>
     </div>
@@ -146,38 +96,112 @@
 <script>
     const fileInput = document.getElementById('file-input');
     const arPlane = document.getElementById('ar-plane');
-    const textureImg = document.getElementById('dynamic-texture');
-    const opacitySlider = document.getElementById('opacity-slider');
-    const opacityVal = document.getElementById('opacity-val');
-    const scaleSlider = document.getElementById('scale-slider');
-    const toggleGridBtn = document.getElementById('toggle-grid');
-    const gridCanvas = document.getElementById('grid-overlay');
-    const resetBtn = document.getElementById('reset-transform');
+    const markerContent = document.getElementById('marker-content-container');
+    const scene = document.querySelector('a-scene');
     const marker = document.getElementById('marker');
-    const hint = document.getElementById('ar-hint');
+    
+    const pinBtn = document.getElementById('pin-button');
+    const unpinBtn = document.getElementById('unpin-button');
+    const opacitySlider = document.getElementById('opacity-slider');
+    const scaleSlider = document.getElementById('scale-slider');
+    const gridCanvas = document.getElementById('grid-overlay');
+    const statusDot = document.getElementById('status-dot');
+    const hintText = document.getElementById('hint-text');
 
+    let isPinned = false;
     let gridVisible = false;
+    let markerVisible = false;
 
-    // --- Загрузка изображения ---
+    // --- Логика фиксации (Pin/Unpin) ---
+
+    pinBtn.onclick = () => {
+        if (!markerVisible || isPinned) return;
+
+        // Получаем мировые координаты и ротацию текущего изображения
+        const worldPos = new THREE.Vector3();
+        const worldQuat = new THREE.Quaternion();
+        const worldScale = new THREE.Vector3();
+        
+        arPlane.object3D.getWorldPosition(worldPos);
+        arPlane.object3D.getWorldQuaternion(worldQuat);
+        arPlane.object3D.getWorldScale(worldScale);
+
+        // Перемещаем плоскость из маркера в корень сцены
+        scene.object3D.add(arPlane.object3D);
+        
+        // Устанавливаем сохраненные мировые координаты
+        arPlane.object3D.position.copy(worldPos);
+        arPlane.object3D.quaternion.copy(worldQuat);
+        arPlane.object3D.scale.copy(worldScale);
+
+        isPinned = true;
+        pinBtn.classList.add('hidden');
+        unpinBtn.classList.remove('hidden');
+        hintText.innerText = "Изображение зафиксировано в пространстве";
+    };
+
+    unpinBtn.onclick = () => {
+        if (!isPinned) return;
+
+        // Возвращаем плоскость обратно в контейнер маркера
+        markerContent.object3D.add(arPlane.object3D);
+        
+        // Сбрасываем локальные координаты относительно маркера
+        arPlane.object3D.position.set(0, 0, 0);
+        arPlane.object3D.quaternion.setFromEuler(new THREE.Euler(THREE.MathUtils.degToRad(-90), 0, 0));
+        
+        // Восстанавливаем масштаб из слайдера
+        const s = scaleSlider.value;
+        arPlane.object3D.scale.set(s, s, s);
+
+        isPinned = false;
+        pinBtn.classList.remove('hidden');
+        unpinBtn.classList.add('hidden');
+        updateStatus();
+    };
+
+    // --- Управление маркером ---
+
+    function updateStatus() {
+        if (isPinned) return;
+        if (markerVisible) {
+            statusDot.classList.add('status-active');
+            hintText.innerText = "Маркер найден. Можно закреплять!";
+            pinBtn.disabled = false;
+        } else {
+            statusDot.classList.remove('status-active');
+            hintText.innerText = "Направьте камеру на маркер Hiro";
+            pinBtn.disabled = true;
+        }
+    }
+
+    marker.addEventListener('markerFound', () => {
+        markerVisible = true;
+        updateStatus();
+    });
+
+    marker.addEventListener('markerLost', () => {
+        markerVisible = false;
+        updateStatus();
+    });
+
+    // --- Загрузка фото ---
+
     fileInput.onchange = (e) => {
         const file = e.target.files[0];
         if (file) {
             const reader = new FileReader();
             reader.onload = (event) => {
-                // Обновляем src ассета
+                const textureImg = document.getElementById('dynamic-texture');
                 textureImg.setAttribute('src', event.target.result);
                 
-                // Ждем загрузки картинки, чтобы скорректировать пропорции плоскости
                 const tempImg = new Image();
                 tempImg.onload = function() {
                     const aspect = this.width / this.height;
-                    if (aspect > 1) {
-                        arPlane.setAttribute('width', aspect);
-                        arPlane.setAttribute('height', 1);
-                    } else {
-                        arPlane.setAttribute('width', 1);
-                        arPlane.setAttribute('height', 1 / aspect);
-                    }
+                    const w = aspect > 1 ? aspect : 1;
+                    const h = aspect > 1 ? 1 : 1/aspect;
+                    arPlane.setAttribute('width', w);
+                    arPlane.setAttribute('height', h);
                 };
                 tempImg.src = event.target.result;
             };
@@ -185,39 +209,39 @@
         }
     };
 
-    // --- Прозрачность ---
+    // --- Настройки отображения ---
+
     opacitySlider.oninput = (e) => {
         const val = e.target.value;
         arPlane.setAttribute('material', `src: #dynamic-texture; transparent: true; opacity: ${val}; side: double`);
-        opacityVal.innerText = val;
+        document.getElementById('opacity-val').innerText = val;
     };
 
-    // --- Масштаб в AR ---
     scaleSlider.oninput = (e) => {
         const s = e.target.value;
-        arPlane.setAttribute('scale', `${s} ${s} ${s}`);
+        arPlane.object3D.scale.set(s, s, s);
+        document.getElementById('scale-val').innerText = s;
     };
 
-    // --- Сброс ---
-    resetBtn.onclick = () => {
+    document.getElementById('reset-all').onclick = () => {
+        if (isPinned) unpinBtn.click();
         scaleSlider.value = 1;
         opacitySlider.value = 0.5;
-        opacityVal.innerText = "0.5";
+        document.getElementById('opacity-val').innerText = "0.5";
+        document.getElementById('scale-val').innerText = "1.0";
         arPlane.setAttribute('scale', '1 1 1');
         arPlane.setAttribute('material', `src: #dynamic-texture; transparent: true; opacity: 0.5; side: double`);
-        arPlane.setAttribute('rotation', '-90 0 0');
     };
 
-    // --- Сетка (2D overlay) ---
+    // --- Сетка ---
+
     function drawGrid() {
         const ctx = gridCanvas.getContext('2d');
         gridCanvas.width = window.innerWidth;
         gridCanvas.height = window.innerHeight;
-        
         ctx.clearRect(0, 0, gridCanvas.width, gridCanvas.height);
         ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
         ctx.lineWidth = 1;
-
         const step = 50; 
         for (let x = 0; x <= gridCanvas.width; x += step) {
             ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, gridCanvas.height); ctx.stroke();
@@ -227,22 +251,11 @@
         }
     }
 
-    toggleGridBtn.onclick = () => {
+    document.getElementById('toggle-grid').onclick = () => {
         gridVisible = !gridVisible;
         gridCanvas.style.display = gridVisible ? 'block' : 'none';
         if (gridVisible) drawGrid();
     };
-
-    // События обнаружения маркера для подсказок
-    marker.addEventListener('markerFound', () => {
-        hint.innerText = "Маркер найден!";
-        hint.style.background = "rgba(0, 150, 0, 0.7)";
-    });
-
-    marker.addEventListener('markerLost', () => {
-        hint.innerText = "Направьте камеру на маркер Hiro";
-        hint.style.background = "rgba(0, 0, 0, 0.6)";
-    });
 
     window.onresize = () => { if (gridVisible) drawGrid(); };
 
