@@ -10,7 +10,7 @@
             margin: 0; 
             overflow: hidden; 
             font-family: sans-serif; 
-            background-color: transparent; /* Делаем фон прозрачным */
+            background-color: #000; /* Темный фон до запуска камеры */
         }
         #overlay {
             position: absolute;
@@ -25,14 +25,15 @@
             width: 90%;
         }
         .controls {
-            background: rgba(0, 0, 0, 0.7);
+            background: rgba(0, 0, 0, 0.8);
             padding: 15px;
             border-radius: 12px;
             color: white;
             display: none;
+            backdrop-filter: blur(5px);
         }
         #ar-button {
-            padding: 15px 30px;
+            padding: 18px 36px;
             background: #2196F3;
             color: white;
             border: none;
@@ -40,29 +41,37 @@
             font-size: 18px;
             font-weight: bold;
             cursor: pointer;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
+        #ar-button:disabled {
+            background: #555;
+            cursor: not-allowed;
         }
         input[type=range] { width: 200px; }
         .info-msg {
             position: absolute;
-            top: 20px;
-            width: 100%;
+            top: 40px;
+            width: 80%;
+            left: 10%;
             text-align: center;
             color: white;
-            text-shadow: 1px 1px 2px black;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
             pointer-events: none;
             z-index: 11;
+            font-size: 1.1em;
         }
     </style>
 </head>
 <body>
 
     <div id="overlay">
-        <div id="info" class="info-msg">Нажмите кнопку для запуска AR</div>
+        <div id="info" class="info-msg">Проверка поддержки AR...</div>
         <div id="controls" class="controls">
-            <label>Размер: </label>
-            <input type="range" id="scale-range" min="0.1" max="5" step="0.1" value="1">
-            <button id="reset-btn" style="margin-left: 10px;">Сброс</button>
+            <div style="margin-bottom: 8px;">
+                <label>Размер: </label>
+                <input type="range" id="scale-range" min="0.1" max="5" step="0.1" value="1">
+            </div>
+            <button id="reset-btn" style="width: 100%; padding: 8px; border-radius: 6px; border: none; background: #f44336; color: white;">Сбросить положение</button>
         </div>
         <button id="ar-button">Запустить AR</button>
     </div>
@@ -80,26 +89,43 @@
         const scaleRange = document.getElementById('scale-range');
         const resetBtn = document.getElementById('reset-btn');
 
+        // Проверка поддержки при загрузке
+        if (navigator.xr) {
+            navigator.xr.isSessionSupported('immersive-ar').then((supported) => {
+                if (supported) {
+                    info.innerText = "AR доступен. Нажмите кнопку ниже.";
+                } else {
+                    info.innerText = "Ваш браузер поддерживает WebXR, но не для AR.";
+                    arButton.disabled = true;
+                }
+            });
+        } else {
+            info.innerText = "WebXR не поддерживается. Используйте Chrome на Android.";
+            arButton.disabled = true;
+        }
+
         arButton.addEventListener('click', () => {
             init();
         });
 
         async function init() {
-            if (navigator.xr) {
-                try {
-                    const sessionInit = { requiredFeatures: ['hit-test'] };
-                    const session = await navigator.xr.requestSession('immersive-ar', sessionInit);
-                    
-                    setupRenderer(session);
-                    
-                    arButton.style.display = 'none';
-                    controls.style.display = 'block';
-                    info.innerText = "Наведите камеру на стену и дождитесь появления круга";
-                } catch (e) {
-                    alert("Ошибка запуска AR: " + e.message + "\nУбедитесь, что используете HTTPS.");
-                }
-            } else {
-                alert("WebXR не поддерживается вашим браузером. На Android используйте Chrome, на iOS - WebXR Viewer.");
+            try {
+                // Изменение: hit-test перенесен в optionalFeatures для повышения совместимости
+                const sessionInit = { 
+                    requiredFeatures: ['local'], 
+                    optionalFeatures: ['hit-test', 'dom-overlay'],
+                    domOverlay: { root: document.getElementById('overlay') }
+                };
+                
+                const session = await navigator.xr.requestSession('immersive-ar', sessionInit);
+                setupRenderer(session);
+                
+                arButton.style.display = 'none';
+                controls.style.display = 'block';
+                info.innerText = "Медленно ведите камерой вдоль стены";
+            } catch (e) {
+                console.error(e);
+                alert("Ошибка: " + e.message);
             }
         }
 
@@ -107,7 +133,7 @@
             scene = new THREE.Scene();
             camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 20);
 
-            const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
+            const light = new THREE.AmbientLight(0xffffff, 1);
             scene.add(light);
 
             renderer = new THREE.WebGLRenderer({ 
@@ -122,10 +148,10 @@
 
             renderer.xr.setSession(session);
 
-            // Создаем маркер-ретикул
+            // Создаем маркер-ретикул (зеленое кольцо)
             reticle = new THREE.Mesh(
                 new THREE.RingGeometry(0.04, 0.05, 32).rotateX(-Math.PI / 2),
-                new THREE.MeshBasicMaterial({ color: 0x00ff00 }) // Сделаем зеленым для заметности
+                new THREE.MeshBasicMaterial({ color: 0x00ff00 })
             );
             reticle.matrixAutoUpdate = false;
             reticle.visible = false;
@@ -139,7 +165,7 @@
             if (reticle.visible) {
                 if (!projectedImage) {
                     const textureLoader = new THREE.TextureLoader();
-                    // Тестовая картинка
+                    // Загружаем тестовую картинку. Можно заменить на свою.
                     const texture = textureLoader.load('https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?w=500&auto=format&fit=crop&q=60');
                     
                     const geometry = new THREE.PlaneGeometry(1, 1);
@@ -154,11 +180,18 @@
                     scene.add(projectedImage);
                 }
 
-                reticle.matrix.decompose(projectedImage.position, projectedImage.quaternion, projectedImage.scale);
-                // Поворот плоскости под вертикаль стены
+                // Копируем позицию и ориентацию из маркера
+                const position = new THREE.Vector3();
+                const quaternion = new THREE.Quaternion();
+                const scale = new THREE.Vector3();
+                reticle.matrix.decompose(position, quaternion, scale);
+
+                projectedImage.position.copy(position);
+                projectedImage.quaternion.copy(quaternion);
+                // Поворачиваем, чтобы плоскость была вертикальной относительно поверхности
                 projectedImage.rotateX(Math.PI / 2);
                 
-                info.innerText = "Закреплено! Можно рисовать.";
+                info.innerText = "Закреплено! Можно настраивать размер.";
             }
         }
 
