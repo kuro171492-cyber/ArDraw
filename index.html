@@ -124,7 +124,6 @@
     </div>
 
     <!-- AR Сцена -->
-    <!-- Используем стандартный тестовый маркер MindAR (racoon) -->
     <a-scene 
         id="main-scene"
         mindar-image="imageTargetSrc: https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.2/examples/image-tracking/assets/card-example/card.mind; autoStart: false; uiScanning: no; uiLoading: no;" 
@@ -137,9 +136,10 @@
         <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
         <a-entity id="ar-target" mindar-image-target="targetIndex: 0">
-            <!-- ar-image изначально без src, мы добавим его через JS -->
+            <!-- Устанавливаем прозрачный пиксель по умолчанию и смещение по оси Z, чтобы избежать мерцания текстур -->
             <a-image id="ar-image" 
-                position="0 0 0" 
+                src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="
+                position="0 0 0.01" 
                 height="1" 
                 width="1" 
                 opacity="0.5" 
@@ -172,14 +172,45 @@
         let currentScale = 1;
         let loadedImageUrl = null;
 
-        // 1. Обработка загрузки изображения пользователем
+        // 1. Оптимизированная обработка изображения для мобильных устройств
         imageLoader.addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (file) {
-                // Создаем временный URL для файла
-                loadedImageUrl = URL.createObjectURL(file);
-                imgThumb.src = loadedImageUrl;
-                selectedPreview.classList.remove('hidden');
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    const img = new Image();
+                    img.onload = function() {
+                        // Оптимизация размера для мобильного WebGL 
+                        // Предотвращает черный/невидимый экран при загрузке 12+ Мп фото
+                        const MAX_SIZE = 1024; 
+                        let width = img.width;
+                        let height = img.height;
+
+                        if (width > MAX_SIZE || height > MAX_SIZE) {
+                            const ratio = Math.min(MAX_SIZE / width, MAX_SIZE / height);
+                            width = Math.round(width * ratio);
+                            height = Math.round(height * ratio);
+                        }
+
+                        // Отрисовываем картинку на скрытом холсте для ресайза
+                        const canvas = document.createElement('canvas');
+                        canvas.width = width;
+                        canvas.height = height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, width, height);
+
+                        // Конвертируем обратно в Base64 (Data URL) - самый надежный формат для A-Frame
+                        loadedImageUrl = canvas.toDataURL('image/jpeg', 0.85);
+                        imgThumb.src = loadedImageUrl;
+                        selectedPreview.classList.remove('hidden');
+
+                        // Рассчитываем и устанавливаем пропорции для AR картинки
+                        arImage.setAttribute('width', width / height);
+                        arImage.setAttribute('height', 1);
+                    };
+                    img.src = event.target.result;
+                };
+                reader.readAsDataURL(file);
             }
         });
 
@@ -201,35 +232,26 @@
         startArBtn.addEventListener('click', () => {
             if (!loadedImageUrl) return;
 
-            // Определяем пропорции картинки, чтобы она не сплющивалась
-            const img = new Image();
-            img.onload = function() {
-                const ratio = this.width / this.height;
-                arImage.setAttribute('width', ratio);
-                arImage.setAttribute('height', 1);
+            // Устанавливаем нашу оптимизированную Base64 текстуру напрямую
+            arImage.setAttribute('src', loadedImageUrl);
+            
+            // Прячем экран настройки
+            setupScreen.style.opacity = '0';
+            
+            setTimeout(() => {
+                setupScreen.style.display = 'none';
+                preview.style.display = 'block';
                 
-                // Устанавливаем текстуру напрямую в A-Frame
-                arImage.setAttribute('src', loadedImageUrl);
+                // Безопасный запуск: ждем, пока сцена A-Frame будет готова
+                if (sceneEl.hasLoaded) {
+                    startArSystem();
+                } else {
+                    sceneEl.addEventListener('loaded', startArSystem);
+                }
                 
-                // Прячем экран настройки
-                setupScreen.style.opacity = '0';
-                
-                setTimeout(() => {
-                    setupScreen.style.display = 'none';
-                    preview.style.display = 'block'; // Показываем подсказку
-                    
-                    // Безопасный запуск: ждем, пока сцена A-Frame будет готова
-                    if (sceneEl.hasLoaded) {
-                        startArSystem();
-                    } else {
-                        sceneEl.addEventListener('loaded', startArSystem);
-                    }
-                    
-                    arUi.classList.remove('opacity-0');
-                    arUi.style.opacity = '1';
-                }, 500);
-            };
-            img.src = loadedImageUrl;
+                arUi.classList.remove('opacity-0');
+                arUi.style.opacity = '1';
+            }, 500);
         });
 
         // Обработчики кнопок UI
