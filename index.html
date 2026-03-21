@@ -8,6 +8,7 @@
     <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.2/dist/mindar-image-aframe.prod.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/lucide@0.344.0/dist/umd/lucide.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/樂/dist/tailwind.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { margin: 0; overflow: hidden; font-family: sans-serif; background: #000; }
@@ -100,8 +101,8 @@
                 </div>
 
                 <div class="flex gap-2">
-                   <button id="minusBtn" class="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center border border-white/10 text-xl font-bold">−</button>
-                   <button id="plusBtn" class="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center border border-white/10 text-xl font-bold">+</button>
+                   <button id="minusBtn" class="w-12 h-12 bg-white/10 rounded-xl flex items-center justify-center border border-white/10 text-xl font-bold active:bg-white/30">−</button>
+                   <button id="plusBtn" class="w-12 h-12 bg-white/10 rounded-xl flex items-center justify-center border border-white/10 text-xl font-bold active:bg-white/30">+</button>
                 </div>
             </div>
         </div>
@@ -110,7 +111,7 @@
     <!-- Инструкция -->
     <div id="target-preview">
         <h3 class="font-bold text-lg mb-2">Наведите на маркер</h3>
-        <p class="text-sm text-gray-500 mb-6">Положите это изображение рядом с листом бумаги.</p>
+        <p class="text-sm text-gray-500 mb-6">Положите это изображение (карточку) рядом с листом бумаги.</p>
         <img src="https://raw.githubusercontent.com/hiukim/mind-ar-js/master/examples/image-tracking/assets/card-example/card.png" crossorigin="anonymous" class="w-56 mx-auto mb-6 rounded-2xl shadow-xl">
         <button id="closeHelpBtn" class="w-full bg-blue-600 text-white py-4 rounded-2xl font-bold">Понятно</button>
     </div>
@@ -120,6 +121,7 @@
         id="main-scene"
         mindar-image="imageTargetSrc: https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.2/examples/image-tracking/assets/card-example/card.mind; autoStart: false; uiScanning: no;" 
         embedded
+        renderer="colorManagement: true, physicallyCorrectLights: true"
         vr-mode-ui="enabled: false" 
         device-orientation-permission-ui="enabled: false">
         
@@ -130,13 +132,14 @@
         <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
         <a-entity id="ar-target" mindar-image-target="targetIndex: 0">
+            <!-- Используем плоскую шейдерную модель и отключаем тест глубины для отрисовки "поверх" -->
             <a-image id="ar-image" 
-                position="0 0 0.02" 
+                position="0 0 0.05" 
                 height="1" 
                 width="1" 
                 opacity="0.5" 
                 transparent="true"
-                material="depthTest: false; shader: flat; side: double">
+                material="depthTest: false; shader: flat; side: double; transparent: true">
             </a-image>
         </a-entity>
     </a-scene>
@@ -182,9 +185,16 @@
 
                 imgAsset.onload = () => {
                     const ratio = imgAsset.width / imgAsset.height;
+                    // Сначала обновляем геометрию
                     arImage.setAttribute('width', ratio);
                     arImage.setAttribute('height', 1);
+                    // Затем привязываем текстуру через ID ассета
                     arImage.setAttribute('src', '#user-stencil');
+                    
+                    // Принудительное обновление компонента для устранения бага "невидимости"
+                    if (arImage.components && arImage.components.material) {
+                        arImage.components.material.update();
+                    }
                 };
             }
         });
@@ -199,14 +209,13 @@
                 try {
                     const arSystem = sceneEl.systems["mindar-image-system"];
                     if (arSystem) {
-                        // Принудительно запускаем систему
                         arSystem.start(); 
                         
-                        // Попытка принудительно запустить видео, если оно зависло
-                        setTimeout(() => {
+                        // Дополнительная попытка воспроизведения видео для мобильных
+                        document.body.addEventListener('click', () => {
                             const video = document.querySelector('video');
-                            if (video) video.play().catch(() => {});
-                        }, 1000);
+                            if (video && video.paused) video.play().catch(() => {});
+                        }, { once: true });
                     }
                 } catch (err) {
                     console.error("AR Start Error:", err);
@@ -240,6 +249,8 @@
             statusDot.classList.replace('bg-amber-500', 'bg-green-500');
             statusDot.classList.remove('animate-pulse');
             statusText.innerText = "Закреплено";
+            // Принудительно показываем изображение при нахождении
+            arImage.setAttribute('visible', true);
         });
 
         targetEntity.addEventListener("targetLost", () => {
@@ -248,10 +259,8 @@
             statusText.innerText = "Поиск маркера...";
         });
 
-        // Обработка глобальных ошибок для предотвращения падения скрипта
         window.onerror = function(msg, url, line) {
-            console.warn("Caught Script Error:", msg, "at", url, ":", line);
-            return true; // Предотвращает вывод ошибки в консоль Canvas
+            return true; 
         };
     </script>
 </body>
