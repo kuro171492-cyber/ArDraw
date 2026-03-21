@@ -1,178 +1,207 @@
-import React, { useState, useEffect } from 'react';
-import { Camera, AlertCircle, X, ExternalLink, Image as ImageIcon } from 'lucide-react';
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Web AR Трекер</title>
+  
+  <!-- Подключаем React и ReactDOM -->
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  
+  <!-- Подключаем Babel для компиляции JSX прямо в браузере -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  
+  <!-- Подключаем Tailwind CSS для стилей -->
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-900 m-0 p-0 overflow-hidden">
+  
+  <!-- Сюда React встроит наше приложение -->
+  <div id="root"></div>
 
-// Утилита для динамической загрузки внешних скриптов (A-Frame и AR.js)
-const loadScript = (src) => {
-  return new Promise((resolve, reject) => {
-    if (document.querySelector(`script[src="${src}"]`)) {
-      resolve();
-      return;
-    }
-    const script = document.createElement('script');
-    script.src = src;
-    script.crossOrigin = "anonymous";
-    script.onload = resolve;
-    script.onerror = reject;
-    document.head.appendChild(script);
-  });
-};
+  <!-- Пишем код приложения (type="text/babel" обязателен!) -->
+  <script type="text/babel">
+    const { useState, useEffect } = React;
 
-export default function App() {
-  const [arStarted, setArStarted] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-
-  const HIRO_MARKER_URL = "https://raw.githubusercontent.com/AR-js-org/AR.js/master/data/images/hiro.png";
-
-  const startAR = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      // Загружаем ядро A-Frame для 3D
-      await loadScript('https://aframe.io/releases/1.4.0/aframe.min.js');
-      // Загружаем AR.js для привязки к камере
-      await loadScript('https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js');
-      setArStarted(true);
-    } catch (err) {
-      console.error(err);
-      setError("Не удалось загрузить библиотеки AR. Проверьте подключение к интернету.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const stopAR = () => {
-    // AR.js внедряется глубоко в глобальные объекты и поток камеры.
-    // Самый надежный способ остановить его в рамках React-песочницы — перезагрузить страницу.
-    window.location.reload();
-  };
-
-  // Экран приветствия и инструкций
-  if (!arStarted) {
-    return (
-      <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4 font-sans text-slate-100">
-        <div className="bg-slate-800 p-8 rounded-2xl shadow-2xl max-w-md w-full border border-slate-700">
-          <div className="flex justify-center mb-6 text-blue-400">
-            <Camera size={48} strokeWidth={1.5} />
-          </div>
-          <h1 className="text-2xl font-bold text-center mb-6">Web AR Трекер</h1>
-          
-          <div className="space-y-4 mb-8 text-sm text-slate-300">
-            <p>Чтобы изображение "приклеилось" к бумаге, нам нужен специальный контрастный маркер.</p>
-            
-            <div className="bg-slate-900 p-4 rounded-lg border border-slate-700">
-              <h3 className="font-semibold text-white mb-2 flex items-center gap-2">
-                <ImageIcon size={16}/> Шаг 1: Подготовьте маркер
-              </h3>
-              <p className="mb-3">Откройте это изображение на телефоне/другом мониторе, либо распечатайте его на бумаге:</p>
-              <a 
-                href={HIRO_MARKER_URL} 
-                target="_blank" 
-                rel="noreferrer"
-                className="inline-flex items-center gap-2 text-blue-400 hover:text-blue-300 transition-colors font-medium"
-              >
-                Открыть маркер Hiro <ExternalLink size={14} />
-              </a>
-            </div>
-
-            <div className="bg-slate-900 p-4 rounded-lg border border-slate-700">
-              <h3 className="font-semibold text-white mb-1 flex items-center gap-2">
-                <Camera size={16}/> Шаг 2: Дайте доступ к камере
-              </h3>
-              <p>Нажмите "Запустить" и разрешите браузеру использовать веб-камеру.</p>
-            </div>
-          </div>
-
-          {error && (
-            <div className="mb-4 p-3 bg-red-500/20 text-red-300 rounded-lg flex items-start gap-3 text-sm">
-              <AlertCircle size={18} className="shrink-0 mt-0.5" />
-              <p>{error}</p>
-            </div>
-          )}
-
-          <button
-            onClick={startAR}
-            disabled={loading}
-            className={`w-full py-3 px-4 rounded-lg font-bold text-white transition-all 
-              ${loading 
-                ? 'bg-blue-600/50 cursor-not-allowed' 
-                : 'bg-blue-600 hover:bg-blue-500 shadow-lg shadow-blue-500/30'}`}
-          >
-            {loading ? 'Загрузка нейросетей...' : 'Запустить AR'}
-          </button>
-        </div>
-      </div>
+    // В браузере без сборщика мы не можем легко импортировать lucide-react, 
+    // поэтому создадим нужные иконки вручную через SVG:
+    const CameraIcon = ({ size = 24, strokeWidth = 2, className = "" }) => (
+      <svg className={className} xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
     );
-  }
+    const AlertCircleIcon = ({ size = 24, className = "" }) => (
+      <svg className={className} xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+    );
+    const XIcon = ({ size = 24, strokeWidth = 2, className = "" }) => (
+      <svg className={className} xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    );
+    const ExternalLinkIcon = ({ size = 24, className = "" }) => (
+      <svg className={className} xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+    );
+    const ImageIcon = ({ size = 24, className = "" }) => (
+      <svg className={className} xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+    );
 
-  // Основной экран AR
-  return (
-    <div className="relative w-full h-screen overflow-hidden bg-transparent">
-      {/* UI поверх камеры */}
-      <div className="absolute top-0 left-0 w-full p-4 z-50 flex justify-between items-start pointer-events-none">
-        <div className="bg-black/60 text-white px-4 py-3 rounded-xl backdrop-blur-md border border-white/10 pointer-events-auto shadow-xl max-w-xs">
-          <p className="text-sm font-medium">Наведите камеру на маркер Hiro.</p>
-          <p className="text-xs text-slate-300 mt-1">Изображение появится прямо на нём.</p>
+    // Утилита для динамической загрузки A-Frame и AR.js
+    const loadScript = (src) => {
+      return new Promise((resolve, reject) => {
+        if (document.querySelector(`script[src="${src}"]`)) {
+          resolve();
+          return;
+        }
+        const script = document.createElement('script');
+        script.src = src;
+        script.crossOrigin = "anonymous";
+        script.onload = resolve;
+        script.onerror = reject;
+        document.head.appendChild(script);
+      });
+    };
+
+    function App() {
+      const [arStarted, setArStarted] = useState(false);
+      const [loading, setLoading] = useState(false);
+      const [error, setError] = useState(null);
+
+      const HIRO_MARKER_URL = "https://raw.githubusercontent.com/AR-js-org/AR.js/master/data/images/hiro.png";
+
+      const startAR = async () => {
+        setLoading(true);
+        setError(null);
+        try {
+          // Загружаем ядро A-Frame для 3D
+          await loadScript('https://aframe.io/releases/1.4.0/aframe.min.js');
+          // Загружаем AR.js для привязки к камере
+          await loadScript('https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js');
+          setArStarted(true);
+        } catch (err) {
+          console.error(err);
+          setError("Не удалось загрузить библиотеки AR. Проверьте подключение к интернету.");
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      const stopAR = () => {
+        window.location.reload();
+      };
+
+      if (!arStarted) {
+        return (
+          <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4 font-sans text-slate-100">
+            <div className="bg-slate-800 p-8 rounded-2xl shadow-2xl max-w-md w-full border border-slate-700">
+              <div className="flex justify-center mb-6 text-blue-400">
+                <CameraIcon size={48} strokeWidth={1.5} />
+              </div>
+              <h1 className="text-2xl font-bold text-center mb-6">Web AR Трекер</h1>
+              
+              <div className="space-y-4 mb-8 text-sm text-slate-300">
+                <p>Чтобы изображение "приклеилось" к бумаге, нам нужен специальный контрастный маркер.</p>
+                
+                <div className="bg-slate-900 p-4 rounded-lg border border-slate-700">
+                  <h3 className="font-semibold text-white mb-2 flex items-center gap-2">
+                    <ImageIcon size={16}/> Шаг 1: Подготовьте маркер
+                  </h3>
+                  <p className="mb-3">Откройте это изображение на телефоне/мониторе, либо распечатайте его на бумаге:</p>
+                  <a 
+                    href={HIRO_MARKER_URL} 
+                    target="_blank" 
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-2 text-blue-400 hover:text-blue-300 transition-colors font-medium"
+                  >
+                    Открыть маркер Hiro <ExternalLinkIcon size={14} />
+                  </a>
+                </div>
+
+                <div className="bg-slate-900 p-4 rounded-lg border border-slate-700">
+                  <h3 className="font-semibold text-white mb-1 flex items-center gap-2">
+                    <CameraIcon size={16}/> Шаг 2: Дайте доступ к камере
+                  </h3>
+                  <p>Нажмите "Запустить" и разрешите браузеру использовать веб-камеру.</p>
+                </div>
+              </div>
+
+              {error && (
+                <div className="mb-4 p-3 bg-red-500/20 text-red-300 rounded-lg flex items-start gap-3 text-sm">
+                  <AlertCircleIcon size={18} className="shrink-0 mt-0.5" />
+                  <p>{error}</p>
+                </div>
+              )}
+
+              <button
+                onClick={startAR}
+                disabled={loading}
+                className={`w-full py-3 px-4 rounded-lg font-bold text-white transition-all 
+                  ${loading 
+                    ? 'bg-blue-600/50 cursor-not-allowed' 
+                    : 'bg-blue-600 hover:bg-blue-500 shadow-lg shadow-blue-500/30'}`}
+              >
+                {loading ? 'Загрузка нейросетей...' : 'Запустить AR'}
+              </button>
+            </div>
+          </div>
+        );
+      }
+
+      return (
+        <div className="relative w-full h-screen overflow-hidden bg-transparent">
+          <div className="absolute top-0 left-0 w-full p-4 z-50 flex justify-between items-start pointer-events-none">
+            <div className="bg-black/60 text-white px-4 py-3 rounded-xl backdrop-blur-md border border-white/10 pointer-events-auto shadow-xl max-w-xs">
+              <p className="text-sm font-medium">Наведите камеру на маркер Hiro.</p>
+              <p className="text-xs text-slate-300 mt-1">Изображение появится прямо на нём.</p>
+            </div>
+            
+            <button 
+              onClick={stopAR} 
+              className="bg-red-500/80 hover:bg-red-500 text-white p-3 rounded-full pointer-events-auto backdrop-blur-md transition-all shadow-lg"
+              aria-label="Закрыть AR"
+            >
+              <XIcon size={20} strokeWidth={2.5} />
+            </button>
+          </div>
+
+          <ARScene />
         </div>
-        
-        <button 
-          onClick={stopAR} 
-          className="bg-red-500/80 hover:bg-red-500 text-white p-3 rounded-full pointer-events-auto backdrop-blur-md transition-all shadow-lg"
-          aria-label="Закрыть AR"
-        >
-          <X size={20} strokeWidth={2.5} />
-        </button>
-      </div>
+      );
+    }
 
-      {/* Мемоизированный компонент сцены A-Frame.
-        React не должен пытаться перерисовывать внутренности a-scene, 
-        иначе возникнут конфликты с A-Frame.
-      */}
-      <ARScene />
-    </div>
-  );
-}
+    const ARScene = React.memo(() => {
+      return (
+        <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 0 }}>
+          <a-scene
+            embedded
+            arjs="sourceType: webcam; debugUIEnabled: false; trackingMethod: best; patternRatio: 0.5;"
+            renderer="logarithmicDepthBuffer: true; antialias: true; alpha: true"
+            vr-mode-ui="enabled: false"
+          >
+            <a-marker preset="hiro">
+              <a-image
+                src="https://upload.wikimedia.org/wikipedia/commons/a/a7/React-icon.svg"
+                position="0 0.5 0"
+                rotation="-90 0 0"
+                width="2"
+                height="2"
+                animation="property: rotation; to: -90 360 0; loop: true; dur: 5000; easing: linear"
+              ></a-image>
+              
+              <a-plane 
+                position="0 0.01 0" 
+                rotation="-90 0 0" 
+                width="2.5" 
+                height="2.5" 
+                color="#3b82f6" 
+                opacity="0.2"
+              ></a-plane>
+            </a-marker>
+            <a-entity camera></a-entity>
+          </a-scene>
+        </div>
+      );
+    });
 
-// Выносим сцену в отдельный компонент для стабильности
-const ARScene = React.memo(() => {
-  return (
-    // style={{position: 'absolute'}} нужен для того, чтобы React-дерево
-    // корректно позиционировалось поверх видео-тега камеры, который AR.js вставит в <body>
-    <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 0 }}>
-      <a-scene
-        embedded
-        arjs="sourceType: webcam; debugUIEnabled: false; trackingMethod: best; patternRatio: 0.5;"
-        renderer="logarithmicDepthBuffer: true; antialias: true; alpha: true"
-        vr-mode-ui="enabled: false"
-      >
-        {/* a-marker определяет тот самый объект/бумагу, который мы ищем */}
-        <a-marker preset="hiro">
-          {/* a-image - это картинка, которая будет наложена поверх маркера.
-            Мы используем логотип React. Он повернут по оси X (-90), чтобы лежать плашмя на бумаге.
-          */}
-          <a-image
-            src="https://upload.wikimedia.org/wikipedia/commons/a/a7/React-icon.svg"
-            position="0 0.5 0"
-            rotation="-90 0 0"
-            width="2"
-            height="2"
-            animation="property: rotation; to: -90 360 0; loop: true; dur: 5000; easing: linear"
-          ></a-image>
-          
-          {/* Полупрозрачная подложка, чтобы выделить зону "приклеивания" */}
-          <a-plane 
-            position="0 0.01 0" 
-            rotation="-90 0 0" 
-            width="2.5" 
-            height="2.5" 
-            color="#3b82f6" 
-            opacity="0.2"
-          ></a-plane>
-        </a-marker>
-        
-        {/* Виртуальная камера, которая синхронизируется с реальной */}
-        <a-entity camera></a-entity>
-      </a-scene>
-    </div>
-  );
-});
+    // Инициализация React 18
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
