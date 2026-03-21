@@ -1,293 +1,178 @@
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <!-- Отключаем масштабирование для корректной работы UI на смартфонах -->
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AR Stencil Pro</title>
-    
-    <!-- Подключение библиотек -->
-    <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.2/dist/mindar-image-aframe.prod.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/lucide@0.344.0/dist/umd/lucide.min.js"></script>
-    <!-- Официальный скрипт Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    
-    <style>
-        body { margin: 0; overflow: hidden; font-family: sans-serif; background: #000; }
-        .ui-overlay { z-index: 1000; position: absolute; }
-        
-        /* Скрываем стандартные UI элементы MindAR (надпись Scanning и т.д.), так как мы делаем свой UI */
-        .mindar-ui-overlay { display: none !important; }
-        
-        video { 
-            position: absolute; 
-            top: 0; left: 0; 
-            width: 100%; height: 100%; 
-            object-fit: cover; 
-            z-index: -1;
-        }
+import React, { useState, useEffect } from 'react';
+import { Camera, AlertCircle, X, ExternalLink, Image as ImageIcon } from 'lucide-react';
 
-        #setup-screen {
-            position: fixed;
-            inset: 0;
-            background: #0f172a;
-            z-index: 3000;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 2rem;
-            text-align: center;
-            color: white;
-            transition: opacity 0.5s ease;
-        }
+// Утилита для динамической загрузки внешних скриптов (A-Frame и AR.js)
+const loadScript = (src) => {
+  return new Promise((resolve, reject) => {
+    if (document.querySelector(`script[src="${src}"]`)) {
+      resolve();
+      return;
+    }
+    const script = document.createElement('script');
+    script.src = src;
+    script.crossOrigin = "anonymous";
+    script.onload = resolve;
+    script.onerror = reject;
+    document.head.appendChild(script);
+  });
+};
 
-        #target-preview {
-            display: none;
-            position: fixed;
-            top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            background: white; padding: 20px; border-radius: 24px;
-            z-index: 2000; text-align: center; color: black;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-            max-width: 90%;
-        }
+export default function App() {
+  const [arStarted, setArStarted] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-        input[type=range]::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            height: 24px; width: 24px;
-            border-radius: 50%; background: #ffffff;
-            cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-        }
-    </style>
-</head>
-<body>
+  const HIRO_MARKER_URL = "https://raw.githubusercontent.com/AR-js-org/AR.js/master/data/images/hiro.png";
 
-    <!-- Шаг 1: Экран настройки -->
-    <div id="setup-screen">
-        <div class="mb-8 p-6 bg-white/5 rounded-3xl border border-white/10">
-            <div class="w-16 h-16 mx-auto mb-4 bg-blue-500/20 rounded-2xl flex items-center justify-center">
-                <i data-lucide="image" class="text-blue-400 w-8 h-8"></i>
+  const startAR = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      // Загружаем ядро A-Frame для 3D
+      await loadScript('https://aframe.io/releases/1.4.0/aframe.min.js');
+      // Загружаем AR.js для привязки к камере
+      await loadScript('https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js');
+      setArStarted(true);
+    } catch (err) {
+      console.error(err);
+      setError("Не удалось загрузить библиотеки AR. Проверьте подключение к интернету.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const stopAR = () => {
+    // AR.js внедряется глубоко в глобальные объекты и поток камеры.
+    // Самый надежный способ остановить его в рамках React-песочницы — перезагрузить страницу.
+    window.location.reload();
+  };
+
+  // Экран приветствия и инструкций
+  if (!arStarted) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4 font-sans text-slate-100">
+        <div className="bg-slate-800 p-8 rounded-2xl shadow-2xl max-w-md w-full border border-slate-700">
+          <div className="flex justify-center mb-6 text-blue-400">
+            <Camera size={48} strokeWidth={1.5} />
+          </div>
+          <h1 className="text-2xl font-bold text-center mb-6">Web AR Трекер</h1>
+          
+          <div className="space-y-4 mb-8 text-sm text-slate-300">
+            <p>Чтобы изображение "приклеилось" к бумаге, нам нужен специальный контрастный маркер.</p>
+            
+            <div className="bg-slate-900 p-4 rounded-lg border border-slate-700">
+              <h3 className="font-semibold text-white mb-2 flex items-center gap-2">
+                <ImageIcon size={16}/> Шаг 1: Подготовьте маркер
+              </h3>
+              <p className="mb-3">Откройте это изображение на телефоне/другом мониторе, либо распечатайте его на бумаге:</p>
+              <a 
+                href={HIRO_MARKER_URL} 
+                target="_blank" 
+                rel="noreferrer"
+                className="inline-flex items-center gap-2 text-blue-400 hover:text-blue-300 transition-colors font-medium"
+              >
+                Открыть маркер Hiro <ExternalLink size={14} />
+              </a>
             </div>
-            <h1 class="text-2xl font-bold mb-2 text-white">AR Трафарет</h1>
-            <p class="text-gray-400 text-sm">Выберите фото для перерисовки</p>
+
+            <div className="bg-slate-900 p-4 rounded-lg border border-slate-700">
+              <h3 className="font-semibold text-white mb-1 flex items-center gap-2">
+                <Camera size={16}/> Шаг 2: Дайте доступ к камере
+              </h3>
+              <p>Нажмите "Запустить" и разрешите браузеру использовать веб-камеру.</p>
+            </div>
+          </div>
+
+          {error && (
+            <div className="mb-4 p-3 bg-red-500/20 text-red-300 rounded-lg flex items-start gap-3 text-sm">
+              <AlertCircle size={18} className="shrink-0 mt-0.5" />
+              <p>{error}</p>
+            </div>
+          )}
+
+          <button
+            onClick={startAR}
+            disabled={loading}
+            className={`w-full py-3 px-4 rounded-lg font-bold text-white transition-all 
+              ${loading 
+                ? 'bg-blue-600/50 cursor-not-allowed' 
+                : 'bg-blue-600 hover:bg-blue-500 shadow-lg shadow-blue-500/30'}`}
+          >
+            {loading ? 'Загрузка нейросетей...' : 'Запустить AR'}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Основной экран AR
+  return (
+    <div className="relative w-full h-screen overflow-hidden bg-transparent">
+      {/* UI поверх камеры */}
+      <div className="absolute top-0 left-0 w-full p-4 z-50 flex justify-between items-start pointer-events-none">
+        <div className="bg-black/60 text-white px-4 py-3 rounded-xl backdrop-blur-md border border-white/10 pointer-events-auto shadow-xl max-w-xs">
+          <p className="text-sm font-medium">Наведите камеру на маркер Hiro.</p>
+          <p className="text-xs text-slate-300 mt-1">Изображение появится прямо на нём.</p>
         </div>
         
-        <label class="bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-2xl font-bold transition-all cursor-pointer active:scale-95 shadow-xl shadow-blue-900/20">
-            Выбрать изображение
-            <input type="file" id="imageLoader" accept="image/*" class="hidden">
-        </label>
-        
-        <div id="selected-preview" class="mt-8 hidden">
-            <img id="img-thumb" src="" class="w-24 h-24 object-cover rounded-xl border-2 border-blue-500/50 mx-auto">
-            <button id="start-ar-btn" class="mt-6 bg-green-600 hover:bg-green-700 text-white px-10 py-4 rounded-2xl font-bold transition-all block mx-auto">
-                Открыть камеру
-            </button>
-        </div>
+        <button 
+          onClick={stopAR} 
+          className="bg-red-500/80 hover:bg-red-500 text-white p-3 rounded-full pointer-events-auto backdrop-blur-md transition-all shadow-lg"
+          aria-label="Закрыть AR"
+        >
+          <X size={20} strokeWidth={2.5} />
+        </button>
+      </div>
+
+      {/* Мемоизированный компонент сцены A-Frame.
+        React не должен пытаться перерисовывать внутренности a-scene, 
+        иначе возникнут конфликты с A-Frame.
+      */}
+      <ARScene />
     </div>
+  );
+}
 
-    <!-- Интерфейс AR -->
-    <div id="ar-ui" class="ui-overlay inset-0 pointer-events-none flex flex-col justify-between p-6 opacity-0 transition-opacity duration-500">
-        <div class="flex justify-between items-start pointer-events-auto">
-            <div id="statusTag" class="bg-black/60 backdrop-blur-xl border border-white/20 px-4 py-2 rounded-full flex items-center gap-2">
-                <div id="statusDot" class="w-3 h-3 rounded-full bg-amber-500 animate-pulse"></div>
-                <span id="statusText" class="text-xs font-bold uppercase tracking-widest text-white">Поиск маркера...</span>
-            </div>
-            <button id="helpBtn" class="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center text-white border border-white/20 font-bold">?</button>
-        </div>
-
-        <div class="bg-black/70 backdrop-blur-2xl border border-white/10 p-6 rounded-[2.5rem] pointer-events-auto flex flex-col gap-5 shadow-2xl text-white">
-            <div class="flex items-center justify-between gap-4">
-                <div class="flex-1 flex flex-col gap-2">
-                    <div class="flex justify-between text-[10px] text-white/50 uppercase font-bold">
-                        <span>Прозрачность</span>
-                        <span id="opacityLabel">50%</span>
-                    </div>
-                    <input type="range" id="opacityRange" min="0" max="1" step="0.01" value="0.5" class="w-full h-1.5 bg-white/20 rounded-lg appearance-none cursor-pointer">
-                </div>
-
-                <div class="flex gap-2">
-                   <button id="minusBtn" class="w-12 h-12 bg-white/10 rounded-xl flex items-center justify-center border border-white/10 text-xl font-bold active:bg-white/30">−</button>
-                   <button id="plusBtn" class="w-12 h-12 bg-white/10 rounded-xl flex items-center justify-center border border-white/10 text-xl font-bold active:bg-white/30">+</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Инструкция (модальное окно) -->
-    <div id="target-preview">
-        <h3 class="font-bold text-lg mb-2">Наведите на маркер</h3>
-        <p class="text-sm text-gray-500 mb-6">Положите это изображение (карточку) рядом с листом бумаги.</p>
-        <img src="https://raw.githubusercontent.com/hiukim/mind-ar-js/master/examples/image-tracking/assets/card-example/card.png" crossorigin="anonymous" class="w-56 mx-auto mb-6 rounded-2xl shadow-xl">
-        <button id="closeHelpBtn" class="w-full bg-blue-600 text-white py-4 rounded-2xl font-bold">Понятно</button>
-    </div>
-
-    <!-- AR Сцена -->
-    <a-scene 
-        id="main-scene"
-        mindar-image="imageTargetSrc: https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.2/examples/image-tracking/assets/card-example/card.mind; autoStart: false; uiScanning: no; uiLoading: no;" 
+// Выносим сцену в отдельный компонент для стабильности
+const ARScene = React.memo(() => {
+  return (
+    // style={{position: 'absolute'}} нужен для того, чтобы React-дерево
+    // корректно позиционировалось поверх видео-тега камеры, который AR.js вставит в <body>
+    <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 0 }}>
+      <a-scene
         embedded
-        color-space="sRGB"
-        renderer="colorManagement: true, physicallyCorrectLights: true"
-        vr-mode-ui="enabled: false" 
-        device-orientation-permission-ui="enabled: false">
+        arjs="sourceType: webcam; debugUIEnabled: false; trackingMethod: best; patternRatio: 0.5;"
+        renderer="logarithmicDepthBuffer: true; antialias: true; alpha: true"
+        vr-mode-ui="enabled: false"
+      >
+        {/* a-marker определяет тот самый объект/бумагу, который мы ищем */}
+        <a-marker preset="hiro">
+          {/* a-image - это картинка, которая будет наложена поверх маркера.
+            Мы используем логотип React. Он повернут по оси X (-90), чтобы лежать плашмя на бумаге.
+          */}
+          <a-image
+            src="https://upload.wikimedia.org/wikipedia/commons/a/a7/React-icon.svg"
+            position="0 0.5 0"
+            rotation="-90 0 0"
+            width="2"
+            height="2"
+            animation="property: rotation; to: -90 360 0; loop: true; dur: 5000; easing: linear"
+          ></a-image>
+          
+          {/* Полупрозрачная подложка, чтобы выделить зону "приклеивания" */}
+          <a-plane 
+            position="0 0.01 0" 
+            rotation="-90 0 0" 
+            width="2.5" 
+            height="2.5" 
+            color="#3b82f6" 
+            opacity="0.2"
+          ></a-plane>
+        </a-marker>
         
-        <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
-
-        <a-entity id="ar-target" mindar-image-target="targetIndex: 0">
-            <!-- Устанавливаем прозрачный пиксель по умолчанию и смещение по оси Z, чтобы избежать мерцания текстур -->
-            <a-image id="ar-image" 
-                src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="
-                position="0 0 0.01" 
-                height="1" 
-                width="1" 
-                opacity="0.5" 
-                material="depthTest: false; shader: flat; side: double; transparent: true">
-            </a-image>
-        </a-entity>
-    </a-scene>
-
-    <script>
-        // Инициализация иконок Lucide
-        lucide.createIcons();
-
-        // DOM элементы
-        const imageLoader = document.getElementById('imageLoader');
-        const arImage = document.getElementById('ar-image');
-        const imgThumb = document.getElementById('img-thumb');
-        const setupScreen = document.getElementById('setup-screen');
-        const startArBtn = document.getElementById('start-ar-btn');
-        const selectedPreview = document.getElementById('selected-preview');
-        const arUi = document.getElementById('ar-ui');
-        const sceneEl = document.querySelector('a-scene');
-        
-        const opacityRange = document.getElementById('opacityRange');
-        const opacityLabel = document.getElementById('opacityLabel');
-        const statusDot = document.getElementById('statusDot');
-        const statusText = document.getElementById('statusText');
-        const targetEntity = document.getElementById('ar-target');
-        const preview = document.getElementById('target-preview');
-
-        let currentScale = 1;
-        let loadedImageUrl = null;
-
-        // 1. Оптимизированная обработка изображения для мобильных устройств
-        imageLoader.addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = function(event) {
-                    const img = new Image();
-                    img.onload = function() {
-                        // Оптимизация размера для мобильного WebGL 
-                        // Предотвращает черный/невидимый экран при загрузке 12+ Мп фото
-                        const MAX_SIZE = 1024; 
-                        let width = img.width;
-                        let height = img.height;
-
-                        if (width > MAX_SIZE || height > MAX_SIZE) {
-                            const ratio = Math.min(MAX_SIZE / width, MAX_SIZE / height);
-                            width = Math.round(width * ratio);
-                            height = Math.round(height * ratio);
-                        }
-
-                        // Отрисовываем картинку на скрытом холсте для ресайза
-                        const canvas = document.createElement('canvas');
-                        canvas.width = width;
-                        canvas.height = height;
-                        const ctx = canvas.getContext('2d');
-                        ctx.drawImage(img, 0, 0, width, height);
-
-                        // Конвертируем обратно в Base64 (Data URL) - самый надежный формат для A-Frame
-                        loadedImageUrl = canvas.toDataURL('image/jpeg', 0.85);
-                        imgThumb.src = loadedImageUrl;
-                        selectedPreview.classList.remove('hidden');
-
-                        // Рассчитываем и устанавливаем пропорции для AR картинки
-                        arImage.setAttribute('width', width / height);
-                        arImage.setAttribute('height', 1);
-                    };
-                    img.src = event.target.result;
-                };
-                reader.readAsDataURL(file);
-            }
-        });
-
-        // 2. Функция запуска AR движка
-        const startArSystem = () => {
-            try {
-                const arSystem = sceneEl.systems["mindar-image-system"];
-                if (arSystem) {
-                    arSystem.start();
-                } else {
-                    console.error("Система MindAR не найдена!");
-                }
-            } catch (err) {
-                console.error("Ошибка запуска AR:", err);
-            }
-        };
-
-        // 3. Запуск AR по кнопке
-        startArBtn.addEventListener('click', () => {
-            if (!loadedImageUrl) return;
-
-            // Устанавливаем нашу оптимизированную Base64 текстуру напрямую
-            arImage.setAttribute('src', loadedImageUrl);
-            
-            // Прячем экран настройки
-            setupScreen.style.opacity = '0';
-            
-            setTimeout(() => {
-                setupScreen.style.display = 'none';
-                preview.style.display = 'block';
-                
-                // Безопасный запуск: ждем, пока сцена A-Frame будет готова
-                if (sceneEl.hasLoaded) {
-                    startArSystem();
-                } else {
-                    sceneEl.addEventListener('loaded', startArSystem);
-                }
-                
-                arUi.classList.remove('opacity-0');
-                arUi.style.opacity = '1';
-            }, 500);
-        });
-
-        // Обработчики кнопок UI
-        document.getElementById('closeHelpBtn').onclick = () => preview.style.display = 'none';
-        document.getElementById('helpBtn').onclick = () => preview.style.display = 'block';
-
-        // Настройка прозрачности
-        opacityRange.addEventListener('input', (e) => {
-            const val = e.target.value;
-            arImage.setAttribute('opacity', val);
-            opacityLabel.innerText = Math.round(val * 100) + '%';
-        });
-
-        // Настройка масштаба
-        document.getElementById('plusBtn').onclick = () => {
-            currentScale *= 1.1;
-            arImage.setAttribute('scale', `${currentScale} ${currentScale} ${currentScale}`);
-        };
-        document.getElementById('minusBtn').onclick = () => {
-            currentScale *= 0.9;
-            arImage.setAttribute('scale', `${currentScale} ${currentScale} ${currentScale}`);
-        };
-
-        // События MindAR: Маркер найден
-        targetEntity.addEventListener("targetFound", () => {
-            statusDot.classList.replace('bg-amber-500', 'bg-green-500');
-            statusDot.classList.remove('animate-pulse');
-            statusText.innerText = "Закреплено";
-        });
-
-        // События MindAR: Маркер потерян
-        targetEntity.addEventListener("targetLost", () => {
-            statusDot.classList.replace('bg-green-500', 'bg-amber-500');
-            statusDot.classList.add('animate-pulse');
-            statusText.innerText = "Поиск маркера...";
-        });
-    </script>
-</body>
-</html>
+        {/* Виртуальная камера, которая синхронизируется с реальной */}
+        <a-entity camera></a-entity>
+      </a-scene>
+    </div>
+  );
+});
