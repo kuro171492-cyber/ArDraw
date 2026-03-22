@@ -14,7 +14,8 @@
         body {
             background-color: #F7FAFC;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            touch-action: manipulation;
+            touch-action: none; /* Важно для кастомного перетаскивания */
+            user-select: none;
         }
         .app-container {
             max-width: 500px;
@@ -35,15 +36,32 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            touch-action: none;
         }
         .layer {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            pointer-events: none;
+        }
+        #user-image-container {
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            object-fit: contain;
-            pointer-events: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: move;
+            touch-action: none;
+        }
+        #user-image {
+            max-width: none;
+            max-height: none;
+            transition: opacity 0.2s;
+            transform-origin: center;
         }
         #grid-overlay {
             position: absolute;
@@ -52,6 +70,7 @@
             width: 100%;
             height: 100%;
             pointer-events: none;
+            z-index: 10;
         }
         .btn-primary {
             background-color: var(--primary);
@@ -64,6 +83,7 @@
         .btn-outline {
             border: 2px solid #E2E8F0;
             color: #4A5568;
+            background: white;
         }
         input[type="range"] {
             accent-color: var(--primary);
@@ -78,17 +98,24 @@
             color: white;
             border-radius: 24px;
         }
-        /* Custom Grid Style */
         .grid-line {
             stroke: rgba(255, 255, 255, 0.5);
             stroke-width: 1;
+        }
+        /* Стили для инструментов трансформации */
+        .transform-controls {
+            display: flex;
+            gap: 8px;
+            padding: 12px;
+            background: #f8fafc;
+            border-radius: 16px;
+            margin-bottom: 16px;
         }
     </style>
 </head>
 <body>
 
 <div class="app-container">
-    <!-- Header -->
     <header class="glass-header sticky top-0 px-6 py-4 flex justify-between items-center border-b border-gray-100">
         <div class="flex items-center gap-2">
             <div class="w-8 h-8 bg-[#FF5F5F] rounded-full flex items-center justify-center text-white font-bold">A</div>
@@ -99,44 +126,62 @@
         </button>
     </header>
 
-    <main class="flex-1 overflow-y-auto">
+    <main class="flex-1 overflow-y-auto pb-20">
         <!-- Canvas Display Area -->
         <div class="canvas-area shadow-inner" id="main-view">
-            <div id="placeholder-text" class="text-gray-400 text-center p-10">
+            <div id="placeholder-text" class="text-gray-400 text-center p-10 z-0">
                 <svg class="mx-auto mb-3" xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
-                Загрузите референс, чтобы начать
+                Загрузите референс
             </div>
             
             <img id="ref-image" class="layer hidden" alt="Reference">
-            <img id="user-image" class="layer hidden" style="opacity: 0.5;" alt="User Work">
+            <div id="user-image-container" class="hidden">
+                <img id="user-image" style="opacity: 0.5;" alt="User Work">
+            </div>
             <svg id="grid-overlay" class="hidden"></svg>
         </div>
 
-        <!-- Controls -->
         <div class="p-6 space-y-6">
-            
             <!-- Step 1: Uploads -->
             <div class="grid grid-cols-2 gap-4">
                 <div class="space-y-2">
-                    <label class="text-xs font-bold text-gray-400 uppercase tracking-wider">Референс</label>
-                    <button onclick="document.getElementById('ref-input').click()" class="w-full py-3 px-4 btn-outline rounded-2xl flex items-center justify-center gap-2 text-sm font-medium">
+                    <label class="text-xs font-bold text-gray-400 uppercase tracking-wider text-center block">Референс</label>
+                    <button onclick="document.getElementById('ref-input').click()" class="w-full py-3 px-4 btn-outline rounded-2xl flex items-center justify-center gap-2 text-sm font-medium shadow-sm">
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
-                        Загрузить
+                        Реф
                     </button>
                     <input type="file" id="ref-input" class="hidden" accept="image/*" onchange="handleImage(this, 'ref-image')">
                 </div>
                 <div class="space-y-2">
-                    <label class="text-xs font-bold text-gray-400 uppercase tracking-wider">Ваш рисунок</label>
-                    <button onclick="document.getElementById('user-input').click()" class="w-full py-3 px-4 btn-outline rounded-2xl flex items-center justify-center gap-2 text-sm font-medium">
+                    <label class="text-xs font-bold text-gray-400 uppercase tracking-wider text-center block">Ваш рисунок</label>
+                    <button onclick="document.getElementById('user-input').click()" class="w-full py-3 px-4 btn-outline rounded-2xl flex items-center justify-center gap-2 text-sm font-medium shadow-sm">
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
-                        Добавить
+                        Рисунок
                     </button>
                     <input type="file" id="user-input" class="hidden" accept="image/*" onchange="handleImage(this, 'user-image')">
                 </div>
             </div>
 
-            <!-- Step 2: Grid Settings -->
-            <div class="card-dark p-6 space-y-4">
+            <!-- Transformation Tools -->
+            <div id="transform-panel" class="hidden bg-gray-50 rounded-3xl p-5 border border-gray-100 space-y-4">
+                <div class="flex justify-between items-center">
+                    <h3 class="font-semibold text-gray-800">Трансформация</h3>
+                    <button onclick="fitToRef()" class="text-xs bg-indigo-500 text-white px-3 py-1.5 rounded-full font-bold hover:bg-indigo-600 transition-colors">
+                        ПРИВЯЗАТЬ К РЕФУ
+                    </button>
+                </div>
+                <div class="space-y-3">
+                    <div class="flex justify-between text-xs text-gray-400">
+                        <span>Масштаб</span>
+                        <span id="scale-val">100%</span>
+                    </div>
+                    <input type="range" id="scale-slider" min="10" max="300" value="100" class="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer" oninput="updateTransform()">
+                </div>
+                <p class="text-[10px] text-gray-400 text-center italic">Перетаскивайте изображение пальцем прямо на холсте</p>
+            </div>
+
+            <!-- Grid Settings -->
+            <div class="card-dark p-6 space-y-4 shadow-xl shadow-slate-200">
                 <div class="flex justify-between items-center">
                     <h3 class="font-semibold">Настройки сетки</h3>
                     <label class="relative inline-flex items-center cursor-pointer">
@@ -144,7 +189,6 @@
                         <div class="w-11 h-6 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#FF5F5F]"></div>
                     </label>
                 </div>
-
                 <div class="space-y-3">
                     <div class="flex justify-between text-xs text-gray-400">
                         <span>Размер ячеек</span>
@@ -154,41 +198,36 @@
                 </div>
             </div>
 
-            <!-- Step 3: Opacity -->
+            <!-- Opacity -->
             <div class="bg-white border border-gray-100 rounded-3xl p-6 shadow-sm space-y-4">
                 <div class="flex justify-between items-center">
-                    <h3 class="font-semibold text-gray-800">Прозрачность рисунка</h3>
+                    <h3 class="font-semibold text-gray-800">Прозрачность</h3>
                     <span id="opacity-val" class="text-sm font-bold text-[#FF5F5F]">50%</span>
                 </div>
                 <input type="range" id="opacity-slider" min="0" max="100" value="50" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer" oninput="updateOpacity()">
             </div>
-
-            <!-- Quick Action -->
-            <button class="w-full py-4 btn-primary rounded-2xl font-bold shadow-lg shadow-red-200" onclick="saveStatus()">
-                Сохранить проект
-            </button>
-
         </div>
     </main>
 
-    <!-- Navigation Mockup -->
-    <nav class="border-t border-gray-100 px-8 py-4 flex justify-between items-center bg-white">
-        <div class="text-[#FF5F5F]">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-        </div>
-        <div class="text-gray-300">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 1 1-7.6-10.6 8.38 8.38 0 0 1 3.8.9"/><polyline points="16 5 12 9 8 5"/></svg>
-        </div>
-        <div class="text-gray-300">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
-        </div>
-        <div class="text-gray-300">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-        </div>
+    <nav class="border-t border-gray-100 px-8 py-4 flex justify-between items-center bg-white fixed bottom-0 left-0 right-0 max-w-[500px] mx-auto z-50">
+        <div class="text-[#FF5F5F]"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></div>
+        <div class="text-gray-300"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 1 1-7.6-10.6 8.38 8.38 0 0 1 3.8.9"/><polyline points="16 5 12 9 8 5"/></svg></div>
+        <div class="text-gray-300"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></div>
+        <div class="text-gray-300"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></div>
     </nav>
 </div>
 
 <script>
+    let currentX = 0;
+    let currentY = 0;
+    let isDragging = false;
+    let startX, startY;
+    let scale = 1;
+
+    const userImg = document.getElementById('user-image');
+    const userImgContainer = document.getElementById('user-image-container');
+    const refImg = document.getElementById('ref-image');
+
     function handleImage(input, targetId) {
         const file = input.files[0];
         if (file) {
@@ -196,10 +235,14 @@
             reader.onload = function(e) {
                 const img = document.getElementById(targetId);
                 img.src = e.target.result;
-                img.classList.remove('hidden');
-                document.getElementById('placeholder-text').classList.add('hidden');
                 
-                if (targetId === 'ref-image') {
+                if (targetId === 'user-image') {
+                    userImgContainer.classList.remove('hidden');
+                    document.getElementById('transform-panel').classList.remove('hidden');
+                    resetTransform();
+                } else {
+                    img.classList.remove('hidden');
+                    document.getElementById('placeholder-text').classList.add('hidden');
                     setTimeout(updateGrid, 100);
                 }
             }
@@ -207,9 +250,74 @@
         }
     }
 
+    function resetTransform() {
+        currentX = 0;
+        currentY = 0;
+        scale = 1;
+        document.getElementById('scale-slider').value = 100;
+        updateTransform();
+    }
+
+    function updateTransform() {
+        const sliderVal = document.getElementById('scale-slider').value;
+        scale = sliderVal / 100;
+        document.getElementById('scale-val').innerText = sliderVal + '%';
+        userImg.style.transform = `translate(${currentX}px, ${currentY}px) scale(${scale})`;
+    }
+
+    function fitToRef() {
+        if (!refImg.src) return;
+        
+        // Сбрасываем смещения и подгоняем под контейнер (как и реф)
+        currentX = 0;
+        currentY = 0;
+        scale = 1;
+        
+        // Имитируем object-fit: contain для обоих
+        userImg.style.width = "100%";
+        userImg.style.height = "100%";
+        userImg.style.objectFit = "contain";
+        
+        document.getElementById('scale-slider').value = 100;
+        updateTransform();
+    }
+
+    // Drag Logic
+    userImgContainer.addEventListener('mousedown', dragStart);
+    userImgContainer.addEventListener('touchstart', dragStart, {passive: false});
+
+    window.addEventListener('mousemove', dragMove);
+    window.addEventListener('touchmove', dragMove, {passive: false});
+
+    window.addEventListener('mouseup', dragEnd);
+    window.addEventListener('touchend', dragEnd);
+
+    function dragStart(e) {
+        if (e.target.id !== 'user-image') return;
+        isDragging = true;
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        startX = clientX - currentX;
+        startY = clientY - currentY;
+    }
+
+    function dragMove(e) {
+        if (!isDragging) return;
+        e.preventDefault();
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        currentX = clientX - startX;
+        currentY = clientY - startY;
+        updateTransform();
+    }
+
+    function dragEnd() {
+        isDragging = false;
+    }
+
     function updateOpacity() {
         const val = document.getElementById('opacity-slider').value;
-        document.getElementById('user-image').style.opacity = val / 100;
+        userImg.style.opacity = val / 100;
         document.getElementById('opacity-val').innerText = val + '%';
     }
 
@@ -237,28 +345,21 @@
         svg.innerHTML = '';
 
         const stepX = width / size;
-        const stepY = height / (size * (height/width)); // Keep cells square
 
-        // Vertical lines
         for (let i = 1; i < size; i++) {
             const x = i * stepX;
             const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
-            line.setAttribute("x1", x);
-            line.setAttribute("y1", 0);
-            line.setAttribute("x2", x);
-            line.setAttribute("y2", height);
+            line.setAttribute("x1", x); line.setAttribute("y1", 0);
+            line.setAttribute("x2", x); line.setAttribute("y2", height);
             line.setAttribute("class", "grid-line");
             svg.appendChild(line);
         }
 
-        // Horizontal lines
         let y = stepX;
         while (y < height) {
             const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
-            line.setAttribute("x1", 0);
-            line.setAttribute("y1", y);
-            line.setAttribute("x2", width);
-            line.setAttribute("y2", y);
+            line.setAttribute("x1", 0); line.setAttribute("y1", y);
+            line.setAttribute("x2", width); line.setAttribute("y2", y);
             line.setAttribute("class", "grid-line");
             svg.appendChild(line);
             y += stepX;
@@ -266,28 +367,11 @@
     }
 
     function resetApp() {
-        if(confirm('Очистить все изображения?')) {
-            document.getElementById('ref-image').classList.add('hidden');
-            document.getElementById('user-image').classList.add('hidden');
-            document.getElementById('grid-overlay').classList.add('hidden');
-            document.getElementById('placeholder-text').classList.remove('hidden');
-            document.getElementById('grid-toggle').checked = false;
+        if(confirm('Очистить все данные?')) {
+            location.reload();
         }
     }
 
-    function saveStatus() {
-        // Simple mock for saving
-        const btn = event.target;
-        const originalText = btn.innerText;
-        btn.innerText = "Сохранено!";
-        btn.style.backgroundColor = "#48BB78";
-        setTimeout(() => {
-            btn.innerText = originalText;
-            btn.style.backgroundColor = "";
-        }, 2000);
-    }
-
-    // Handle resize to fix grid
     window.addEventListener('resize', updateGrid);
 </script>
 
