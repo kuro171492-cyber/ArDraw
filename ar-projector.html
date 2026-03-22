@@ -1,65 +1,233 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AR Projector</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Artist Overlay Tool</title>
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
+        :root {
+            --bg-color: #f8f9fa;
+            --accent-color: #6366f1;
+        }
         body {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-            background: linear-gradient(to right, #6a11cb, #2575fc);
+            background-color: var(--bg-color);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            touch-action: manipulation;
+        }
+        .canvas-container {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 1 / 1;
+            background: #e5e7eb;
+            overflow: hidden;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
         }
         canvas {
-            border: 1px solid #fff;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+        input[type="range"] {
+            accent-color: var(--accent-color);
+        }
+        .control-group {
+            background: white;
+            padding: 1rem;
+            border-radius: 12px;
+            margin-bottom: 0.75rem;
+            border: 1px solid #e5e7eb;
         }
     </style>
 </head>
-<body>
-    <canvas id="arCanvas"></canvas>
+<body class="p-4 md:max-w-md mx-auto">
+
+    <header class="mb-6 text-center">
+        <h1 class="text-2xl font-bold text-gray-800">Artist Helper</h1>
+        <p class="text-sm text-gray-500">Сетка и наложение слоев</p>
+    </header>
+
+    <!-- Основной холст -->
+    <div class="canvas-container mb-6" id="mainContainer">
+        <canvas id="refCanvas"></canvas>
+        <canvas id="userCanvas"></canvas>
+        <canvas id="gridCanvas"></canvas>
+    </div>
+
+    <!-- Загрузка файлов -->
+    <div class="grid grid-cols-2 gap-3 mb-6">
+        <label class="flex flex-col items-center justify-center p-3 bg-white border-2 border-dashed border-gray-300 rounded-xl cursor-pointer hover:border-indigo-400 transition-colors">
+            <span class="text-xs font-medium text-gray-600 text-center">🖼️ Референс</span>
+            <input type="file" id="refInput" class="hidden" accept="image/*">
+        </label>
+        <label class="flex flex-col items-center justify-center p-3 bg-white border-2 border-dashed border-gray-300 rounded-xl cursor-pointer hover:border-indigo-400 transition-colors">
+            <span class="text-xs font-medium text-gray-600 text-center">🎨 Твой холст</span>
+            <input type="file" id="userInput" class="hidden" accept="image/*">
+        </label>
+    </div>
+
+    <!-- Настройки -->
+    <div class="space-y-3">
+        <!-- Прозрачность -->
+        <div class="control-group">
+            <div class="flex justify-between items-center mb-2">
+                <span class="text-sm font-semibold text-gray-700">Прозрачность холста</span>
+                <span id="opacityVal" class="text-xs bg-indigo-100 text-indigo-700 px-2 py-1 rounded">50%</span>
+            </div>
+            <input type="range" id="opacityRange" min="0" max="100" value="50" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+        </div>
+
+        <!-- Сетка -->
+        <div class="control-group">
+            <div class="flex justify-between items-center mb-4">
+                <span class="text-sm font-semibold text-gray-700">Настройка сетки</span>
+                <label class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" id="gridToggle" class="sr-only peer" checked>
+                    <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                </label>
+            </div>
+            
+            <div class="space-y-4">
+                <div>
+                    <div class="flex justify-between text-xs mb-1">
+                        <span>Количество ячеек</span>
+                        <span id="gridCountVal">8</span>
+                    </div>
+                    <input type="range" id="gridCount" min="2" max="30" value="8" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                </div>
+                
+                <div class="flex items-center gap-4">
+                    <div class="flex-1">
+                        <span class="text-xs block mb-1">Цвет линий</span>
+                        <input type="color" id="gridColor" value="#ff0000" class="w-full h-8 rounded border-none cursor-pointer bg-transparent">
+                    </div>
+                    <div class="flex-1">
+                        <span class="text-xs block mb-1">Толщина</span>
+                        <input type="range" id="gridWeight" min="1" max="5" value="1" class="w-full h-2 bg-gray-200 rounded-lg appearance-none">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
-        // Camera support and setup
-        const canvas = document.getElementById('arCanvas');
-        const ctx = canvas.getContext('2d');
-        let mediaStream;
+        const refCanvas = document.getElementById('refCanvas');
+        const userCanvas = document.getElementById('userCanvas');
+        const gridCanvas = document.getElementById('gridCanvas');
+        
+        const refCtx = refCanvas.getContext('2d');
+        const userCtx = userCanvas.getContext('2d');
+        const gridCtx = gridCanvas.getContext('2d');
 
-        async function startCamera() {
-            mediaStream = await navigator.mediaDevices.getUserMedia({ video: true });
-            const video = document.createElement('video');
-            video.srcObject = mediaStream;
-            video.play();
+        const refInput = document.getElementById('refInput');
+        const userInput = document.getElementById('userInput');
+        
+        const opacityRange = document.getElementById('opacityRange');
+        const opacityVal = document.getElementById('opacityVal');
+        
+        const gridToggle = document.getElementById('gridToggle');
+        const gridCount = document.getElementById('gridCount');
+        const gridCountVal = document.getElementById('gridCountVal');
+        const gridColor = document.getElementById('gridColor');
+        const gridWeight = document.getElementById('gridWeight');
 
-            video.addEventListener('loadedmetadata', () => {
-                canvas.width = video.videoWidth;
-                canvas.height = video.videoHeight;
-                draw(video);
+        let refImg = null;
+        let userImg = null;
+
+        // Инициализация размеров
+        function resizeCanvases() {
+            const container = document.getElementById('mainContainer');
+            const size = container.clientWidth;
+            [refCanvas, userCanvas, gridCanvas].forEach(canvas => {
+                canvas.width = size;
+                canvas.height = size;
             });
+            redrawAll();
         }
 
-        function draw(video) {
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            requestAnimationFrame(() => draw(video));
+        window.addEventListener('resize', resizeCanvases);
+        window.onload = resizeCanvases;
+
+        // Загрузка изображений
+        refInput.onchange = (e) => loadImage(e, (img) => { refImg = img; redrawAll(); });
+        userInput.onchange = (e) => loadImage(e, (img) => { userImg = img; redrawAll(); });
+
+        function loadImage(e, callback) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const img = new Image();
+                img.onload = () => callback(img);
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
         }
 
-        // Image loading and touch gestures
-        canvas.addEventListener('touchstart', handleTouchStart, false);
-        canvas.addEventListener('touchmove', handleTouchMove, false);
+        function drawImageCentered(ctx, img) {
+            const canvas = ctx.canvas;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            if (!img) return;
 
-        function handleTouchStart(event) {
-            // Handle touch start actions
+            const ratio = Math.min(canvas.width / img.width, canvas.height / img.height);
+            const w = img.width * ratio;
+            const h = img.height * ratio;
+            const x = (canvas.width - w) / 2;
+            const y = (canvas.height - h) / 2;
+            
+            ctx.drawImage(img, x, y, w, h);
         }
 
-        function handleTouchMove(event) {
-            // Handle touch movements for drag and pinch
+        function drawGrid() {
+            gridCtx.clearRect(0, 0, gridCanvas.width, gridCanvas.height);
+            if (!gridToggle.checked) return;
+
+            const count = parseInt(gridCount.value);
+            const step = gridCanvas.width / count;
+            
+            gridCtx.beginPath();
+            gridCtx.strokeStyle = gridColor.value;
+            gridCtx.lineWidth = parseInt(gridWeight.value);
+
+            for (let i = 0; i <= count; i++) {
+                // Вертикальные
+                gridCtx.moveTo(i * step, 0);
+                gridCtx.lineTo(i * step, gridCanvas.height);
+                // Горизонтальные
+                gridCtx.moveTo(0, i * step);
+                gridCtx.lineTo(gridCanvas.width, i * step);
+            }
+            gridCtx.stroke();
         }
 
-        // Add UI elements for opacity and scale controls
-        // TODO: Implement UI controls
+        function redrawAll() {
+            drawImageCentered(refCtx, refImg);
+            drawImageCentered(userCtx, userImg);
+            drawGrid();
+        }
 
-        startCamera();
+        // Слушатели управления
+        opacityRange.oninput = () => {
+            const val = opacityRange.value;
+            opacityVal.innerText = val + '%';
+            userCanvas.style.opacity = val / 100;
+        };
+
+        gridCount.oninput = () => {
+            gridCountVal.innerText = gridCount.value;
+            drawGrid();
+        };
+
+        gridColor.oninput = drawGrid;
+        gridWeight.oninput = drawGrid;
+        gridToggle.onchange = drawGrid;
+
+        // Начальная установка прозрачности
+        userCanvas.style.opacity = opacityRange.value / 100;
     </script>
 </body>
 </html>
