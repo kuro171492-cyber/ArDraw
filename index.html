@@ -1,233 +1,238 @@
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Artist Overlay Tool</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        :root {
-            --bg-color: #f8f9fa;
-            --accent-color: #6366f1;
-        }
-        body {
-            background-color: var(--bg-color);
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            touch-action: manipulation;
-        }
-        .canvas-container {
-            position: relative;
-            width: 100%;
-            aspect-ratio: 1 / 1;
-            background: #e5e7eb;
-            overflow: hidden;
-            border-radius: 12px;
-            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
-        }
-        canvas {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            object-fit: contain;
-        }
-        input[type="range"] {
-            accent-color: var(--accent-color);
-        }
-        .control-group {
-            background: white;
-            padding: 1rem;
-            border-radius: 12px;
-            margin-bottom: 0.75rem;
-            border: 1px solid #e5e7eb;
-        }
-    </style>
-</head>
-<body class="p-4 md:max-w-md mx-auto">
+import React, { useState, useRef, useEffect } from 'react';
+import { Upload, Grid, Layers, Settings, Eye, EyeOff, Trash2, Palette } from 'lucide-react';
 
-    <header class="mb-6 text-center">
-        <h1 class="text-2xl font-bold text-gray-800">Artist Helper</h1>
-        <p class="text-sm text-gray-500">Сетка и наложение слоев</p>
-    </header>
+const App = () => {
+  const [refImg, setRefImg] = useState(null);
+  const [userImg, setUserImg] = useState(null);
+  const [opacity, setOpacity] = useState(50);
+  const [showGrid, setShowGrid] = useState(true);
+  const [gridCount, setGridCount] = useState(8);
+  const [gridColor, setGridColor] = useState('#ff0000');
+  const [gridWeight, setGridWeight] = useState(1);
 
-    <!-- Основной холст -->
-    <div class="canvas-container mb-6" id="mainContainer">
-        <canvas id="refCanvas"></canvas>
-        <canvas id="userCanvas"></canvas>
-        <canvas id="gridCanvas"></canvas>
-    </div>
+  const refCanvasRef = useRef(null);
+  const userCanvasRef = useRef(null);
+  const gridCanvasRef = useRef(null);
+  const containerRef = useRef(null);
 
-    <!-- Загрузка файлов -->
-    <div class="grid grid-cols-2 gap-3 mb-6">
-        <label class="flex flex-col items-center justify-center p-3 bg-white border-2 border-dashed border-gray-300 rounded-xl cursor-pointer hover:border-indigo-400 transition-colors">
-            <span class="text-xs font-medium text-gray-600 text-center">🖼️ Референс</span>
-            <input type="file" id="refInput" class="hidden" accept="image/*">
-        </label>
-        <label class="flex flex-col items-center justify-center p-3 bg-white border-2 border-dashed border-gray-300 rounded-xl cursor-pointer hover:border-indigo-400 transition-colors">
-            <span class="text-xs font-medium text-gray-600 text-center">🎨 Твой холст</span>
-            <input type="file" id="userInput" class="hidden" accept="image/*">
-        </label>
-    </div>
+  // Обработка загрузки файлов
+  const handleFileChange = (e, setter) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => setter(img);
+        img.src = event.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
-    <!-- Настройки -->
-    <div class="space-y-3">
-        <!-- Прозрачность -->
-        <div class="control-group">
-            <div class="flex justify-between items-center mb-2">
-                <span class="text-sm font-semibold text-gray-700">Прозрачность холста</span>
-                <span id="opacityVal" class="text-xs bg-indigo-100 text-indigo-700 px-2 py-1 rounded">50%</span>
+  // Функция отрисовки изображения с сохранением пропорций
+  const drawCentered = (ctx, img, size) => {
+    ctx.clearRect(0, 0, size, size);
+    if (!img) return;
+
+    const ratio = Math.min(size / img.width, size / img.height);
+    const w = img.width * ratio;
+    const h = img.height * ratio;
+    const x = (size - w) / 2;
+    const y = (size - h) / 2;
+
+    ctx.drawImage(img, x, y, w, h);
+  };
+
+  // Отрисовка сетки
+  const drawGrid = (ctx, size) => {
+    ctx.clearRect(0, 0, size, size);
+    if (!showGrid) return;
+
+    const step = size / gridCount;
+    ctx.beginPath();
+    ctx.strokeStyle = gridColor;
+    ctx.lineWidth = gridWeight;
+
+    for (let i = 0; i <= gridCount; i++) {
+      ctx.moveTo(i * step, 0);
+      ctx.lineTo(i * step, size);
+      ctx.moveTo(0, i * step);
+      ctx.lineTo(size, i * step);
+    }
+    ctx.stroke();
+  };
+
+  // Обновление всех слоев при изменении состояния
+  useEffect(() => {
+    if (containerRef.current) {
+      const size = containerRef.current.clientWidth;
+      [refCanvasRef, userCanvasRef, gridCanvasRef].forEach(ref => {
+        if (ref.current) {
+          ref.current.width = size;
+          ref.current.height = size;
+        }
+      });
+
+      drawCentered(refCanvasRef.current.getContext('2d'), refImg, size);
+      drawCentered(userCanvasRef.current.getContext('2d'), userImg, size);
+      drawGrid(gridCanvasRef.current.getContext('2d'), size);
+    }
+  }, [refImg, userImg, showGrid, gridCount, gridColor, gridWeight]);
+
+  return (
+    <div className="min-h-screen bg-slate-50 text-slate-900 pb-10">
+      {/* Шапка */}
+      <header className="bg-white border-b px-4 py-4 sticky top-0 z-20 shadow-sm">
+        <div className="max-w-md mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="bg-indigo-600 p-1.5 rounded-lg text-white">
+              <Palette size={20} />
             </div>
-            <input type="range" id="opacityRange" min="0" max="100" value="50" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+            <h1 className="text-xl font-bold tracking-tight">ArtOverlay</h1>
+          </div>
+          <button 
+            onClick={() => { setRefImg(null); setUserImg(null); }}
+            className="p-2 text-slate-400 hover:text-red-500 transition-colors"
+            title="Очистить всё"
+          >
+            <Trash2 size={20} />
+          </button>
+        </div>
+      </header>
+
+      <main className="max-w-md mx-auto p-4 space-y-6">
+        {/* Контейнер холстов */}
+        <div 
+          ref={containerRef}
+          className="relative w-full aspect-square bg-slate-200 rounded-2xl overflow-hidden shadow-inner border border-slate-200"
+        >
+          <canvas ref={refCanvasRef} className="absolute inset-0 w-full h-full object-contain" />
+          <canvas 
+            ref={userCanvasRef} 
+            style={{ opacity: opacity / 100 }}
+            className="absolute inset-0 w-full h-full object-contain pointer-events-none transition-opacity duration-200" 
+          />
+          <canvas ref={gridCanvasRef} className="absolute inset-0 w-full h-full pointer-events-none" />
+          
+          {(!refImg && !userImg) && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-400 gap-2">
+              <Upload size={40} strokeWidth={1.5} />
+              <p className="text-sm font-medium">Загрузите изображения</p>
+            </div>
+          )}
         </div>
 
-        <!-- Сетка -->
-        <div class="control-group">
-            <div class="flex justify-between items-center mb-4">
-                <span class="text-sm font-semibold text-gray-700">Настройка сетки</span>
-                <label class="relative inline-flex items-center cursor-pointer">
-                    <input type="checkbox" id="gridToggle" class="sr-only peer" checked>
-                    <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
-                </label>
-            </div>
-            
-            <div class="space-y-4">
-                <div>
-                    <div class="flex justify-between text-xs mb-1">
-                        <span>Количество ячеек</span>
-                        <span id="gridCountVal">8</span>
-                    </div>
-                    <input type="range" id="gridCount" min="2" max="30" value="8" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
-                </div>
-                
-                <div class="flex items-center gap-4">
-                    <div class="flex-1">
-                        <span class="text-xs block mb-1">Цвет линий</span>
-                        <input type="color" id="gridColor" value="#ff0000" class="w-full h-8 rounded border-none cursor-pointer bg-transparent">
-                    </div>
-                    <div class="flex-1">
-                        <span class="text-xs block mb-1">Толщина</span>
-                        <input type="range" id="gridWeight" min="1" max="5" value="1" class="w-full h-2 bg-gray-200 rounded-lg appearance-none">
-                    </div>
-                </div>
-            </div>
+        {/* Секция загрузки */}
+        <div className="grid grid-cols-2 gap-3">
+          <label className="flex flex-col items-center justify-center gap-2 p-4 bg-white border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-50 transition-all shadow-sm group">
+            <Upload size={20} className="text-indigo-500 group-hover:scale-110 transition-transform" />
+            <span className="text-xs font-semibold">Референс</span>
+            <input type="file" className="hidden" accept="image/*" onChange={(e) => handleFileChange(e, setRefImg)} />
+          </label>
+          <label className="flex flex-col items-center justify-center gap-2 p-4 bg-white border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-50 transition-all shadow-sm group">
+            <Layers size={20} className="text-emerald-500 group-hover:scale-110 transition-transform" />
+            <span className="text-xs font-semibold">Твой рисунок</span>
+            <input type="file" className="hidden" accept="image/*" onChange={(e) => handleFileChange(e, setUserImg)} />
+          </label>
         </div>
+
+        {/* Настройки слоев */}
+        <section className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm space-y-4">
+          <div className="flex items-center gap-2 mb-2">
+            <Settings size={18} className="text-slate-400" />
+            <h2 className="text-sm font-bold uppercase tracking-wider text-slate-500">Настройки слоев</h2>
+          </div>
+
+          <div className="space-y-4">
+            <div>
+              <div className="flex justify-between items-center mb-3">
+                <span className="text-sm font-medium flex items-center gap-2">
+                  <Layers size={16} className="text-slate-400" />
+                  Прозрачность рисунка
+                </span>
+                <span className="text-xs font-mono bg-slate-100 px-2 py-0.5 rounded text-slate-600">
+                  {opacity}%
+                </span>
+              </div>
+              <input 
+                type="range" 
+                min="0" max="100" 
+                value={opacity} 
+                onChange={(e) => setOpacity(e.target.value)}
+                className="w-full h-2 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+              />
+            </div>
+          </div>
+        </section>
+
+        {/* Настройки сетки */}
+        <section className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm space-y-5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Grid size={18} className="text-slate-400" />
+              <h2 className="text-sm font-bold uppercase tracking-wider text-slate-500">Сетка</h2>
+            </div>
+            <button 
+              onClick={() => setShowGrid(!showGrid)}
+              className={`p-2 rounded-lg transition-colors ${showGrid ? 'bg-indigo-50 text-indigo-600' : 'bg-slate-50 text-slate-400'}`}
+            >
+              {showGrid ? <Eye size={18} /> : <EyeOff size={18} />}
+            </button>
+          </div>
+
+          <div className={`space-y-5 transition-opacity duration-200 ${showGrid ? 'opacity-100' : 'opacity-40 pointer-events-none'}`}>
+            <div>
+              <div className="flex justify-between text-xs font-medium mb-3">
+                <span>Плотность ячеек</span>
+                <span className="text-indigo-600">{gridCount} x {gridCount}</span>
+              </div>
+              <input 
+                type="range" 
+                min="2" max="30" 
+                value={gridCount} 
+                onChange={(e) => setGridCount(parseInt(e.target.value))}
+                className="w-full h-2 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-[10px] uppercase font-bold text-slate-400 tracking-tight">Цвет линий</label>
+                <div className="relative h-10 w-full">
+                  <input 
+                    type="color" 
+                    value={gridColor} 
+                    onChange={(e) => setGridColor(e.target.value)}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                  />
+                  <div 
+                    className="w-full h-full rounded-lg border border-slate-200 flex items-center justify-center"
+                    style={{ backgroundColor: gridColor + '20' }}
+                  >
+                    <div className="w-4 h-4 rounded-full shadow-sm" style={{ backgroundColor: gridColor }} />
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] uppercase font-bold text-slate-400 tracking-tight">Толщина</label>
+                <div className="flex items-center gap-3 h-10">
+                  <input 
+                    type="range" 
+                    min="1" max="5" 
+                    value={gridWeight} 
+                    onChange={(e) => setGridWeight(parseInt(e.target.value))}
+                    className="flex-1 h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-slate-600"
+                  />
+                  <span className="text-xs font-mono text-slate-500 w-4">{gridWeight}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
     </div>
+  );
+};
 
-    <script>
-        const refCanvas = document.getElementById('refCanvas');
-        const userCanvas = document.getElementById('userCanvas');
-        const gridCanvas = document.getElementById('gridCanvas');
-        
-        const refCtx = refCanvas.getContext('2d');
-        const userCtx = userCanvas.getContext('2d');
-        const gridCtx = gridCanvas.getContext('2d');
-
-        const refInput = document.getElementById('refInput');
-        const userInput = document.getElementById('userInput');
-        
-        const opacityRange = document.getElementById('opacityRange');
-        const opacityVal = document.getElementById('opacityVal');
-        
-        const gridToggle = document.getElementById('gridToggle');
-        const gridCount = document.getElementById('gridCount');
-        const gridCountVal = document.getElementById('gridCountVal');
-        const gridColor = document.getElementById('gridColor');
-        const gridWeight = document.getElementById('gridWeight');
-
-        let refImg = null;
-        let userImg = null;
-
-        // Инициализация размеров
-        function resizeCanvases() {
-            const container = document.getElementById('mainContainer');
-            const size = container.clientWidth;
-            [refCanvas, userCanvas, gridCanvas].forEach(canvas => {
-                canvas.width = size;
-                canvas.height = size;
-            });
-            redrawAll();
-        }
-
-        window.addEventListener('resize', resizeCanvases);
-        window.onload = resizeCanvases;
-
-        // Загрузка изображений
-        refInput.onchange = (e) => loadImage(e, (img) => { refImg = img; redrawAll(); });
-        userInput.onchange = (e) => loadImage(e, (img) => { userImg = img; redrawAll(); });
-
-        function loadImage(e, callback) {
-            const file = e.target.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                const img = new Image();
-                img.onload = () => callback(img);
-                img.src = event.target.result;
-            };
-            reader.readAsDataURL(file);
-        }
-
-        function drawImageCentered(ctx, img) {
-            const canvas = ctx.canvas;
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            if (!img) return;
-
-            const ratio = Math.min(canvas.width / img.width, canvas.height / img.height);
-            const w = img.width * ratio;
-            const h = img.height * ratio;
-            const x = (canvas.width - w) / 2;
-            const y = (canvas.height - h) / 2;
-            
-            ctx.drawImage(img, x, y, w, h);
-        }
-
-        function drawGrid() {
-            gridCtx.clearRect(0, 0, gridCanvas.width, gridCanvas.height);
-            if (!gridToggle.checked) return;
-
-            const count = parseInt(gridCount.value);
-            const step = gridCanvas.width / count;
-            
-            gridCtx.beginPath();
-            gridCtx.strokeStyle = gridColor.value;
-            gridCtx.lineWidth = parseInt(gridWeight.value);
-
-            for (let i = 0; i <= count; i++) {
-                // Вертикальные
-                gridCtx.moveTo(i * step, 0);
-                gridCtx.lineTo(i * step, gridCanvas.height);
-                // Горизонтальные
-                gridCtx.moveTo(0, i * step);
-                gridCtx.lineTo(gridCanvas.width, i * step);
-            }
-            gridCtx.stroke();
-        }
-
-        function redrawAll() {
-            drawImageCentered(refCtx, refImg);
-            drawImageCentered(userCtx, userImg);
-            drawGrid();
-        }
-
-        // Слушатели управления
-        opacityRange.oninput = () => {
-            const val = opacityRange.value;
-            opacityVal.innerText = val + '%';
-            userCanvas.style.opacity = val / 100;
-        };
-
-        gridCount.oninput = () => {
-            gridCountVal.innerText = gridCount.value;
-            drawGrid();
-        };
-
-        gridColor.oninput = drawGrid;
-        gridWeight.oninput = drawGrid;
-        gridToggle.onchange = drawGrid;
-
-        // Начальная установка прозрачности
-        userCanvas.style.opacity = opacityRange.value / 100;
-    </script>
-</body>
-</html>
+export default App;
