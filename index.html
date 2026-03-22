@@ -1,264 +1,295 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Upload, Grid, Layers, Settings, Eye, EyeOff, Trash2, Palette, Sliders, Image as ImageIcon } from 'lucide-react';
-
-const App = () => {
-  const [refImg, setRefImg] = useState(null);
-  const [userImg, setUserImg] = useState(null);
-  const [opacity, setOpacity] = useState(50);
-  const [showGrid, setShowGrid] = useState(true);
-  const [gridCount, setGridCount] = useState(8);
-  const [gridColor, setGridColor] = useState('#a78bfa'); // Светло-фиолетовый по умолчанию
-  const [gridWeight, setGridWeight] = useState(1);
-
-  const refCanvasRef = useRef(null);
-  const userCanvasRef = useRef(null);
-  const gridCanvasRef = useRef(null);
-  const containerRef = useRef(null);
-
-  // Обработка загрузки файлов
-  const handleFileChange = (e, setter) => {
-    const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const img = new Image();
-        img.onload = () => setter(img);
-        img.src = event.target.result;
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  // Функция отрисовки изображения с сохранением пропорций
-  const drawCentered = (ctx, img, size) => {
-    ctx.clearRect(0, 0, size, size);
-    if (!img) return;
-
-    const ratio = Math.min(size / img.width, size / img.height);
-    const w = img.width * ratio;
-    const h = img.height * ratio;
-    const x = (size - w) / 2;
-    const y = (size - h) / 2;
-
-    ctx.drawImage(img, x, y, w, h);
-  };
-
-  // Отрисовка сетки
-  const drawGrid = (ctx, size) => {
-    ctx.clearRect(0, 0, size, size);
-    if (!showGrid) return;
-
-    const step = size / gridCount;
-    ctx.beginPath();
-    ctx.strokeStyle = gridColor;
-    ctx.lineWidth = gridWeight;
-
-    for (let i = 0; i <= gridCount; i++) {
-      ctx.moveTo(i * step, 0);
-      ctx.lineTo(i * step, size);
-      ctx.moveTo(0, i * step);
-      ctx.lineTo(size, i * step);
-    }
-    ctx.stroke();
-  };
-
-  // Обновление всех слоев при изменении состояния
-  useEffect(() => {
-    if (containerRef.current) {
-      const size = containerRef.current.clientWidth;
-      [refCanvasRef, userCanvasRef, gridCanvasRef].forEach(ref => {
-        if (ref.current) {
-          ref.current.width = size;
-          ref.current.height = size;
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ArtRef - Помощник Художника</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root {
+            --primary: #FF5F5F;
+            --dark-bg: #2D3748;
+            --dark-card: #3D4852;
         }
-      });
+        body {
+            background-color: #F7FAFC;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            touch-action: manipulation;
+        }
+        .app-container {
+            max-width: 500px;
+            margin: 0 auto;
+            min-height: 100vh;
+            background: #FFFFFF;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            box-shadow: 0 0 20px rgba(0,0,0,0.05);
+        }
+        .canvas-area {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 3/4;
+            background: #eee;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            pointer-events: none;
+        }
+        #grid-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+        .btn-primary {
+            background-color: var(--primary);
+            color: white;
+            transition: opacity 0.2s;
+        }
+        .btn-primary:active {
+            opacity: 0.8;
+        }
+        .btn-outline {
+            border: 2px solid #E2E8F0;
+            color: #4A5568;
+        }
+        input[type="range"] {
+            accent-color: var(--primary);
+        }
+        .glass-header {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            z-index: 50;
+        }
+        .card-dark {
+            background: var(--dark-bg);
+            color: white;
+            border-radius: 24px;
+        }
+        /* Custom Grid Style */
+        .grid-line {
+            stroke: rgba(255, 255, 255, 0.5);
+            stroke-width: 1;
+        }
+    </style>
+</head>
+<body>
 
-      drawCentered(refCanvasRef.current.getContext('2d'), refImg, size);
-      drawCentered(userCanvasRef.current.getContext('2d'), userImg, size);
-      drawGrid(gridCanvasRef.current.getContext('2d'), size);
-    }
-  }, [refImg, userImg, showGrid, gridCount, gridColor, gridWeight]);
-
-  return (
-    <div className="min-h-screen bg-[#0a0514] text-white pb-10 font-sans selection:bg-purple-500/30">
-      {/* Шапка в стиле Loona */}
-      <header className="bg-[#0a0514]/80 backdrop-blur-md px-6 py-5 sticky top-0 z-20 border-b border-purple-900/20">
-        <div className="max-w-md mx-auto flex items-center justify-between">
-          <div className="flex flex-col">
-            <h1 className="text-xl font-bold tracking-tight text-white flex items-center gap-2">
-              <span className="bg-gradient-to-br from-purple-400 to-indigo-600 w-2 h-6 rounded-full inline-block"></span>
-              ArtOverlay
-            </h1>
-            <p className="text-[10px] text-purple-300/60 uppercase tracking-[0.2em] font-medium">Творческий помощник</p>
-          </div>
-          <button 
-            onClick={() => { setRefImg(null); setUserImg(null); }}
-            className="p-2.5 bg-white/5 hover:bg-red-500/20 text-purple-300 hover:text-red-400 rounded-full transition-all active:scale-95 border border-white/5 shadow-lg"
-            title="Очистить всё"
-          >
-            <Trash2 size={18} />
-          </button>
+<div class="app-container">
+    <!-- Header -->
+    <header class="glass-header sticky top-0 px-6 py-4 flex justify-between items-center border-b border-gray-100">
+        <div class="flex items-center gap-2">
+            <div class="w-8 h-8 bg-[#FF5F5F] rounded-full flex items-center justify-center text-white font-bold">A</div>
+            <h1 class="text-xl font-semibold text-gray-800 tracking-tight">ArtRef</h1>
         </div>
-      </header>
+        <button onclick="resetApp()" class="text-gray-400 hover:text-red-500">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+        </button>
+    </header>
 
-      <main className="max-w-md mx-auto p-5 space-y-8">
-        {/* Контейнер холстов с эффектом свечения */}
-        <div className="relative group">
-          <div className="absolute -inset-1 bg-gradient-to-r from-purple-600 to-indigo-600 rounded-3xl blur opacity-20 group-hover:opacity-30 transition duration-1000"></div>
-          <div 
-            ref={containerRef}
-            className="relative w-full aspect-square bg-[#1a1425] rounded-3xl overflow-hidden border border-white/10 shadow-2xl"
-          >
-            <canvas ref={refCanvasRef} className="absolute inset-0 w-full h-full object-contain" />
-            <canvas 
-              ref={userCanvasRef} 
-              style={{ opacity: opacity / 100 }}
-              className="absolute inset-0 w-full h-full object-contain pointer-events-none transition-opacity duration-300" 
-            />
-            <canvas ref={gridCanvasRef} className="absolute inset-0 w-full h-full pointer-events-none" />
+    <main class="flex-1 overflow-y-auto">
+        <!-- Canvas Display Area -->
+        <div class="canvas-area shadow-inner" id="main-view">
+            <div id="placeholder-text" class="text-gray-400 text-center p-10">
+                <svg class="mx-auto mb-3" xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+                Загрузите референс, чтобы начать
+            </div>
             
-            {(!refImg && !userImg) && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center text-purple-300/40 gap-4">
-                <div className="p-5 bg-purple-500/5 rounded-full border border-purple-500/10 animate-pulse">
-                  <ImageIcon size={48} strokeWidth={1} />
-                </div>
-                <p className="text-sm font-medium tracking-wide">Загрузите файлы для начала</p>
-              </div>
-            )}
-          </div>
+            <img id="ref-image" class="layer hidden" alt="Reference">
+            <img id="user-image" class="layer hidden" style="opacity: 0.5;" alt="User Work">
+            <svg id="grid-overlay" class="hidden"></svg>
         </div>
 
-        {/* Секция загрузки в виде плиток */}
-        <div className="grid grid-cols-2 gap-4">
-          <label className="relative overflow-hidden group flex flex-col items-center justify-center gap-3 p-5 bg-[#1a1425] border border-white/5 rounded-2xl cursor-pointer hover:border-purple-500/50 transition-all shadow-xl active:scale-95">
-            <div className="absolute top-0 right-0 p-2 opacity-10 group-hover:opacity-20 transition-opacity">
-               <ImageIcon size={40} />
-            </div>
-            <div className="bg-purple-500/20 p-2.5 rounded-xl text-purple-400">
-              <Upload size={20} />
-            </div>
-            <span className="text-xs font-bold text-purple-100/90 tracking-wide uppercase">Референс</span>
-            <input type="file" className="hidden" accept="image/*" onChange={(e) => handleFileChange(e, setRefImg)} />
-          </label>
-
-          <label className="relative overflow-hidden group flex flex-col items-center justify-center gap-3 p-5 bg-[#1a1425] border border-white/5 rounded-2xl cursor-pointer hover:border-indigo-500/50 transition-all shadow-xl active:scale-95">
-            <div className="absolute top-0 right-0 p-2 opacity-10 group-hover:opacity-20 transition-opacity">
-               <Layers size={40} />
-            </div>
-            <div className="bg-indigo-500/20 p-2.5 rounded-xl text-indigo-400">
-              <Layers size={20} />
-            </div>
-            <span className="text-xs font-bold text-indigo-100/90 tracking-wide uppercase">Рисунок</span>
-            <input type="file" className="hidden" accept="image/*" onChange={(e) => handleFileChange(e, setUserImg)} />
-          </label>
-        </div>
-
-        {/* Панель управления (Glassmorphism) */}
-        <div className="space-y-4">
-          {/* Слайдер прозрачности */}
-          <section className="bg-white/5 backdrop-blur-xl rounded-3xl p-6 border border-white/10 shadow-xl">
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-indigo-500/10 rounded-lg text-indigo-400">
-                  <Sliders size={18} />
+        <!-- Controls -->
+        <div class="p-6 space-y-6">
+            
+            <!-- Step 1: Uploads -->
+            <div class="grid grid-cols-2 gap-4">
+                <div class="space-y-2">
+                    <label class="text-xs font-bold text-gray-400 uppercase tracking-wider">Референс</label>
+                    <button onclick="document.getElementById('ref-input').click()" class="w-full py-3 px-4 btn-outline rounded-2xl flex items-center justify-center gap-2 text-sm font-medium">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
+                        Загрузить
+                    </button>
+                    <input type="file" id="ref-input" class="hidden" accept="image/*" onchange="handleImage(this, 'ref-image')">
                 </div>
-                <h2 className="text-sm font-bold tracking-wider text-purple-100/80 uppercase">Слои</h2>
-              </div>
-              <span className="text-xs font-mono font-bold bg-indigo-500/20 text-indigo-300 px-3 py-1 rounded-full border border-indigo-500/20">
-                {opacity}%
-              </span>
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-[10px] text-purple-300/50 uppercase tracking-[0.1em] font-bold mb-2 block">
-                Прозрачность наложения
-              </label>
-              <input 
-                type="range" 
-                min="0" max="100" 
-                value={opacity} 
-                onChange={(e) => setOpacity(e.target.value)}
-                className="w-full h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-indigo-500"
-              />
-            </div>
-          </section>
-
-          {/* Настройки сетки */}
-          <section className="bg-white/5 backdrop-blur-xl rounded-3xl p-6 border border-white/10 shadow-xl space-y-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-purple-500/10 rounded-lg text-purple-400">
-                  <Grid size={18} />
+                <div class="space-y-2">
+                    <label class="text-xs font-bold text-gray-400 uppercase tracking-wider">Ваш рисунок</label>
+                    <button onclick="document.getElementById('user-input').click()" class="w-full py-3 px-4 btn-outline rounded-2xl flex items-center justify-center gap-2 text-sm font-medium">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                        Добавить
+                    </button>
+                    <input type="file" id="user-input" class="hidden" accept="image/*" onchange="handleImage(this, 'user-image')">
                 </div>
-                <h2 className="text-sm font-bold tracking-wider text-purple-100/80 uppercase">Сетка</h2>
-              </div>
-              <button 
-                onClick={() => setShowGrid(!showGrid)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold transition-all border shadow-lg ${
-                  showGrid 
-                  ? 'bg-purple-600 border-purple-400 text-white' 
-                  : 'bg-white/5 border-white/10 text-purple-300/40'
-                }`}
-              >
-                {showGrid ? <Eye size={14} /> : <EyeOff size={14} />}
-                {showGrid ? 'ВИДИМА' : 'СКРЫТА'}
-              </button>
             </div>
 
-            <div className={`space-y-6 transition-all duration-300 ${showGrid ? 'opacity-100 translate-y-0' : 'opacity-20 translate-y-2 pointer-events-none'}`}>
-              <div>
-                <div className="flex justify-between text-[10px] font-bold uppercase tracking-wider text-purple-300/50 mb-3">
-                  <span>Плотность ячеек</span>
-                  <span className="text-purple-400 font-mono">{gridCount} x {gridCount}</span>
+            <!-- Step 2: Grid Settings -->
+            <div class="card-dark p-6 space-y-4">
+                <div class="flex justify-between items-center">
+                    <h3 class="font-semibold">Настройки сетки</h3>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="grid-toggle" class="sr-only peer" onchange="toggleGrid()">
+                        <div class="w-11 h-6 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#FF5F5F]"></div>
+                    </label>
                 </div>
-                <input 
-                  type="range" 
-                  min="2" max="30" 
-                  value={gridCount} 
-                  onChange={(e) => setGridCount(parseInt(e.target.value))}
-                  className="w-full h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-purple-500"
-                />
-              </div>
 
-              <div className="grid grid-cols-2 gap-6">
-                <div className="space-y-3">
-                  <label className="text-[10px] uppercase font-bold text-purple-300/50 tracking-tight">Цвет линий</label>
-                  <div className="relative h-12 w-full group">
-                    <input 
-                      type="color" 
-                      value={gridColor} 
-                      onChange={(e) => setGridColor(e.target.value)}
-                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                    />
-                    <div 
-                      className="w-full h-full rounded-2xl border border-white/10 flex items-center justify-between px-3 overflow-hidden transition-all group-hover:border-purple-500/50 shadow-inner bg-black/20"
-                    >
-                      <div className="w-5 h-5 rounded-full shadow-lg border border-white/20" style={{ backgroundColor: gridColor }} />
-                      <span className="text-[10px] font-mono text-purple-200/50 uppercase">{gridColor}</span>
+                <div class="space-y-3">
+                    <div class="flex justify-between text-xs text-gray-400">
+                        <span>Размер ячеек</span>
+                        <span id="grid-val">5</span>
                     </div>
-                  </div>
+                    <input type="range" id="grid-size" min="2" max="20" value="5" class="w-full h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer" oninput="updateGrid()">
                 </div>
-
-                <div className="space-y-3">
-                  <label className="text-[10px] uppercase font-bold text-purple-300/50 tracking-tight">Толщина</label>
-                  <div className="flex items-center gap-4 bg-black/20 h-12 px-4 rounded-2xl border border-white/10">
-                    <input 
-                      type="range" 
-                      min="1" max="5" 
-                      value={gridWeight} 
-                      onChange={(e) => setGridWeight(parseInt(e.target.value))}
-                      className="flex-1 h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-slate-400"
-                    />
-                    <span className="text-xs font-mono font-bold text-purple-300 w-4">{gridWeight}</span>
-                  </div>
-                </div>
-              </div>
             </div>
-          </section>
-        </div>
-      </main>
-    </div>
-  );
-};
 
-export default App;
+            <!-- Step 3: Opacity -->
+            <div class="bg-white border border-gray-100 rounded-3xl p-6 shadow-sm space-y-4">
+                <div class="flex justify-between items-center">
+                    <h3 class="font-semibold text-gray-800">Прозрачность рисунка</h3>
+                    <span id="opacity-val" class="text-sm font-bold text-[#FF5F5F]">50%</span>
+                </div>
+                <input type="range" id="opacity-slider" min="0" max="100" value="50" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer" oninput="updateOpacity()">
+            </div>
+
+            <!-- Quick Action -->
+            <button class="w-full py-4 btn-primary rounded-2xl font-bold shadow-lg shadow-red-200" onclick="saveStatus()">
+                Сохранить проект
+            </button>
+
+        </div>
+    </main>
+
+    <!-- Navigation Mockup -->
+    <nav class="border-t border-gray-100 px-8 py-4 flex justify-between items-center bg-white">
+        <div class="text-[#FF5F5F]">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        </div>
+        <div class="text-gray-300">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 1 1-7.6-10.6 8.38 8.38 0 0 1 3.8.9"/><polyline points="16 5 12 9 8 5"/></svg>
+        </div>
+        <div class="text-gray-300">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+        </div>
+        <div class="text-gray-300">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        </div>
+    </nav>
+</div>
+
+<script>
+    function handleImage(input, targetId) {
+        const file = input.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = document.getElementById(targetId);
+                img.src = e.target.result;
+                img.classList.remove('hidden');
+                document.getElementById('placeholder-text').classList.add('hidden');
+                
+                if (targetId === 'ref-image') {
+                    setTimeout(updateGrid, 100);
+                }
+            }
+            reader.readAsDataURL(file);
+        }
+    }
+
+    function updateOpacity() {
+        const val = document.getElementById('opacity-slider').value;
+        document.getElementById('user-image').style.opacity = val / 100;
+        document.getElementById('opacity-val').innerText = val + '%';
+    }
+
+    function toggleGrid() {
+        const isVisible = document.getElementById('grid-toggle').checked;
+        const grid = document.getElementById('grid-overlay');
+        if (isVisible) {
+            grid.classList.remove('hidden');
+            updateGrid();
+        } else {
+            grid.classList.add('hidden');
+        }
+    }
+
+    function updateGrid() {
+        const size = document.getElementById('grid-size').value;
+        document.getElementById('grid-val').innerText = size;
+        
+        const svg = document.getElementById('grid-overlay');
+        const view = document.getElementById('main-view');
+        const width = view.clientWidth;
+        const height = view.clientHeight;
+        
+        svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+        svg.innerHTML = '';
+
+        const stepX = width / size;
+        const stepY = height / (size * (height/width)); // Keep cells square
+
+        // Vertical lines
+        for (let i = 1; i < size; i++) {
+            const x = i * stepX;
+            const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+            line.setAttribute("x1", x);
+            line.setAttribute("y1", 0);
+            line.setAttribute("x2", x);
+            line.setAttribute("y2", height);
+            line.setAttribute("class", "grid-line");
+            svg.appendChild(line);
+        }
+
+        // Horizontal lines
+        let y = stepX;
+        while (y < height) {
+            const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+            line.setAttribute("x1", 0);
+            line.setAttribute("y1", y);
+            line.setAttribute("x2", width);
+            line.setAttribute("y2", y);
+            line.setAttribute("class", "grid-line");
+            svg.appendChild(line);
+            y += stepX;
+        }
+    }
+
+    function resetApp() {
+        if(confirm('Очистить все изображения?')) {
+            document.getElementById('ref-image').classList.add('hidden');
+            document.getElementById('user-image').classList.add('hidden');
+            document.getElementById('grid-overlay').classList.add('hidden');
+            document.getElementById('placeholder-text').classList.remove('hidden');
+            document.getElementById('grid-toggle').checked = false;
+        }
+    }
+
+    function saveStatus() {
+        // Simple mock for saving
+        const btn = event.target;
+        const originalText = btn.innerText;
+        btn.innerText = "Сохранено!";
+        btn.style.backgroundColor = "#48BB78";
+        setTimeout(() => {
+            btn.innerText = originalText;
+            btn.style.backgroundColor = "";
+        }, 2000);
+    }
+
+    // Handle resize to fix grid
+    window.addEventListener('resize', updateGrid);
+</script>
+
+</body>
+</html>
