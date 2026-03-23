@@ -43,8 +43,7 @@
             max-height: none;
             pointer-events: none;
             display: none;
-            /* Важно: transform-origin будет меняться динамически через JS */
-            transform-origin: center; 
+            will-change: transform;
         }
         #ref-image { z-index: 2; }
         #user-image { z-index: 3; opacity: 0.5; }
@@ -82,8 +81,8 @@
         /* Точка центра */
         #pivot-point {
             position: absolute;
-            width: 30px;
-            height: 30px;
+            width: 40px;
+            height: 40px;
             border: 2px dashed var(--primary);
             border-radius: 50%;
             z-index: 60;
@@ -91,12 +90,13 @@
             transform: translate(-50%, -50%);
             display: none;
             background: rgba(255, 95, 95, 0.1);
+            cursor: move;
         }
         #pivot-point::after {
             content: '';
             position: absolute;
             top: 50%; left: 50%;
-            width: 6px; height: 6px;
+            width: 8px; height: 8px;
             background: var(--primary);
             border-radius: 50%;
             transform: translate(-50%, -50%);
@@ -112,10 +112,11 @@
             gap: 20px;
             z-index: 50;
             padding: 15px;
-            background: rgba(0,0,0,0.6);
-            backdrop-filter: blur(10px);
+            background: rgba(0,0,0,0.8);
+            backdrop-filter: blur(15px);
             border-radius: 24px;
-            border: 1px solid rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
         }
 
         .control-group {
@@ -128,22 +129,22 @@
         .numpad {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            gap: 4px;
+            gap: 6px;
         }
 
         .btn-ctrl {
-            width: 44px;
-            height: 44px;
-            background: rgba(255,255,255,0.15);
-            border-radius: 10px;
+            width: 46px;
+            height: 46px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 12px;
             display: flex;
             align-items: center;
             justify-content: center;
             cursor: pointer;
-            transition: background 0.2s;
+            transition: all 0.2s;
         }
-        .btn-ctrl:active { background: var(--primary); }
-        .btn-ctrl svg { width: 20px; height: 20px; stroke: white; fill: none; stroke-width: 2.5; }
+        .btn-ctrl:active { background: var(--primary); transform: scale(0.9); }
+        .btn-ctrl svg { width: 22px; height: 22px; stroke: white; fill: none; stroke-width: 2.5; }
 
         .grid-line { stroke: rgba(255, 255, 255, 0.15); stroke-width: 1; }
         .active-btn { background-color: var(--primary) !important; color: white !important; }
@@ -169,13 +170,13 @@
     <div id="precision-panel" class="precision-controls">
         <!-- Группа перемещения -->
         <div class="control-group">
-            <span class="text-[9px] font-bold text-gray-400">ПОЗИЦИЯ</span>
+            <span class="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">Позиция</span>
             <div class="numpad">
                 <div></div>
                 <div class="btn-ctrl" onclick="nudge('y', -1)"><svg viewBox="0 0 24 24"><path d="m18 15-6-6-6 6"/></svg></div>
                 <div></div>
                 <div class="btn-ctrl" onclick="nudge('x', -1)"><svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg></div>
-                <div class="btn-ctrl opacity-30"><div class="w-1 h-1 bg-white rounded-full"></div></div>
+                <div class="btn-ctrl opacity-20 cursor-default"><div class="w-1.5 h-1.5 bg-white rounded-full"></div></div>
                 <div class="btn-ctrl" onclick="nudge('x', 1)"><svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></div>
                 <div></div>
                 <div class="btn-ctrl" onclick="nudge('y', 1)"><svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></div>
@@ -185,11 +186,11 @@
 
         <!-- Группа масштаба и поворота -->
         <div class="control-group">
-            <span class="text-[9px] font-bold text-gray-400">МАСШТАБ / ПОВОРОТ</span>
+            <span class="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">МАСШТАБ / ПОВОРОТ</span>
             <div class="flex flex-col gap-2">
                 <div class="flex gap-2">
-                    <div class="btn-ctrl" onclick="nudge('s', 0.99)"><svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg></div>
-                    <div class="btn-ctrl" onclick="nudge('s', 1.01)"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></div>
+                    <div class="btn-ctrl" onclick="nudge('s', 0.995)"><svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg></div>
+                    <div class="btn-ctrl" onclick="nudge('s', 1.005)"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></div>
                 </div>
                 <div class="flex gap-2">
                     <div class="btn-ctrl" onclick="nudge('r', -0.5)"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg></div>
@@ -295,11 +296,9 @@
         
         if (isPrecisionMode) {
             updatePivotUI();
-        } else {
-            // Возвращаем origin в центр при выходе из режима
-            refEl.style.transformOrigin = 'center';
-            userEl.style.transformOrigin = 'center';
         }
+        
+        // Важно перерисовать сразу, чтобы origin обновился без "прыжков"
         applyTransforms();
     }
 
@@ -324,12 +323,14 @@
     }
 
     function applyTransforms() {
-        // Вычисляем origin относительно контейнера
-        // В режиме точности мы используем pivot как центр трансформации
-        const originStr = isPrecisionMode ? `${pivot.x}px ${pivot.y}px` : 'center';
+        // Чтобы изображение не пропадало, мы вычисляем origin относительно вьюпорта
+        // В режиме точности origin всегда совпадает с Pivot. 
+        // В обычном режиме сбрасываем в 50% 50% (центр самого изображения)
+        const originStr = isPrecisionMode ? `${pivot.x}px ${pivot.y}px` : '50% 50%';
         
-        refEl.style.transformOrigin = originStr;
-        userEl.style.transformOrigin = originStr;
+        [refEl, userEl].forEach(el => {
+            el.style.transformOrigin = originStr;
+        });
 
         refEl.style.transform = `translate(${states.ref.x}px, ${states.ref.y}px) scale(${states.ref.s}) rotate(${states.ref.r}deg)`;
         userEl.style.transform = `translate(${states.user.x}px, ${states.user.y}px) scale(${states.user.s}) rotate(${states.user.r}deg)`;
@@ -353,8 +354,30 @@
 
     const zone = document.getElementById('interaction-zone');
 
+    // Хендлер для захвата поинтера для Pivot
+    pivotEl.addEventListener('pointerdown', e => {
+        e.stopPropagation();
+        pivotEl.setPointerCapture(e.pointerId);
+        pivotEl.dataset.dragging = "true";
+    });
+
+    pivotEl.addEventListener('pointermove', e => {
+        if (pivotEl.dataset.dragging === "true") {
+            pivot.x = e.clientX;
+            pivot.y = e.clientY;
+            updatePivotUI();
+            applyTransforms();
+        }
+    });
+
+    pivotEl.addEventListener('pointerup', e => {
+        pivotEl.dataset.dragging = "false";
+        pivotEl.releasePointerCapture(e.pointerId);
+    });
+
     zone.addEventListener('pointerdown', e => {
-        if (e.target.closest('#drawer') || e.target.closest('#precision-panel')) return;
+        // Игнорируем нажатия на UI элементы
+        if (e.target.closest('#drawer') || e.target.closest('#precision-panel') || e.target === pivotEl) return;
         
         activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
         
@@ -363,23 +386,10 @@
             initialDist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
             initialAngle = Math.atan2(pts[1].y - pts[0].y, pts[1].x - pts[0].x) * 180 / Math.PI;
         }
-
-        if (e.target === pivotEl) {
-            e.target.setPointerCapture(e.pointerId);
-        }
     });
 
     zone.addEventListener('pointermove', e => {
         if (!activePointers.has(e.pointerId)) return;
-        
-        // Логика перемещения точки центра (Pivot)
-        if (e.target === pivotEl && isPrecisionMode) {
-            pivot.x = e.clientX;
-            pivot.y = e.clientY;
-            updatePivotUI();
-            applyTransforms();
-            return;
-        }
 
         if (activePointers.size === 1) {
             const prev = activePointers.get(e.pointerId);
@@ -387,7 +397,6 @@
             const dy = e.clientY - prev.y;
             
             nudge('x', dx);
-            // Костыль для Y, так как nudge принимает один ключ за раз в текущем виде
             const targets = isLinked ? ['ref', 'user'] : ['user'];
             targets.forEach(t => states[t].y += dy);
             
@@ -409,10 +418,17 @@
             nudge('r', aDiff);
             initialAngle = angle;
         }
-        applyTransforms();
     });
 
     zone.addEventListener('pointerup', e => {
+        activePointers.delete(e.pointerId);
+        if (activePointers.size < 2) {
+            initialDist = 0;
+            initialAngle = 0;
+        }
+    });
+
+    zone.addEventListener('pointercancel', e => {
         activePointers.delete(e.pointerId);
     });
 
@@ -458,6 +474,7 @@
         drawGrid();
         if (!isPrecisionMode) {
             pivot = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+            updatePivotUI();
         }
     });
 </script>
