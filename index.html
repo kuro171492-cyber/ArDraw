@@ -53,7 +53,7 @@
             max-height: none;
             pointer-events: none;
             display: none;
-            will-change: transform;
+            will-change: transform, filter;
         }
         #ref-image { z-index: 2; }
         #user-image { z-index: 3; opacity: 0.5; }
@@ -76,6 +76,7 @@
             .settings-drawer { width: 85%; }
         }
         .settings-drawer.open { transform: translateX(0); }
+        
         .drawer-handle {
             position: absolute;
             left: -48px;
@@ -165,6 +166,18 @@
 
         .active-btn { background-color: var(--primary) !important; color: white !important; }
         .grid-line { stroke: rgba(255, 255, 255, 0.15); stroke-width: 1; }
+
+        /* Цветовые пресеты */
+        .color-dot {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: transform 0.2s;
+        }
+        .color-dot:active { transform: scale(0.9); }
+        .color-dot.active { border-color: var(--primary); box-shadow: 0 0 8px rgba(0,0,0,0.2); }
     </style>
 </head>
 <body oncontextmenu="return false;">
@@ -175,13 +188,16 @@
             <p class="text-xl font-bold mb-2">ArtRef</p>
             <p class="text-xs opacity-70 uppercase tracking-widest">Меню: свайп влево от края</p>
         </div>
+        <!-- Референс -->
         <img id="ref-image" class="img-layer" alt="Ref">
+        <!-- Слой пользователя (для наложения) -->
         <img id="user-image" class="img-layer" alt="User">
         <svg id="grid-overlay" class="absolute inset-0 pointer-events-none z-10 hidden w-full h-full"></svg>
     </div>
 
     <div id="pivot-point"></div>
 
+    <!-- Панель точной настройки (Периметр) -->
     <div id="perimeter-panel" class="perimeter-panel">
         <div class="edge-btn p-top-left" onpointerdown="startNudge('r', -0.5)" onpointerup="stopNudge()" onpointerleave="stopNudge()">
             <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
@@ -229,8 +245,8 @@
             <div class="space-y-2">
                 <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Слои</label>
                 <div class="grid grid-cols-2 gap-2">
-                    <button onclick="document.getElementById('ref-input').click()" class="py-3 px-2 border-2 rounded-xl text-[10px] font-bold">РЕФЕРЕНС</button>
-                    <button onclick="document.getElementById('user-input').click()" class="py-3 px-2 border-2 rounded-xl text-[10px] font-bold">РИСУНОК</button>
+                    <button onclick="document.getElementById('ref-input').click()" class="py-3 px-2 border-2 rounded-xl text-[10px] font-bold uppercase">Реф (Линии)</button>
+                    <button onclick="document.getElementById('user-input').click()" class="py-3 px-2 border-2 rounded-xl text-[10px] font-bold uppercase">Рисунок</button>
                 </div>
                 <input type="file" id="ref-input" class="hidden" accept="image/*" onchange="loadFile(this, 'ref-image')">
                 <input type="file" id="user-input" class="hidden" accept="image/*" onchange="loadFile(this, 'user-image')">
@@ -250,12 +266,36 @@
                 </div>
             </div>
 
+            <!-- Контрастность и Видимость -->
             <div class="space-y-4">
-                <div class="flex justify-between items-center">
-                    <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Прозрачность</span>
-                    <span id="opacity-val" class="text-xs font-bold text-red-500 bg-red-50 px-2 py-1 rounded">50%</span>
+                <div>
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Прозрачность рефа</span>
+                        <span id="opacity-val" class="text-xs font-bold text-red-500 bg-red-50 px-2 py-0.5 rounded">50%</span>
+                    </div>
+                    <input type="range" id="opacity-slider" min="0" max="100" value="50" class="w-full accent-red-500" oninput="updateFilters()">
                 </div>
-                <input type="range" id="opacity-slider" min="0" max="100" value="50" class="w-full accent-red-500" oninput="updateOpacity()">
+
+                <div>
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Контрастность линий</span>
+                        <span id="contrast-val" class="text-xs font-bold text-red-500 bg-red-50 px-2 py-0.5 rounded">100%</span>
+                    </div>
+                    <input type="range" id="contrast-slider" min="50" max="400" value="100" class="w-full accent-red-500" oninput="updateFilters()">
+                </div>
+            </div>
+
+            <!-- Перекрашивание линий -->
+            <div class="space-y-3 border-t pt-4">
+                <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Цвет линий (темных зон)</label>
+                <div class="flex justify-between items-center">
+                    <div class="color-dot bg-black border-gray-200 active" data-color="none" onclick="setLineColor(this, 'none')"></div>
+                    <div class="color-dot bg-white border-gray-200" data-color="white" onclick="setLineColor(this, 'white')"></div>
+                    <div class="color-dot bg-red-500" data-color="red" onclick="setLineColor(this, '#ff0000')"></div>
+                    <div class="color-dot bg-blue-500" data-color="blue" onclick="setLineColor(this, '#0066ff')"></div>
+                    <div class="color-dot bg-green-500" data-color="green" onclick="setLineColor(this, '#00cc44')"></div>
+                </div>
+                <p class="text-[8px] text-gray-400 leading-tight">Окрашивает темные контуры изображения для лучшей видимости.</p>
             </div>
 
             <div class="bg-gray-50 p-4 rounded-2xl space-y-4 border border-gray-100">
@@ -284,6 +324,7 @@
     let isLinked = false;
     let isPrecisionMode = false;
     let isCustomPivot = true; 
+    let activeLineColor = 'none';
     
     let pivot = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
     let activePointers = new Map();
@@ -326,10 +367,8 @@
         
         if (Math.abs(dx) > Math.abs(dy)) {
             if (drawer.classList.contains('open')) {
-                // Внутри открытого меню свайп вправо закрывает его
                 if (dx > SWIPE_THRESHOLD) toggleDrawer(false);
             } else {
-                // Свайп влево от правого края (30% ширины) открывает меню
                 if (dx < -SWIPE_THRESHOLD && startX > window.innerWidth * 0.7) {
                     toggleDrawer(true);
                 }
@@ -381,10 +420,39 @@
         }
     }
 
-    function updateOpacity() {
-        const val = document.getElementById('opacity-slider').value;
-        userEl.style.opacity = val / 100;
-        document.getElementById('opacity-val').innerText = val + '%';
+    function updateFilters() {
+        const opacity = document.getElementById('opacity-slider').value;
+        const contrast = document.getElementById('contrast-slider').value;
+        
+        document.getElementById('opacity-val').innerText = opacity + '%';
+        document.getElementById('contrast-val').innerText = contrast + '%';
+
+        refEl.style.opacity = opacity / 100;
+        
+        // Базовый фильтр контрастности
+        let filterStr = `contrast(${contrast}%)`;
+        
+        // Логика перекрашивания линий через CSS Filters
+        // Мы инвертируем темное изображение, чтобы черное стало белым, а затем используем drop-shadow для окраски
+        if (activeLineColor !== 'none') {
+            if (activeLineColor === 'white') {
+                // Чтобы сделать черные линии белыми, достаточно инвертировать или выкрутить яркость
+                filterStr += ` invert(1) brightness(2)`;
+            } else {
+                // Для цветных линий: инвертируем, чтобы черное стало белым, затем смещаем тон
+                // Это упрощенная модель "Line Tinting"
+                filterStr += ` invert(1) brightness(0.5) drop-shadow(0 0 0 ${activeLineColor}) drop-shadow(0 0 0 ${activeLineColor}) contrast(200%)`;
+            }
+        }
+
+        refEl.style.filter = filterStr;
+    }
+
+    function setLineColor(dot, color) {
+        document.querySelectorAll('.color-dot').forEach(d => d.classList.remove('active'));
+        dot.classList.add('active');
+        activeLineColor = color;
+        updateFilters();
     }
 
     function applyTransforms() {
@@ -486,8 +554,6 @@
             const angle = Math.atan2(pts[1].y - pts[0].y, pts[1].x - pts[0].x) * 180 / Math.PI;
             
             const sFact = initialDist > 0 ? dist / initialDist : 1;
-            
-            // ПРАВКА: Если включен режим связки, поворот жестами игнорируем
             const aDiff = isLinked ? 0 : (angle - initialAngle);
             
             targets.forEach(t => { 
@@ -528,11 +594,21 @@
     }
 
     function resetAll() {
-        if(confirm('Сбросить положение?')) {
+        if(confirm('Сбросить положение и фильтры?')) {
             states.ref = { x: window.innerWidth/2, y: window.innerHeight/2, s: 1, r: 0 };
             states.user = { x: window.innerWidth/2, y: window.innerHeight/2, s: 1, r: 0 };
             pivot = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+            
+            document.getElementById('opacity-slider').value = 50;
+            document.getElementById('contrast-slider').value = 100;
+            activeLineColor = 'none';
+            document.querySelectorAll('.color-dot').forEach(d => {
+                d.classList.remove('active');
+                if(d.dataset.color === 'none') d.classList.add('active');
+            });
+
             updatePivotUI();
+            updateFilters();
             applyTransforms();
         }
     }
@@ -545,6 +621,9 @@
         }
         applyTransforms();
     });
+
+    // Инициализация
+    updateFilters();
 </script>
 
 </body>
