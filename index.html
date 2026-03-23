@@ -15,6 +15,7 @@
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             touch-action: none;
             user-select: none;
+            -webkit-user-select: none;
             overflow: hidden;
             margin: 0;
             color: white;
@@ -46,6 +47,8 @@
             pointer-events: none;
             display: none;
             will-change: transform;
+            /* Центр для идеального расчёта смещений (flexbox делает всю работу) */
+            transform-origin: 50% 50%;
         }
         #ref-image { z-index: 2; }
         #user-image { z-index: 3; opacity: 0.5; }
@@ -84,7 +87,7 @@
             box-shadow: -2px 0 10px rgba(0,0,0,0.1);
         }
 
-        /* Точка центра */
+        /* Точка кастомного центра */
         #pivot-point {
             position: absolute;
             width: 44px;
@@ -107,47 +110,60 @@
         #pivot-point::before { top: 50%; left: -10px; right: -10px; height: 1px; transform: translateY(-50%); }
         #pivot-point::after { left: 50%; top: -10px; bottom: -10px; width: 1px; transform: translateX(-50%); }
 
-        /* Панель управления */
-        .precision-controls {
+        /* Периметральная панель управления (режим точности) */
+        .perimeter-panel {
             position: absolute;
-            bottom: env(safe-area-inset-bottom, 20px);
-            left: 50%;
-            transform: translateX(-50%);
-            display: none;
-            gap: 16px;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; /* Пропускаем клики сквозь пустые места */
             z-index: 50;
-            padding: 16px;
-            background: rgba(15, 15, 15, 0.9);
-            backdrop-filter: blur(20px);
-            border-radius: 32px;
-            border: 1px solid rgba(255,255,255,0.1);
-            box-shadow: 0 20px 60px rgba(0,0,0,0.8);
-            width: max-content;
+            display: none;
         }
-
-        @media (max-width: 500px) {
-            .precision-controls {
-                flex-direction: column;
-                align-items: center;
-                gap: 12px;
-                padding: 12px;
-            }
-        }
-
-        .btn-ctrl {
-            width: 48px;
-            height: 48px;
-            background: rgba(255,255,255,0.05);
-            border-radius: 16px;
+        
+        .edge-btn {
+            position: absolute;
+            width: 44px;
+            height: 44px;
+            background: rgba(20, 20, 20, 0.85);
+            border-radius: 8px;
             display: flex;
             align-items: center;
             justify-content: center;
             cursor: pointer;
-            transition: background 0.1s;
+            pointer-events: auto; /* Сами кнопки кликабельны */
+            border: 1px solid rgba(255,255,255,0.05);
+            backdrop-filter: blur(10px);
+            transition: all 0.1s;
             -webkit-tap-highlight-color: transparent;
         }
-        .btn-ctrl:active { background: var(--primary); }
-        .btn-ctrl svg { width: 24px; height: 24px; stroke: white; fill: none; stroke-width: 2.5; }
+        .edge-btn:active { background: rgba(50, 50, 50, 0.9); border-color: rgba(255,255,255,0.2); }
+        .edge-btn svg { width: 22px; height: 22px; stroke: white; fill: none; stroke-width: 2; }
+
+        /* Активная кнопка "Прицела" */
+        .edge-btn.active-target { border-color: var(--primary); background: rgba(25, 25, 25, 0.95); }
+        .edge-btn.active-target svg { stroke: var(--primary); }
+
+        /* Позиционирование по периметру с учетом "челок" смартфонов (safe-area) */
+        .p-top-left { top: max(16px, env(safe-area-inset-top)); left: max(16px, env(safe-area-inset-left)); }
+        .p-top-center { top: max(16px, env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); }
+        .p-top-right { top: max(16px, env(safe-area-inset-top)); right: max(16px, env(safe-area-inset-right)); }
+        
+        .p-mid-left { top: 50%; left: max(16px, env(safe-area-inset-left)); transform: translateY(-50%); }
+        .p-mid-right { top: 50%; right: max(16px, env(safe-area-inset-right)); transform: translateY(-50%); }
+        
+        .p-bottom-left { bottom: max(16px, env(safe-area-inset-bottom)); left: max(16px, env(safe-area-inset-left)); }
+        .p-bottom-right { bottom: max(16px, env(safe-area-inset-bottom)); right: max(16px, env(safe-area-inset-right)); }
+        
+        /* Центральный нижний блок (Вниз + Прицел) */
+        .p-bottom-center {
+            position: absolute;
+            bottom: max(16px, env(safe-area-inset-bottom));
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 12px;
+            pointer-events: auto;
+        }
+        .p-bottom-center .edge-btn { position: relative; top: auto; bottom: auto; left: auto; right: auto; transform: none; }
 
         .active-btn { background-color: var(--primary) !important; color: white !important; }
         .grid-line { stroke: rgba(255, 255, 255, 0.15); stroke-width: 1; }
@@ -159,7 +175,7 @@
     <div class="canvas-area">
         <div id="placeholder" class="text-gray-500 text-center pointer-events-none px-6">
             <p class="text-xl font-bold mb-2">ArtRef</p>
-            <p class="text-xs opacity-70 uppercase tracking-widest">Центр вращения исправлен</p>
+            <p class="text-xs opacity-70 uppercase tracking-widest">Перейдите в меню справа</p>
         </div>
         <img id="ref-image" class="img-layer" alt="Ref">
         <img id="user-image" class="img-layer" alt="User">
@@ -169,35 +185,49 @@
     <!-- Pivot Point -->
     <div id="pivot-point"></div>
 
-    <!-- Precision Panel -->
-    <div id="precision-panel" class="precision-controls">
-        <div class="flex flex-col items-center gap-2">
-            <span class="text-[10px] font-bold text-gray-500 uppercase">Позиция</span>
-            <div class="grid grid-cols-3 gap-1">
-                <div></div>
-                <div class="btn-ctrl" onpointerdown="startNudge('y', -2)" onpointerup="stopNudge()"><svg viewBox="0 0 24 24"><path d="m18 15-6-6-6 6"/></svg></div>
-                <div></div>
-                <div class="btn-ctrl" onpointerdown="startNudge('x', -2)" onpointerup="stopNudge()"><svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg></div>
-                <div class="btn-ctrl opacity-20"><div class="w-1 h-1 bg-white rounded-full"></div></div>
-                <div class="btn-ctrl" onpointerdown="startNudge('x', 2)" onpointerup="stopNudge()"><svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></div>
-                <div></div>
-                <div class="btn-ctrl" onpointerdown="startNudge('y', 2)" onpointerup="stopNudge()"><svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></div>
-                <div></div>
+    <!-- Периметральная Панель (Точность) -->
+    <div id="perimeter-panel" class="perimeter-panel">
+        <!-- Вращение Влево (Против часовой) -->
+        <div class="edge-btn p-top-left" onpointerdown="startNudge('r', -0.5)" onpointerup="stopNudge()" onpointerleave="stopNudge()">
+            <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+        </div>
+        <!-- Вверх -->
+        <div class="edge-btn p-top-center" onpointerdown="startNudge('y', -2)" onpointerup="stopNudge()" onpointerleave="stopNudge()">
+            <svg viewBox="0 0 24 24"><path d="m18 15-6-6-6 6"/></svg>
+        </div>
+        <!-- Вращение Вправо (По часовой) -->
+        <div class="edge-btn p-top-right" onpointerdown="startNudge('r', 0.5)" onpointerup="stopNudge()" onpointerleave="stopNudge()">
+            <svg viewBox="0 0 24 24" style="transform: scaleX(-1)"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+        </div>
+        
+        <!-- Влево -->
+        <div class="edge-btn p-mid-left" onpointerdown="startNudge('x', -2)" onpointerup="stopNudge()" onpointerleave="stopNudge()">
+            <svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg>
+        </div>
+        <!-- Вправо -->
+        <div class="edge-btn p-mid-right" onpointerdown="startNudge('x', 2)" onpointerup="stopNudge()" onpointerleave="stopNudge()">
+            <svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
+        </div>
+
+        <!-- Зум минус -->
+        <div class="edge-btn p-bottom-left" onpointerdown="startNudge('s', 0.995)" onpointerup="stopNudge()" onpointerleave="stopNudge()">
+            <svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg>
+        </div>
+        
+        <!-- Низ: Вниз + Точка Вращения -->
+        <div class="p-bottom-center">
+            <div class="edge-btn" onpointerdown="startNudge('y', 2)" onpointerup="stopNudge()" onpointerleave="stopNudge()">
+                <svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
+            </div>
+            <!-- Кнопка Вкл/Выкл кастомного центра -->
+            <div id="btn-pivot-toggle" class="edge-btn active-target" onclick="toggleCustomPivot()">
+                <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 2v20M2 12h20"/></svg>
             </div>
         </div>
 
-        <div class="flex flex-col items-center gap-2">
-            <span class="text-[10px] font-bold text-gray-500 uppercase">Зум / Поворот</span>
-            <div class="flex gap-2">
-                <div class="flex flex-col gap-1">
-                    <div class="btn-ctrl" onpointerdown="startNudge('s', 0.995)" onpointerup="stopNudge()"><svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg></div>
-                    <div class="btn-ctrl" onpointerdown="startNudge('s', 1.005)" onpointerup="stopNudge()"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></div>
-                </div>
-                <div class="flex flex-col gap-1">
-                    <div class="btn-ctrl" onpointerdown="startNudge('r', -0.5)" onpointerup="stopNudge()"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg></div>
-                    <div class="btn-ctrl" onpointerdown="startNudge('r', 0.5)" onpointerup="stopNudge()"><svg viewBox="0 0 24 24" style="transform: scaleX(-1)"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg></div>
-                </div>
-            </div>
+        <!-- Зум плюс -->
+        <div class="edge-btn p-bottom-right" onpointerdown="startNudge('s', 1.005)" onpointerup="stopNudge()" onpointerleave="stopNudge()">
+            <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
         </div>
     </div>
 
@@ -265,6 +295,8 @@
     
     let isLinked = false;
     let isPrecisionMode = false;
+    let isCustomPivot = true; // Кастомный центр включен по умолчанию в режиме точности
+    
     let pivot = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
     let activePointers = new Map();
     let nudgeInterval = null;
@@ -273,7 +305,8 @@
     const userEl = document.getElementById('user-image');
     const pivotEl = document.getElementById('pivot-point');
     const drawer = document.getElementById('drawer');
-    const precisionPanel = document.getElementById('precision-panel');
+    const perimeterPanel = document.getElementById('perimeter-panel');
+    const btnPivotToggle = document.getElementById('btn-pivot-toggle');
 
     function toggleDrawer() { drawer.classList.toggle('open'); }
     function toggleLink() {
@@ -284,10 +317,30 @@
     function togglePrecision() {
         isPrecisionMode = !isPrecisionMode;
         document.getElementById('btn-precision').classList.toggle('active-btn', isPrecisionMode);
-        pivotEl.style.display = isPrecisionMode ? 'block' : 'none';
-        precisionPanel.style.display = isPrecisionMode ? 'flex' : 'none';
-        if (isPrecisionMode) updatePivotUI();
+        
+        // Показываем/скрываем периметральные кнопки
+        perimeterPanel.style.display = isPrecisionMode ? 'block' : 'none';
+        
+        updatePivotUI();
         applyTransforms();
+    }
+
+    function toggleCustomPivot() {
+        isCustomPivot = !isCustomPivot;
+        updatePivotUI();
+        applyTransforms();
+    }
+
+    function updatePivotUI() {
+        if (isPrecisionMode && isCustomPivot) {
+            pivotEl.style.display = 'block';
+            pivotEl.style.left = pivot.x + 'px';
+            pivotEl.style.top = pivot.y + 'px';
+            btnPivotToggle.classList.add('active-target');
+        } else {
+            pivotEl.style.display = 'none';
+            btnPivotToggle.classList.remove('active-target');
+        }
     }
 
     function loadFile(input, id) {
@@ -311,7 +364,6 @@
     }
 
     function applyTransforms() {
-        // Центр экрана
         const cx = window.innerWidth / 2;
         const cy = window.innerHeight / 2;
 
@@ -319,18 +371,20 @@
             const key = index === 0 ? 'ref' : 'user';
             const s = states[key];
             
-            // Важно: всегда используем центр картинки (50% 50%) как origin!
-            // Так как у нас Flexbox, центр картинок любого размера изначально лежит ровно в cx, cy.
+            // Фиксируем физический центр изображения
             el.style.transformOrigin = '50% 50%';
             
             if (isPrecisionMode) {
-                // Высчитываем координаты pivot и позиции относительно центра экрана
-                const px = pivot.x - cx;
-                const py = pivot.y - cy;
+                // Если включен пользовательский центр, используем его, иначе - центр экрана
+                const targetPivotX = isCustomPivot ? pivot.x : cx;
+                const targetPivotY = isCustomPivot ? pivot.y : cy;
+                
+                const px = targetPivotX - cx;
+                const py = targetPivotY - cy;
                 const sx = s.x - cx;
                 const sy = s.y - cy;
 
-                // Перемещаемся к pivot -> применяем вращение/скейл -> возвращаемся к смещению
+                // Перемещаем, поворачиваем/зумируем вокруг выбранной точки, возвращаем обратно
                 el.style.transform = `
                     translate(${px}px, ${py}px)
                     rotate(${s.r}deg)
@@ -338,15 +392,10 @@
                     translate(${sx - px}px, ${sy - py}px)
                 `;
             } else {
-                // Обычный режим работает от центра экрана
+                // В обычном режиме просто крутим вокруг центра
                 el.style.transform = `translate(${s.x - cx}px, ${s.y - cy}px) scale(${s.s}) rotate(${s.r}deg)`;
             }
         });
-    }
-
-    function updatePivotUI() {
-        pivotEl.style.left = pivot.x + 'px';
-        pivotEl.style.top = pivot.y + 'px';
     }
 
     function startNudge(key, val) {
@@ -361,15 +410,15 @@
             });
             applyTransforms();
         };
-        perform();
+        perform(); // Выполняем сразу первый шаг
         nudgeInterval = setInterval(perform, 30);
     }
 
     function stopNudge() {
-        clearInterval(nudgeInterval);
+        if (nudgeInterval) clearInterval(nudgeInterval);
     }
 
-    // Pivot Dragging
+    // Перетаскивание кастомной точки (Pivot)
     pivotEl.addEventListener('pointerdown', e => {
         e.stopPropagation();
         pivotEl.setPointerCapture(e.pointerId);
@@ -390,14 +439,14 @@
         pivotEl.releasePointerCapture(e.pointerId);
     });
 
-    // Touch Gestures (Non-precision)
+    // Touch Жесты (для обычного режима)
     const zone = document.getElementById('interaction-zone');
     let initialDist = 0;
     let initialAngle = 0;
 
     zone.addEventListener('pointerdown', e => {
-        if (isPrecisionMode) return;
-        if (e.target.closest('#drawer') || e.target.closest('#precision-panel')) return;
+        if (isPrecisionMode) return; // В режиме точности двигаем только кнопками
+        if (e.target.closest('#drawer') || e.target.closest('.edge-btn')) return;
         activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
         if (activePointers.size === 2) {
             const pts = Array.from(activePointers.values());
@@ -467,12 +516,11 @@
 
     window.addEventListener('resize', () => {
         drawGrid();
-        // При повороте экрана на мобильном важно пересчитать трансформации
-        applyTransforms();
         if (!isPrecisionMode) {
             pivot = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
             updatePivotUI();
         }
+        applyTransforms();
     });
 </script>
 
