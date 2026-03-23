@@ -21,7 +21,6 @@
             color: white;
             position: fixed;
             width: 100vw;
-            /* Используем dvh для защиты от перекрытия интерфейсом браузера */
             height: 100dvh; 
         }
         .app-container {
@@ -37,7 +36,6 @@
             width: 100%;
             height: 100%;
             z-index: 1;
-            /* Убрали flexbox, центрируем элементы абсолютно для точной математики */
         }
         
         #placeholder {
@@ -48,10 +46,8 @@
 
         .img-layer {
             position: absolute;
-            /* Центр изображения изначально совпадает с левым верхним углом документа, смещаем его в 50% экрана */
             left: 50%;
             top: 50%;
-            /* Изначальный якорь вращения всегда в физическом центре картинки */
             transform-origin: 50% 50%;
             max-width: none;
             max-height: none;
@@ -83,7 +79,7 @@
         .drawer-handle {
             position: absolute;
             left: -48px;
-            top: 80px; /* Опустили кнопку ниже */
+            top: 80px;
             width: 48px;
             height: 48px;
             background: white;
@@ -96,7 +92,6 @@
             box-shadow: -2px 0 10px rgba(0,0,0,0.1);
         }
 
-        /* Точка кастомного центра */
         #pivot-point {
             position: absolute;
             width: 44px;
@@ -104,7 +99,6 @@
             border: 2px solid var(--primary);
             border-radius: 50%;
             z-index: 60;
-            /* Пропускаем клики сквозь точку, обрабатываем жесты на самом холсте */
             pointer-events: none; 
             transform: translate(-50%, -50%);
             display: none;
@@ -118,11 +112,10 @@
         #pivot-point::before { top: 50%; left: -10px; right: -10px; height: 1px; transform: translateY(-50%); }
         #pivot-point::after { left: 50%; top: -10px; bottom: -10px; width: 1px; transform: translateX(-50%); }
 
-        /* Периметральная панель управления (режим точности) */
         .perimeter-panel {
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
-            pointer-events: none; /* Пропускаем клики сквозь пустые места */
+            pointer-events: none;
             z-index: 50;
             display: none;
         }
@@ -137,7 +130,7 @@
             align-items: center;
             justify-content: center;
             cursor: pointer;
-            pointer-events: auto; /* Сами кнопки кликабельны */
+            pointer-events: auto;
             border: 1px solid rgba(255,255,255,0.05);
             backdrop-filter: blur(10px);
             transition: all 0.1s;
@@ -146,11 +139,9 @@
         .edge-btn:active { background: rgba(50, 50, 50, 0.9); border-color: rgba(255,255,255,0.2); }
         .edge-btn svg { width: 22px; height: 22px; stroke: white; fill: none; stroke-width: 2; }
 
-        /* Активная кнопка "Прицела" */
         .edge-btn.active-target { border-color: var(--primary); background: rgba(25, 25, 25, 0.95); }
         .edge-btn.active-target svg { stroke: var(--primary); }
 
-        /* Позиционирование по периметру (с защитой от челок и системных меню) */
         .p-top-left { top: max(16px, env(safe-area-inset-top)); left: max(16px, env(safe-area-inset-left)); }
         .p-top-center { top: max(16px, env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); }
         .p-top-right { top: max(16px, env(safe-area-inset-top)); right: max(16px, env(safe-area-inset-right)); }
@@ -158,7 +149,6 @@
         .p-mid-left { top: 50%; left: max(16px, env(safe-area-inset-left)); transform: translateY(-50%); }
         .p-mid-right { top: 50%; right: max(16px, env(safe-area-inset-right)); transform: translateY(-50%); }
         
-        /* Увеличен отступ bottom для защиты от кнопок навигации Android */
         .p-bottom-left { bottom: max(40px, env(safe-area-inset-bottom)); left: max(16px, env(safe-area-inset-left)); }
         .p-bottom-right { bottom: max(40px, env(safe-area-inset-bottom)); right: max(16px, env(safe-area-inset-right)); }
         
@@ -183,58 +173,47 @@
     <div class="canvas-area">
         <div id="placeholder" class="text-gray-500 text-center pointer-events-none px-6 w-full">
             <p class="text-xl font-bold mb-2">ArtRef</p>
-            <p class="text-xs opacity-70 uppercase tracking-widest">Перейдите в меню справа</p>
+            <p class="text-xs opacity-70 uppercase tracking-widest">Перейдите в меню справа или смахните влево</p>
         </div>
         <img id="ref-image" class="img-layer" alt="Ref">
         <img id="user-image" class="img-layer" alt="User">
         <svg id="grid-overlay" class="absolute inset-0 pointer-events-none z-10 hidden w-full h-full"></svg>
     </div>
 
-    <!-- Pivot Point -->
     <div id="pivot-point"></div>
 
-    <!-- Периметральная Панель (Точность) -->
     <div id="perimeter-panel" class="perimeter-panel">
-        <!-- Вращение Влево -->
-        <div class="edge-btn p-top-left" onpointerdown="startNudge('r', -0.5)" onpointerup="stopNudge()" onpointerleave="stopNudge()">
+        <div class="edge-btn p-top-left" onpointerdown="startNudge('r', -0.5)" onpointerup="stopNudge()">
             <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
         </div>
-        <!-- Вверх -->
-        <div class="edge-btn p-top-center" onpointerdown="startNudge('y', -2)" onpointerup="stopNudge()" onpointerleave="stopNudge()">
+        <div class="edge-btn p-top-center" onpointerdown="startNudge('y', -2)" onpointerup="stopNudge()">
             <svg viewBox="0 0 24 24"><path d="m18 15-6-6-6 6"/></svg>
         </div>
-        <!-- Вращение Вправо -->
-        <div class="edge-btn p-top-right" onpointerdown="startNudge('r', 0.5)" onpointerup="stopNudge()" onpointerleave="stopNudge()">
+        <div class="edge-btn p-top-right" onpointerdown="startNudge('r', 0.5)" onpointerup="stopNudge()">
             <svg viewBox="0 0 24 24" style="transform: scaleX(-1)"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
         </div>
         
-        <!-- Влево -->
-        <div class="edge-btn p-mid-left" onpointerdown="startNudge('x', -2)" onpointerup="stopNudge()" onpointerleave="stopNudge()">
+        <div class="edge-btn p-mid-left" onpointerdown="startNudge('x', -2)" onpointerup="stopNudge()">
             <svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg>
         </div>
-        <!-- Вправо -->
-        <div class="edge-btn p-mid-right" onpointerdown="startNudge('x', 2)" onpointerup="stopNudge()" onpointerleave="stopNudge()">
+        <div class="edge-btn p-mid-right" onpointerdown="startNudge('x', 2)" onpointerup="stopNudge()">
             <svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
         </div>
 
-        <!-- Зум минус -->
-        <div class="edge-btn p-bottom-left" onpointerdown="startNudge('s', 0.995)" onpointerup="stopNudge()" onpointerleave="stopNudge()">
+        <div class="edge-btn p-bottom-left" onpointerdown="startNudge('s', 0.995)" onpointerup="stopNudge()">
             <svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg>
         </div>
         
-        <!-- Низ: Вниз + Точка Вращения -->
         <div class="p-bottom-center">
-            <div class="edge-btn" onpointerdown="startNudge('y', 2)" onpointerup="stopNudge()" onpointerleave="stopNudge()">
+            <div class="edge-btn" onpointerdown="startNudge('y', 2)" onpointerup="stopNudge()">
                 <svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
             </div>
-            <!-- Кнопка Вкл/Выкл кастомного центра -->
             <div id="btn-pivot-toggle" class="edge-btn active-target" onclick="toggleCustomPivot()">
                 <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 2v20M2 12h20"/></svg>
             </div>
         </div>
 
-        <!-- Зум плюс -->
-        <div class="edge-btn p-bottom-right" onpointerdown="startNudge('s', 1.005)" onpointerup="stopNudge()" onpointerleave="stopNudge()">
+        <div class="edge-btn p-bottom-right" onpointerdown="startNudge('s', 1.005)" onpointerup="stopNudge()">
             <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
         </div>
     </div>
@@ -242,7 +221,7 @@
     <!-- Settings Drawer -->
     <aside id="drawer" class="settings-drawer">
         <div class="drawer-handle" onclick="toggleDrawer()">
-            <svg id="drawer-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg>
+            <svg id="drawer-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
         </div>
         <div class="p-6 h-full overflow-y-auto space-y-6">
             <h2 class="text-xl font-bold border-b pb-2">Управление</h2>
@@ -291,12 +270,12 @@
             </div>
 
             <button onclick="resetAll()" class="w-full py-4 text-red-500 font-bold text-[10px] border border-red-100 rounded-xl hover:bg-red-50 uppercase tracking-widest">Сбросить всё</button>
+            <p class="text-[9px] text-center text-gray-400 uppercase tracking-tighter">Свайп вправо, чтобы закрыть</p>
         </div>
     </aside>
 </div>
 
 <script>
-    // В новой математической модели s.x и s.y - это точные экранные координаты центра картинки.
     let states = {
         ref: { x: window.innerWidth/2, y: window.innerHeight/2, s: 1, r: 0 },
         user: { x: window.innerWidth/2, y: window.innerHeight/2, s: 1, r: 0 }
@@ -304,7 +283,7 @@
     
     let isLinked = false;
     let isPrecisionMode = false;
-    let isCustomPivot = true; // Кастомный центр включен по умолчанию
+    let isCustomPivot = true; 
     
     let pivot = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
     let activePointers = new Map();
@@ -317,7 +296,54 @@
     const perimeterPanel = document.getElementById('perimeter-panel');
     const btnPivotToggle = document.getElementById('btn-pivot-toggle');
 
-    function toggleDrawer() { drawer.classList.toggle('open'); }
+    function toggleDrawer(open) {
+        if (typeof open === 'boolean') {
+            drawer.classList.toggle('open', open);
+        } else {
+            drawer.classList.toggle('open');
+        }
+    }
+
+    // --- ЛОГИКА СВАЙПА ---
+    let touchStartX = 0;
+    let touchStartY = 0;
+    const SWIPE_THRESHOLD = 50; // Минимальная дистанция для свайпа
+
+    window.addEventListener('touchstart', (e) => {
+        touchStartX = e.changedTouches[0].screenX;
+        touchStartY = e.changedTouches[0].screenY;
+    }, {passive: true});
+
+    window.addEventListener('touchend', (e) => {
+        const touchEndX = e.changedTouches[0].screenX;
+        const touchEndY = e.changedTouches[0].screenY;
+        handleSwipe(touchStartX, touchEndX, touchStartY, touchEndY);
+    }, {passive: true});
+
+    function handleSwipe(startX, endX, startY, endY) {
+        const dx = endX - startX;
+        const dy = endY - startY;
+        
+        // Если движение по горизонтали преобладает над вертикалью
+        if (Math.abs(dx) > Math.abs(dy)) {
+            // Если меню открыто -> свайп вправо закрывает его
+            if (drawer.classList.contains('open')) {
+                if (dx > SWIPE_THRESHOLD) {
+                    toggleDrawer(false);
+                }
+            } 
+            // Если меню закрыто -> свайп от правого края влево открывает его
+            else {
+                const screenWidth = window.innerWidth;
+                // Свайп влево и начальная точка близко к правому краю
+                if (dx < -SWIPE_THRESHOLD && startX > screenWidth * 0.7) {
+                    toggleDrawer(true);
+                }
+            }
+        }
+    }
+    // -----------------------
+
     function toggleLink() {
         isLinked = !isLinked;
         document.getElementById('btn-link').classList.toggle('active-btn', isLinked);
@@ -326,12 +352,9 @@
     function togglePrecision() {
         isPrecisionMode = !isPrecisionMode;
         document.getElementById('btn-precision').classList.toggle('active-btn', isPrecisionMode);
-        
-        // Показываем/скрываем периметральные кнопки
         perimeterPanel.style.display = isPrecisionMode ? 'block' : 'none';
-        
         updatePivotUI();
-        applyTransforms(); // Больше никаких скачков!
+        applyTransforms();
     }
 
     function toggleCustomPivot() {
@@ -374,18 +397,11 @@
     function applyTransforms() {
         const cx = window.innerWidth / 2;
         const cy = window.innerHeight / 2;
-
         [refEl, userEl].forEach((el, index) => {
             const key = index === 0 ? 'ref' : 'user';
             const s = states[key];
-            
             const tx = s.x - cx;
             const ty = s.y - cy;
-
-            // Единая формула для обоих режимов.
-            // translate(-50%, -50%) ставит фактический центр картинки ровно в центр экрана.
-            // translate(tx, ty) сдвигает этот центр в глобальные координаты s.x, s.y.
-            // rotate и scale всегда применяются вокруг физического центра картинки.
             el.style.transform = `translate(-50%, -50%) translate(${tx}px, ${ty}px) rotate(${s.r}deg) scale(${s.s})`;
         });
     }
@@ -394,34 +410,25 @@
         stopNudge();
         const perform = () => {
             const targets = isLinked ? ['ref', 'user'] : ['user'];
-            
-            // Определяем, вокруг какой точки будем вращать/зумить
             const cx = window.innerWidth / 2;
             const cy = window.innerHeight / 2;
             const activePivotX = (isPrecisionMode && isCustomPivot) ? pivot.x : cx;
             const activePivotY = (isPrecisionMode && isCustomPivot) ? pivot.y : cy;
-
             targets.forEach(t => {
                 const s = states[t];
-                
                 if (key === 'x') s.x += val;
                 if (key === 'y') s.y += val;
-                
                 if (key === 'r') {
-                    // Математическое вращение центра картинки вокруг выбранной точки (pivot)
                     const dx = s.x - activePivotX;
                     const dy = s.y - activePivotY;
                     const dist = Math.hypot(dx, dy);
                     const angle = Math.atan2(dy, dx);
-                    
                     const newAngle = angle + (val * Math.PI / 180);
                     s.x = activePivotX + dist * Math.cos(newAngle);
                     s.y = activePivotY + dist * Math.sin(newAngle);
                     s.r += val;
                 }
-                
                 if (key === 's') {
-                    // Математическое масштабирование (отдаление/приближение центра к pivot)
                     s.x = activePivotX + (s.x - activePivotX) * val;
                     s.y = activePivotY + (s.y - activePivotY) * val;
                     s.s *= val;
@@ -429,7 +436,7 @@
             });
             applyTransforms();
         };
-        perform(); // Первый шаг
+        perform();
         nudgeInterval = setInterval(perform, 30);
     }
 
@@ -437,16 +444,13 @@
         if (nudgeInterval) clearInterval(nudgeInterval);
     }
 
-    // Touch Жесты
     const zone = document.getElementById('interaction-zone');
     let initialDist = 0;
     let initialAngle = 0;
 
     zone.addEventListener('pointerdown', e => {
         if (e.target.closest('#drawer') || e.target.closest('.edge-btn')) return;
-        
         if (isPrecisionMode) {
-            // В режиме точности касание перемещает только саму точку "прицела"
             if (isCustomPivot) {
                 pivot.x = e.clientX;
                 pivot.y = e.clientY;
@@ -455,8 +459,6 @@
             }
             return;
         }
-        
-        // Обычный режим
         activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
         if (activePointers.size === 2) {
             const pts = Array.from(activePointers.values());
@@ -467,7 +469,6 @@
 
     zone.addEventListener('pointermove', e => {
         if (isPrecisionMode) {
-            // Тянем прицел жестом по экрану
             if (activePointers.has(e.pointerId) && activePointers.get(e.pointerId) === 'pivot') {
                 pivot.x = e.clientX;
                 pivot.y = e.clientY;
@@ -475,9 +476,7 @@
             }
             return;
         }
-        
         if (!activePointers.has(e.pointerId)) return;
-        
         if (activePointers.size === 1) {
             const prev = activePointers.get(e.pointerId);
             const dx = e.clientX - prev.x;
