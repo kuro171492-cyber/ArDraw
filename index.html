@@ -2,14 +2,13 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>ArtRef - Помощник Художника</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         :root {
             --primary: #FF5F5F;
             --bg-dark: #111;
-            --panel-bg: rgba(255, 255, 255, 0.1);
         }
         body {
             background-color: var(--bg-dark);
@@ -19,6 +18,9 @@
             overflow: hidden;
             margin: 0;
             color: white;
+            position: fixed;
+            width: 100%;
+            height: 100%;
         }
         .app-container {
             width: 100vw;
@@ -44,6 +46,8 @@
             pointer-events: none;
             display: none;
             will-change: transform;
+            /* Важно для корректного вращения вокруг точки */
+            transform-origin: 0 0; 
         }
         #ref-image { z-index: 2; }
         #user-image { z-index: 3; opacity: 0.5; }
@@ -62,6 +66,9 @@
             box-shadow: -5px 0 25px rgba(0,0,0,0.5);
             color: #333;
         }
+        @media (max-width: 640px) {
+            .settings-drawer { width: 85%; }
+        }
         .settings-drawer.open { transform: translateX(0); }
         .drawer-handle {
             position: absolute;
@@ -76,14 +83,15 @@
             justify-content: center;
             cursor: pointer;
             color: var(--primary);
+            box-shadow: -2px 0 10px rgba(0,0,0,0.1);
         }
 
         /* Точка центра */
         #pivot-point {
             position: absolute;
-            width: 40px;
-            height: 40px;
-            border: 2px dashed var(--primary);
+            width: 44px;
+            height: 44px;
+            border: 2px solid var(--primary);
             border-radius: 50%;
             z-index: 60;
             pointer-events: auto;
@@ -91,151 +99,145 @@
             display: none;
             background: rgba(255, 95, 95, 0.1);
             cursor: move;
+            touch-action: none;
         }
-        #pivot-point::after {
+        #pivot-point::before, #pivot-point::after {
             content: '';
             position: absolute;
-            top: 50%; left: 50%;
-            width: 8px; height: 8px;
             background: var(--primary);
-            border-radius: 50%;
-            transform: translate(-50%, -50%);
         }
+        #pivot-point::before { top: 50%; left: -10px; right: -10px; height: 1px; transform: translateY(-50%); }
+        #pivot-point::after { left: 50%; top: -10px; bottom: -10px; width: 1px; transform: translateX(-50%); }
 
-        /* Кнопки точного управления */
+        /* Панель управления */
         .precision-controls {
             position: absolute;
-            bottom: 30px;
+            bottom: env(safe-area-inset-bottom, 20px);
             left: 50%;
             transform: translateX(-50%);
             display: none;
-            gap: 20px;
+            gap: 16px;
             z-index: 50;
-            padding: 15px;
-            background: rgba(0,0,0,0.8);
-            backdrop-filter: blur(15px);
-            border-radius: 24px;
-            border: 1px solid rgba(255,255,255,0.2);
-            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+            padding: 16px;
+            background: rgba(15, 15, 15, 0.9);
+            backdrop-filter: blur(20px);
+            border-radius: 32px;
+            border: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 0 20px 60px rgba(0,0,0,0.8);
+            width: max-content;
         }
 
-        .control-group {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .numpad {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 6px;
+        @media (max-width: 500px) {
+            .precision-controls {
+                flex-direction: column;
+                align-items: center;
+                gap: 12px;
+                padding: 12px;
+            }
         }
 
         .btn-ctrl {
-            width: 46px;
-            height: 46px;
-            background: rgba(255,255,255,0.1);
-            border-radius: 12px;
+            width: 48px;
+            height: 48px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 16px;
             display: flex;
             align-items: center;
             justify-content: center;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: background 0.1s;
+            -webkit-tap-highlight-color: transparent;
         }
-        .btn-ctrl:active { background: var(--primary); transform: scale(0.9); }
-        .btn-ctrl svg { width: 22px; height: 22px; stroke: white; fill: none; stroke-width: 2.5; }
+        .btn-ctrl:active { background: var(--primary); }
+        .btn-ctrl svg { width: 24px; height: 24px; stroke: white; fill: none; stroke-width: 2.5; }
 
-        .grid-line { stroke: rgba(255, 255, 255, 0.15); stroke-width: 1; }
         .active-btn { background-color: var(--primary) !important; color: white !important; }
+        .grid-line { stroke: rgba(255, 255, 255, 0.15); stroke-width: 1; }
     </style>
 </head>
-<body>
+<body oncontextmenu="return false;">
 
 <div class="app-container" id="interaction-zone">
     <div class="canvas-area">
-        <div id="placeholder" class="text-gray-500 text-center pointer-events-none">
+        <div id="placeholder" class="text-gray-500 text-center pointer-events-none px-6">
             <p class="text-xl font-bold mb-2">ArtRef</p>
-            <p class="text-sm">Откройте меню справа для загрузки</p>
+            <p class="text-xs opacity-70 uppercase tracking-widest">Центр вращения исправлен</p>
         </div>
         <img id="ref-image" class="img-layer" alt="Ref">
         <img id="user-image" class="img-layer" alt="User">
         <svg id="grid-overlay" class="absolute inset-0 pointer-events-none z-10 hidden"></svg>
     </div>
 
-    <!-- Точка центра вращения -->
+    <!-- Pivot Point -->
     <div id="pivot-point"></div>
 
-    <!-- Панель точного управления -->
+    <!-- Precision Panel -->
     <div id="precision-panel" class="precision-controls">
-        <!-- Группа перемещения -->
-        <div class="control-group">
-            <span class="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">Позиция</span>
-            <div class="numpad">
+        <div class="flex flex-col items-center gap-2">
+            <span class="text-[10px] font-bold text-gray-500 uppercase">Позиция</span>
+            <div class="grid grid-cols-3 gap-1">
                 <div></div>
-                <div class="btn-ctrl" onclick="nudge('y', -1)"><svg viewBox="0 0 24 24"><path d="m18 15-6-6-6 6"/></svg></div>
+                <div class="btn-ctrl" onpointerdown="startNudge('y', -2)" onpointerup="stopNudge()"><svg viewBox="0 0 24 24"><path d="m18 15-6-6-6 6"/></svg></div>
                 <div></div>
-                <div class="btn-ctrl" onclick="nudge('x', -1)"><svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg></div>
-                <div class="btn-ctrl opacity-20 cursor-default"><div class="w-1.5 h-1.5 bg-white rounded-full"></div></div>
-                <div class="btn-ctrl" onclick="nudge('x', 1)"><svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></div>
+                <div class="btn-ctrl" onpointerdown="startNudge('x', -2)" onpointerup="stopNudge()"><svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg></div>
+                <div class="btn-ctrl opacity-20"><div class="w-1 h-1 bg-white rounded-full"></div></div>
+                <div class="btn-ctrl" onpointerdown="startNudge('x', 2)" onpointerup="stopNudge()"><svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></div>
                 <div></div>
-                <div class="btn-ctrl" onclick="nudge('y', 1)"><svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></div>
+                <div class="btn-ctrl" onpointerdown="startNudge('y', 2)" onpointerup="stopNudge()"><svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></div>
                 <div></div>
             </div>
         </div>
 
-        <!-- Группа масштаба и поворота -->
-        <div class="control-group">
-            <span class="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">МАСШТАБ / ПОВОРОТ</span>
-            <div class="flex flex-col gap-2">
-                <div class="flex gap-2">
-                    <div class="btn-ctrl" onclick="nudge('s', 0.995)"><svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg></div>
-                    <div class="btn-ctrl" onclick="nudge('s', 1.005)"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></div>
+        <div class="flex flex-col items-center gap-2">
+            <span class="text-[10px] font-bold text-gray-500 uppercase">Зум / Поворот</span>
+            <div class="flex gap-2">
+                <div class="flex flex-col gap-1">
+                    <div class="btn-ctrl" onpointerdown="startNudge('s', 0.995)" onpointerup="stopNudge()"><svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg></div>
+                    <div class="btn-ctrl" onpointerdown="startNudge('s', 1.005)" onpointerup="stopNudge()"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></div>
                 </div>
-                <div class="flex gap-2">
-                    <div class="btn-ctrl" onclick="nudge('r', -0.5)"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg></div>
-                    <div class="btn-ctrl" onclick="nudge('r', 0.5)"><svg viewBox="0 0 24 24" style="transform: scaleX(-1)"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg></div>
+                <div class="flex flex-col gap-1">
+                    <div class="btn-ctrl" onpointerdown="startNudge('r', -0.5)" onpointerup="stopNudge()"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg></div>
+                    <div class="btn-ctrl" onpointerdown="startNudge('r', 0.5)" onpointerup="stopNudge()"><svg viewBox="0 0 24 24" style="transform: scaleX(-1)"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg></div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Боковая панель -->
+    <!-- Settings Drawer -->
     <aside id="drawer" class="settings-drawer">
         <div class="drawer-handle" onclick="toggleDrawer()">
             <svg id="drawer-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg>
         </div>
-
         <div class="p-6 h-full overflow-y-auto space-y-6">
             <h2 class="text-xl font-bold border-b pb-2">Управление</h2>
-
+            
             <div class="space-y-2">
-                <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Слои изображения</label>
+                <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Слои</label>
                 <div class="grid grid-cols-2 gap-2">
-                    <button onclick="document.getElementById('ref-input').click()" class="py-3 px-2 border-2 rounded-xl text-[10px] font-bold">1. РЕФЕРЕНС</button>
-                    <button onclick="document.getElementById('user-input').click()" class="py-3 px-2 border-2 rounded-xl text-[10px] font-bold">2. РИСУНОК</button>
+                    <button onclick="document.getElementById('ref-input').click()" class="py-3 px-2 border-2 rounded-xl text-[10px] font-bold">РЕФЕРЕНС</button>
+                    <button onclick="document.getElementById('user-input').click()" class="py-3 px-2 border-2 rounded-xl text-[10px] font-bold">РИСУНОК</button>
                 </div>
                 <input type="file" id="ref-input" class="hidden" accept="image/*" onchange="loadFile(this, 'ref-image')">
                 <input type="file" id="user-input" class="hidden" accept="image/*" onchange="loadFile(this, 'user-image')">
             </div>
 
             <div class="space-y-3">
-                <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Рабочие режимы</label>
+                <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Режимы</label>
                 <div class="grid grid-cols-2 gap-2">
                     <button id="btn-link" onclick="toggleLink()" class="flex flex-col items-center py-3 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors">
                         <svg class="mb-1" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-                        <span class="text-[9px] font-bold">СВЯЗКА</span>
+                        <span class="text-[9px] font-bold uppercase">Связка</span>
                     </button>
                     <button id="btn-precision" onclick="togglePrecision()" class="flex flex-col items-center py-3 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors">
-                        <svg class="mb-1" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="m12 8 4 4-4 4"/><path d="M8 12h8"/></svg>
-                        <span class="text-[9px] font-bold">ТОЧНОСТЬ</span>
+                        <svg class="mb-1" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="m12 8 4 4-4 4"/></svg>
+                        <span class="text-[9px] font-bold uppercase">Точность</span>
                     </button>
                 </div>
             </div>
 
             <div class="space-y-4">
                 <div class="flex justify-between items-center">
-                    <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Прозрачность (2)</span>
+                    <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Прозрачность</span>
                     <span id="opacity-val" class="text-xs font-bold text-red-500 bg-red-50 px-2 py-1 rounded">50%</span>
                 </div>
                 <input type="range" id="opacity-slider" min="0" max="100" value="50" class="w-full accent-red-500" oninput="updateOpacity()">
@@ -243,7 +245,7 @@
 
             <div class="bg-gray-50 p-4 rounded-2xl space-y-4 border border-gray-100">
                 <div class="flex justify-between items-center">
-                    <span class="text-[10px] font-bold uppercase text-gray-500">Сетка направляющих</span>
+                    <span class="text-[10px] font-bold uppercase text-gray-500">Сетка</span>
                     <label class="relative inline-flex items-center cursor-pointer">
                         <input type="checkbox" id="grid-toggle" class="sr-only peer" onchange="toggleGrid()">
                         <div class="w-10 h-5 bg-gray-300 rounded-full peer peer-checked:bg-red-500 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-5"></div>
@@ -252,25 +254,22 @@
                 <input type="range" id="grid-size" min="2" max="40" value="8" class="w-full accent-gray-400" oninput="drawGrid()">
             </div>
 
-            <button onclick="resetAll()" class="w-full py-3 text-red-500 font-bold text-[10px] border border-red-100 rounded-xl hover:bg-red-50">СБРОСИТЬ ПАРАМЕТРЫ</button>
+            <button onclick="resetAll()" class="w-full py-4 text-red-500 font-bold text-[10px] border border-red-100 rounded-xl hover:bg-red-50 uppercase tracking-widest">Сбросить всё</button>
         </div>
     </aside>
 </div>
 
 <script>
-    // State management
     let states = {
-        ref: { x: 0, y: 0, s: 1, r: 0 },
-        user: { x: 0, y: 0, s: 1, r: 0 }
+        ref: { x: window.innerWidth/2, y: window.innerHeight/2, s: 1, r: 0 },
+        user: { x: window.innerWidth/2, y: window.innerHeight/2, s: 1, r: 0 }
     };
     
     let isLinked = false;
     let isPrecisionMode = false;
     let pivot = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
-
     let activePointers = new Map();
-    let initialDist = 0;
-    let initialAngle = 0;
+    let nudgeInterval = null;
 
     const refEl = document.getElementById('ref-image');
     const userEl = document.getElementById('user-image');
@@ -278,10 +277,7 @@
     const drawer = document.getElementById('drawer');
     const precisionPanel = document.getElementById('precision-panel');
 
-    function toggleDrawer() {
-        drawer.classList.toggle('open');
-    }
-
+    function toggleDrawer() { drawer.classList.toggle('open'); }
     function toggleLink() {
         isLinked = !isLinked;
         document.getElementById('btn-link').classList.toggle('active-btn', isLinked);
@@ -290,20 +286,14 @@
     function togglePrecision() {
         isPrecisionMode = !isPrecisionMode;
         document.getElementById('btn-precision').classList.toggle('active-btn', isPrecisionMode);
-        
         pivotEl.style.display = isPrecisionMode ? 'block' : 'none';
         precisionPanel.style.display = isPrecisionMode ? 'flex' : 'none';
-        
-        if (isPrecisionMode) {
-            updatePivotUI();
-        }
-        
-        // Важно перерисовать сразу, чтобы origin обновился без "прыжков"
+        if (isPrecisionMode) updatePivotUI();
         applyTransforms();
     }
 
     function loadFile(input, id) {
-        if (input.files && input.files[0]) {
+        if (input.files?.[0]) {
             const reader = new FileReader();
             reader.onload = (e) => {
                 const img = document.getElementById(id);
@@ -323,17 +313,31 @@
     }
 
     function applyTransforms() {
-        // Чтобы изображение не пропадало, мы вычисляем origin относительно вьюпорта
-        // В режиме точности origin всегда совпадает с Pivot. 
-        // В обычном режиме сбрасываем в 50% 50% (центр самого изображения)
-        const originStr = isPrecisionMode ? `${pivot.x}px ${pivot.y}px` : '50% 50%';
+        // Ключевой момент: вращение вокруг Pivot
+        // Мы используем transform-origin: 0 0 и корректируем translate, 
+        // чтобы точка pivot на изображении была в нужном месте экрана.
         
-        [refEl, userEl].forEach(el => {
-            el.style.transformOrigin = originStr;
+        [refEl, userEl].forEach((el, index) => {
+            const key = index === 0 ? 'ref' : 'user';
+            const s = states[key];
+            
+            if (isPrecisionMode) {
+                // В режиме точности мы устанавливаем origin в 0,0 
+                // и рассчитываем матрицу так, чтобы pivot был центром вращения.
+                el.style.transformOrigin = `0px 0px`;
+                // Формула: translate(pivot) -> rotate -> scale -> translate(-pivot_relative_to_image)
+                el.style.transform = `
+                    translate(${pivot.x}px, ${pivot.y}px)
+                    rotate(${s.r}deg)
+                    scale(${s.s})
+                    translate(${s.x - pivot.x}px, ${s.y - pivot.y}px)
+                `;
+            } else {
+                // Обычный режим: простое смещение от центра
+                el.style.transformOrigin = '50% 50%';
+                el.style.transform = `translate(${s.x - window.innerWidth/2}px, ${s.y - window.innerHeight/2}px) scale(${s.s}) rotate(${s.r}deg)`;
+            }
         });
-
-        refEl.style.transform = `translate(${states.ref.x}px, ${states.ref.y}px) scale(${states.ref.s}) rotate(${states.ref.r}deg)`;
-        userEl.style.transform = `translate(${states.user.x}px, ${states.user.y}px) scale(${states.user.s}) rotate(${states.user.r}deg)`;
     }
 
     function updatePivotUI() {
@@ -341,20 +345,27 @@
         pivotEl.style.top = pivot.y + 'px';
     }
 
-    function nudge(key, amount) {
-        const targets = isLinked ? ['ref', 'user'] : ['user'];
-        targets.forEach(t => {
-            if (key === 'x') states[t].x += amount;
-            if (key === 'y') states[t].y += amount;
-            if (key === 's') states[t].s *= amount;
-            if (key === 'r') states[t].r += amount;
-        });
-        applyTransforms();
+    function startNudge(key, val) {
+        stopNudge();
+        const perform = () => {
+            const targets = isLinked ? ['ref', 'user'] : ['user'];
+            targets.forEach(t => {
+                if (key === 'x') states[t].x += val;
+                if (key === 'y') states[t].y += val;
+                if (key === 's') states[t].s *= val;
+                if (key === 'r') states[t].r += val;
+            });
+            applyTransforms();
+        };
+        perform();
+        nudgeInterval = setInterval(perform, 30);
     }
 
-    const zone = document.getElementById('interaction-zone');
+    function stopNudge() {
+        clearInterval(nudgeInterval);
+    }
 
-    // Хендлер для захвата поинтера для Pivot
+    // Pivot Dragging
     pivotEl.addEventListener('pointerdown', e => {
         e.stopPropagation();
         pivotEl.setPointerCapture(e.pointerId);
@@ -375,12 +386,15 @@
         pivotEl.releasePointerCapture(e.pointerId);
     });
 
+    // Touch Gestures (Non-precision)
+    const zone = document.getElementById('interaction-zone');
+    let initialDist = 0;
+    let initialAngle = 0;
+
     zone.addEventListener('pointerdown', e => {
-        // Игнорируем нажатия на UI элементы
-        if (e.target.closest('#drawer') || e.target.closest('#precision-panel') || e.target === pivotEl) return;
-        
+        if (isPrecisionMode) return;
+        if (e.target.closest('#drawer') || e.target.closest('#precision-panel')) return;
         activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-        
         if (activePointers.size === 2) {
             const pts = Array.from(activePointers.values());
             initialDist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
@@ -389,48 +403,30 @@
     });
 
     zone.addEventListener('pointermove', e => {
-        if (!activePointers.has(e.pointerId)) return;
-
+        if (isPrecisionMode || !activePointers.has(e.pointerId)) return;
         if (activePointers.size === 1) {
             const prev = activePointers.get(e.pointerId);
             const dx = e.clientX - prev.x;
             const dy = e.clientY - prev.y;
-            
-            nudge('x', dx);
             const targets = isLinked ? ['ref', 'user'] : ['user'];
-            targets.forEach(t => states[t].y += dy);
-            
+            targets.forEach(t => { states[t].x += dx; states[t].y += dy; });
             activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
         } else if (activePointers.size === 2) {
             activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
             const pts = Array.from(activePointers.values());
-            
             const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
             const angle = Math.atan2(pts[1].y - pts[0].y, pts[1].x - pts[0].x) * 180 / Math.PI;
-            
-            if (initialDist > 0) {
-                const sFactor = dist / initialDist;
-                nudge('s', sFactor);
-                initialDist = dist;
-            }
-            
+            const sFact = initialDist > 0 ? dist / initialDist : 1;
             const aDiff = angle - initialAngle;
-            nudge('r', aDiff);
+            const targets = isLinked ? ['ref', 'user'] : ['user'];
+            targets.forEach(t => { states[t].s *= sFact; states[t].r += aDiff; });
+            initialDist = dist;
             initialAngle = angle;
         }
+        applyTransforms();
     });
 
-    zone.addEventListener('pointerup', e => {
-        activePointers.delete(e.pointerId);
-        if (activePointers.size < 2) {
-            initialDist = 0;
-            initialAngle = 0;
-        }
-    });
-
-    zone.addEventListener('pointercancel', e => {
-        activePointers.delete(e.pointerId);
-    });
+    zone.addEventListener('pointerup', e => { activePointers.delete(e.pointerId); });
 
     function toggleGrid() {
         document.getElementById('grid-overlay').classList.toggle('hidden');
@@ -440,30 +436,25 @@
     function drawGrid() {
         const size = document.getElementById('grid-size').value;
         const svg = document.getElementById('grid-overlay');
-        const w = window.innerWidth;
-        const h = window.innerHeight;
+        const w = window.innerWidth, h = window.innerHeight;
         svg.innerHTML = '';
         const step = w / size;
         for(let x=0; x<=w; x+=step) {
-            const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
-            line.setAttribute("x1", x); line.setAttribute("y1", 0);
-            line.setAttribute("x2", x); line.setAttribute("y2", h);
-            line.setAttribute("class", "grid-line");
-            svg.appendChild(line);
+            const l = document.createElementNS("http://www.w3.org/2000/svg", "line");
+            l.setAttribute("x1", x); l.setAttribute("y1", 0); l.setAttribute("x2", x); l.setAttribute("y2", h);
+            l.setAttribute("class", "grid-line"); svg.appendChild(l);
         }
         for(let y=0; y<=h; y+=step) {
-            const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
-            line.setAttribute("x1", 0); line.setAttribute("y1", y);
-            line.setAttribute("x2", w); line.setAttribute("y2", y);
-            line.setAttribute("class", "grid-line");
-            svg.appendChild(line);
+            const l = document.createElementNS("http://www.w3.org/2000/svg", "line");
+            l.setAttribute("x1", 0); l.setAttribute("y1", y); l.setAttribute("x2", w); l.setAttribute("y2", y);
+            l.setAttribute("class", "grid-line"); svg.appendChild(l);
         }
     }
 
     function resetAll() {
-        if(confirm('Сбросить все настройки трансформации?')) {
-            states.ref = { x: 0, y: 0, s: 1, r: 0 };
-            states.user = { x: 0, y: 0, s: 1, r: 0 };
+        if(confirm('Сбросить положение?')) {
+            states.ref = { x: window.innerWidth/2, y: window.innerHeight/2, s: 1, r: 0 };
+            states.user = { x: window.innerWidth/2, y: window.innerHeight/2, s: 1, r: 0 };
             pivot = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
             updatePivotUI();
             applyTransforms();
