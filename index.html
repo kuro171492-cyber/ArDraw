@@ -173,7 +173,7 @@
     <div class="canvas-area">
         <div id="placeholder" class="text-gray-500 text-center pointer-events-none px-6 w-full">
             <p class="text-xl font-bold mb-2">ArtRef</p>
-            <p class="text-xs opacity-70 uppercase tracking-widest">Перейдите в меню справа или смахните влево</p>
+            <p class="text-xs opacity-70 uppercase tracking-widest">Меню: свайп влево от края</p>
         </div>
         <img id="ref-image" class="img-layer" alt="Ref">
         <img id="user-image" class="img-layer" alt="User">
@@ -183,29 +183,29 @@
     <div id="pivot-point"></div>
 
     <div id="perimeter-panel" class="perimeter-panel">
-        <div class="edge-btn p-top-left" onpointerdown="startNudge('r', -0.5)" onpointerup="stopNudge()">
+        <div class="edge-btn p-top-left" onpointerdown="startNudge('r', -0.5)" onpointerup="stopNudge()" onpointerleave="stopNudge()">
             <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
         </div>
-        <div class="edge-btn p-top-center" onpointerdown="startNudge('y', -2)" onpointerup="stopNudge()">
+        <div class="edge-btn p-top-center" onpointerdown="startNudge('y', -2)" onpointerup="stopNudge()" onpointerleave="stopNudge()">
             <svg viewBox="0 0 24 24"><path d="m18 15-6-6-6 6"/></svg>
         </div>
-        <div class="edge-btn p-top-right" onpointerdown="startNudge('r', 0.5)" onpointerup="stopNudge()">
+        <div class="edge-btn p-top-right" onpointerdown="startNudge('r', 0.5)" onpointerup="stopNudge()" onpointerleave="stopNudge()">
             <svg viewBox="0 0 24 24" style="transform: scaleX(-1)"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
         </div>
         
-        <div class="edge-btn p-mid-left" onpointerdown="startNudge('x', -2)" onpointerup="stopNudge()">
+        <div class="edge-btn p-mid-left" onpointerdown="startNudge('x', -2)" onpointerup="stopNudge()" onpointerleave="stopNudge()">
             <svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg>
         </div>
-        <div class="edge-btn p-mid-right" onpointerdown="startNudge('x', 2)" onpointerup="stopNudge()">
+        <div class="edge-btn p-mid-right" onpointerdown="startNudge('x', 2)" onpointerup="stopNudge()" onpointerleave="stopNudge()">
             <svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
         </div>
 
-        <div class="edge-btn p-bottom-left" onpointerdown="startNudge('s', 0.995)" onpointerup="stopNudge()">
+        <div class="edge-btn p-bottom-left" onpointerdown="startNudge('s', 0.995)" onpointerup="stopNudge()" onpointerleave="stopNudge()">
             <svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg>
         </div>
         
         <div class="p-bottom-center">
-            <div class="edge-btn" onpointerdown="startNudge('y', 2)" onpointerup="stopNudge()">
+            <div class="edge-btn" onpointerdown="startNudge('y', 2)" onpointerup="stopNudge()" onpointerleave="stopNudge()">
                 <svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
             </div>
             <div id="btn-pivot-toggle" class="edge-btn active-target" onclick="toggleCustomPivot()">
@@ -213,7 +213,7 @@
             </div>
         </div>
 
-        <div class="edge-btn p-bottom-right" onpointerdown="startNudge('s', 1.005)" onpointerup="stopNudge()">
+        <div class="edge-btn p-bottom-right" onpointerdown="startNudge('s', 1.005)" onpointerup="stopNudge()" onpointerleave="stopNudge()">
             <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
         </div>
     </div>
@@ -307,7 +307,7 @@
     // --- ЛОГИКА СВАЙПА ---
     let touchStartX = 0;
     let touchStartY = 0;
-    const SWIPE_THRESHOLD = 50; // Минимальная дистанция для свайпа
+    const SWIPE_THRESHOLD = 50; 
 
     window.addEventListener('touchstart', (e) => {
         touchStartX = e.changedTouches[0].screenX;
@@ -324,25 +324,18 @@
         const dx = endX - startX;
         const dy = endY - startY;
         
-        // Если движение по горизонтали преобладает над вертикалью
         if (Math.abs(dx) > Math.abs(dy)) {
-            // Если меню открыто -> свайп вправо закрывает его
             if (drawer.classList.contains('open')) {
-                if (dx > SWIPE_THRESHOLD) {
-                    toggleDrawer(false);
-                }
-            } 
-            // Если меню закрыто -> свайп от правого края влево открывает его
-            else {
-                const screenWidth = window.innerWidth;
-                // Свайп влево и начальная точка близко к правому краю
-                if (dx < -SWIPE_THRESHOLD && startX > screenWidth * 0.7) {
+                // Внутри открытого меню свайп вправо закрывает его
+                if (dx > SWIPE_THRESHOLD) toggleDrawer(false);
+            } else {
+                // Свайп влево от правого края (30% ширины) открывает меню
+                if (dx < -SWIPE_THRESHOLD && startX > window.innerWidth * 0.7) {
                     toggleDrawer(true);
                 }
             }
         }
     }
-    // -----------------------
 
     function toggleLink() {
         isLinked = !isLinked;
@@ -477,11 +470,13 @@
             return;
         }
         if (!activePointers.has(e.pointerId)) return;
+        
+        const targets = isLinked ? ['ref', 'user'] : ['user'];
+
         if (activePointers.size === 1) {
             const prev = activePointers.get(e.pointerId);
             const dx = e.clientX - prev.x;
             const dy = e.clientY - prev.y;
-            const targets = isLinked ? ['ref', 'user'] : ['user'];
             targets.forEach(t => { states[t].x += dx; states[t].y += dy; });
             activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
         } else if (activePointers.size === 2) {
@@ -489,10 +484,17 @@
             const pts = Array.from(activePointers.values());
             const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
             const angle = Math.atan2(pts[1].y - pts[0].y, pts[1].x - pts[0].x) * 180 / Math.PI;
+            
             const sFact = initialDist > 0 ? dist / initialDist : 1;
-            const aDiff = angle - initialAngle;
-            const targets = isLinked ? ['ref', 'user'] : ['user'];
-            targets.forEach(t => { states[t].s *= sFact; states[t].r += aDiff; });
+            
+            // ПРАВКА: Если включен режим связки, поворот жестами игнорируем
+            const aDiff = isLinked ? 0 : (angle - initialAngle);
+            
+            targets.forEach(t => { 
+                states[t].s *= sFact; 
+                states[t].r += aDiff; 
+            });
+            
             initialDist = dist;
             initialAngle = angle;
         }
