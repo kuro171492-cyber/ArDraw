@@ -39,12 +39,14 @@
             overflow: hidden;
             z-index: 1;
         }
-        .layer {
+        /* Референс всегда снизу или сверху, но с правильным z-index */
+        #ref-image {
             position: absolute;
             width: 100%;
             height: 100%;
             object-fit: contain;
             pointer-events: none;
+            z-index: 2; /* Реф над рисунком */
         }
         #user-image-container {
             position: absolute;
@@ -57,12 +59,15 @@
             justify-content: center;
             cursor: move;
             touch-action: none;
+            z-index: 3; /* Контейнер рисунка сверху для захвата касаний */
         }
         #user-image {
             max-width: none;
             max-height: none;
             transition: opacity 0.2s;
             transform-origin: center;
+            /* По умолчанию рисунок полупрозрачный, чтобы видеть реф под ним */
+            opacity: 0.5; 
         }
         #grid-overlay {
             position: absolute;
@@ -113,18 +118,6 @@
             stroke: rgba(255, 255, 255, 0.3);
             stroke-width: 1;
         }
-        .btn-action {
-            width: 44px;
-            height: 44px;
-            border-radius: 50%;
-            background: rgba(255,255,255,0.1);
-            backdrop-filter: blur(5px);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            margin-bottom: 12px;
-        }
     </style>
 </head>
 <body>
@@ -137,14 +130,17 @@
             Загрузите референс в меню справа
         </div>
         
-        <img id="ref-image" class="layer hidden" alt="Reference">
+        <!-- Порядок важен для z-index -->
+        <img id="ref-image" class="hidden" alt="Reference">
+        
         <div id="user-image-container" class="hidden">
-            <img id="user-image" style="opacity: 0.5;" alt="User Work">
+            <img id="user-image" alt="User Work">
         </div>
+        
         <svg id="grid-overlay" class="hidden"></svg>
     </div>
 
-    <!-- Floating UI for quick actions -->
+    <!-- Floating UI for branding -->
     <div class="fixed top-6 left-6 z-40 flex flex-col">
         <div class="bg-white/90 backdrop-blur px-4 py-2 rounded-full shadow-lg flex items-center gap-3">
              <div class="w-6 h-6 bg-[#FF5F5F] rounded-full flex items-center justify-center text-white text-[10px] font-bold">A</div>
@@ -170,17 +166,27 @@
             <div class="space-y-3">
                 <label class="text-xs font-bold text-gray-400 uppercase">Загрузка</label>
                 <div class="grid grid-cols-2 gap-2">
-                    <button onclick="document.getElementById('ref-input').click()" class="py-3 px-2 border-2 border-dashed border-gray-200 rounded-xl text-[11px] font-bold text-gray-600 hover:border-red-200">РЕФЕРЕНС</button>
-                    <button onclick="document.getElementById('user-input').click()" class="py-3 px-2 border-2 border-dashed border-gray-200 rounded-xl text-[11px] font-bold text-gray-600 hover:border-red-200">РИСУНОК</button>
+                    <button onclick="document.getElementById('ref-input').click()" class="py-3 px-2 border-2 border-dashed border-gray-200 rounded-xl text-[11px] font-bold text-gray-600 hover:border-red-200">1. РЕФЕРЕНС</button>
+                    <button onclick="document.getElementById('user-input').click()" class="py-3 px-2 border-2 border-dashed border-gray-200 rounded-xl text-[11px] font-bold text-gray-600 hover:border-red-200">2. РИСУНОК</button>
                 </div>
                 <input type="file" id="ref-input" class="hidden" accept="image/*" onchange="handleImage(this, 'ref-image')">
                 <input type="file" id="user-input" class="hidden" accept="image/*" onchange="handleImage(this, 'user-image')">
             </div>
 
+            <!-- Transparency -->
+            <div class="space-y-4">
+                <div class="flex justify-between items-center">
+                    <span class="text-xs font-bold text-gray-400 uppercase">Прозрачность рисунка</span>
+                    <span id="opacity-val" class="text-sm font-bold text-red-500">50%</span>
+                </div>
+                <input type="range" id="opacity-slider" min="0" max="100" value="50" class="w-full h-2 bg-gray-100 rounded-lg appearance-none" oninput="updateOpacity()">
+                <p class="text-[10px] text-gray-400 italic">Уменьшите прозрачность, чтобы видеть референс сквозь ваш рисунок.</p>
+            </div>
+
             <!-- Transformation -->
             <div id="transform-panel" class="hidden space-y-5 bg-gray-50 p-4 rounded-2xl">
                 <div class="flex justify-between items-center">
-                    <span class="text-xs font-bold text-gray-400 uppercase">Слои</span>
+                    <span class="text-xs font-bold text-gray-400 uppercase">Трансформация</span>
                     <button onclick="fitToRef()" class="text-[10px] bg-red-500 text-white px-3 py-1 rounded-full font-bold">ПРИВЯЗАТЬ</button>
                 </div>
                 
@@ -201,15 +207,6 @@
                 </div>
             </div>
 
-            <!-- Transparency -->
-            <div class="space-y-4">
-                <div class="flex justify-between items-center">
-                    <span class="text-xs font-bold text-gray-400 uppercase">Прозрачность</span>
-                    <span id="opacity-val" class="text-sm font-bold text-red-500">50%</span>
-                </div>
-                <input type="range" id="opacity-slider" min="0" max="100" value="50" class="w-full h-2 bg-gray-100 rounded-lg appearance-none" oninput="updateOpacity()">
-            </div>
-
             <!-- Grid -->
             <div class="bg-gray-900 text-white p-5 rounded-3xl space-y-4">
                 <div class="flex justify-between items-center">
@@ -221,15 +218,11 @@
                 </div>
                 <div class="space-y-3">
                     <input type="range" id="grid-size" min="2" max="30" value="5" class="w-full" oninput="updateGrid()">
-                    <div class="flex justify-between text-[10px] opacity-50">
-                        <span>Меньше</span>
-                        <span>Плотнее</span>
-                    </div>
                 </div>
             </div>
 
             <div class="pt-4 opacity-40 text-[10px] text-center">
-                Используйте два пальца для вращения и масштабирования
+                Используйте два пальца для вращения и масштабирования рисунка
             </div>
         </div>
     </aside>
@@ -243,7 +236,6 @@
     let isDragging = false;
     let startX, startY;
     
-    // Gestures state
     let initialDistance = null;
     let initialAngle = null;
 
@@ -268,6 +260,9 @@
                 if (targetId === 'user-image') {
                     userImgContainer.classList.remove('hidden');
                     document.getElementById('transform-panel').classList.remove('hidden');
+                    // При загрузке рисунка сбрасываем его в 50% прозрачности сразу
+                    document.getElementById('opacity-slider').value = 50;
+                    updateOpacity();
                     resetTransform();
                 } else {
                     img.classList.remove('hidden');
@@ -316,7 +311,6 @@
         updateTransform();
     }
 
-    // Touch & Mouse Interaction
     userImgContainer.addEventListener('mousedown', dragStart);
     userImgContainer.addEventListener('touchstart', touchStart, {passive: false});
 
@@ -327,21 +321,21 @@
     window.addEventListener('touchend', dragEnd);
 
     function dragStart(e) {
-        if (e.target.id !== 'user-image') return;
+        if (e.target.id !== 'user-image' && e.target.id !== 'user-image-container') return;
         isDragging = true;
         startX = e.clientX - currentX;
         startY = e.clientY - currentY;
     }
 
     function touchStart(e) {
-        if (e.target.id !== 'user-image') return;
+        // Проверяем, что касание именно по области рисунка
+        if (e.target.id !== 'user-image' && e.target.id !== 'user-image-container') return;
         
         if (e.touches.length === 1) {
             isDragging = true;
             startX = e.touches[0].clientX - currentX;
             startY = e.touches[0].clientY - currentY;
         } else if (e.touches.length === 2) {
-            // Multi-touch initial state
             isDragging = false; 
             const dx = e.touches[0].clientX - e.touches[1].clientX;
             const dy = e.touches[0].clientY - e.touches[1].clientY;
@@ -358,28 +352,33 @@
     }
 
     function touchMove(e) {
-        e.preventDefault();
+        if (e.target.closest('#drawer')) return; // Не мешаем шторке
+        
         if (e.touches.length === 1 && isDragging) {
+            e.preventDefault();
             currentX = e.touches[0].clientX - startX;
             currentY = e.touches[0].clientY - startY;
             updateTransform();
         } else if (e.touches.length === 2) {
+            e.preventDefault();
             const dx = e.touches[0].clientX - e.touches[1].clientX;
             const dy = e.touches[0].clientY - e.touches[1].clientY;
             
-            // Zoom
             const distance = Math.hypot(dx, dy);
-            const scaleFactor = distance / initialDistance;
-            const newScale = Math.min(Math.max(10, (scale * scaleFactor) * 100), 400);
-            document.getElementById('scale-slider').value = newScale;
-            initialDistance = distance;
+            if (initialDistance) {
+                const scaleFactor = distance / initialDistance;
+                const newScale = Math.min(Math.max(10, (scale * scaleFactor) * 100), 400);
+                document.getElementById('scale-slider').value = newScale;
+                initialDistance = distance;
+            }
             
-            // Rotate
             const angle = Math.atan2(dy, dx) * 180 / Math.PI;
-            const angleDiff = angle - initialAngle;
-            rotation = (parseFloat(rotation) + angleDiff) % 360;
-            document.getElementById('rotate-slider').value = Math.round(rotation);
-            initialAngle = angle;
+            if (initialAngle !== null) {
+                const angleDiff = angle - initialAngle;
+                rotation = (parseFloat(rotation) + angleDiff) % 360;
+                document.getElementById('rotate-slider').value = Math.round(rotation);
+                initialAngle = angle;
+            }
 
             updateTransform();
         }
