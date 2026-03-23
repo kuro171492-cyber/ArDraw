@@ -46,8 +46,6 @@
             pointer-events: none;
             display: none;
             will-change: transform;
-            /* Важно для корректного вращения вокруг точки */
-            transform-origin: 0 0; 
         }
         #ref-image { z-index: 2; }
         #user-image { z-index: 3; opacity: 0.5; }
@@ -313,29 +311,35 @@
     }
 
     function applyTransforms() {
-        // Ключевой момент: вращение вокруг Pivot
-        // Мы используем transform-origin: 0 0 и корректируем translate, 
-        // чтобы точка pivot на изображении была в нужном месте экрана.
-        
+        // Центр экрана
+        const cx = window.innerWidth / 2;
+        const cy = window.innerHeight / 2;
+
         [refEl, userEl].forEach((el, index) => {
             const key = index === 0 ? 'ref' : 'user';
             const s = states[key];
             
+            // Важно: всегда используем центр картинки (50% 50%) как origin!
+            // Так как у нас Flexbox, центр картинок любого размера изначально лежит ровно в cx, cy.
+            el.style.transformOrigin = '50% 50%';
+            
             if (isPrecisionMode) {
-                // В режиме точности мы устанавливаем origin в 0,0 
-                // и рассчитываем матрицу так, чтобы pivot был центром вращения.
-                el.style.transformOrigin = `0px 0px`;
-                // Формула: translate(pivot) -> rotate -> scale -> translate(-pivot_relative_to_image)
+                // Высчитываем координаты pivot и позиции относительно центра экрана
+                const px = pivot.x - cx;
+                const py = pivot.y - cy;
+                const sx = s.x - cx;
+                const sy = s.y - cy;
+
+                // Перемещаемся к pivot -> применяем вращение/скейл -> возвращаемся к смещению
                 el.style.transform = `
-                    translate(${pivot.x}px, ${pivot.y}px)
+                    translate(${px}px, ${py}px)
                     rotate(${s.r}deg)
                     scale(${s.s})
-                    translate(${s.x - pivot.x}px, ${s.y - pivot.y}px)
+                    translate(${sx - px}px, ${sy - py}px)
                 `;
             } else {
-                // Обычный режим: простое смещение от центра
-                el.style.transformOrigin = '50% 50%';
-                el.style.transform = `translate(${s.x - window.innerWidth/2}px, ${s.y - window.innerHeight/2}px) scale(${s.s}) rotate(${s.r}deg)`;
+                // Обычный режим работает от центра экрана
+                el.style.transform = `translate(${s.x - cx}px, ${s.y - cy}px) scale(${s.s}) rotate(${s.r}deg)`;
             }
         });
     }
@@ -463,6 +467,8 @@
 
     window.addEventListener('resize', () => {
         drawGrid();
+        // При повороте экрана на мобильном важно пересчитать трансформации
+        applyTransforms();
         if (!isPrecisionMode) {
             pivot = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
             updatePivotUI();
