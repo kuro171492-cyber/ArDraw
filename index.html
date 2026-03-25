@@ -207,7 +207,7 @@
     <div class="canvas-area">
         <div id="placeholder" class="text-gray-500 text-center pointer-events-none px-6 w-full">
             <p class="text-xl font-bold mb-2">ArtRef</p>
-            <p class="text-xs opacity-70 uppercase tracking-widest">Меню справа. Жесты управляют выбранным слоем.</p>
+            <p class="text-xs opacity-70 uppercase tracking-widest">Меню справа. Реф заблокирован от поворота.</p>
         </div>
         <img id="ref-image" class="img-layer" alt="Ref">
         <img id="user-image" class="img-layer" alt="User">
@@ -365,12 +365,11 @@
         user: { x: window.innerWidth/2, y: window.innerHeight/2, s: 1, r: 0 }
     };
     
-    let currentTarget = 'user'; // 'user' или 'ref'
+    let currentTarget = 'user'; 
     let isLinked = false;
     let isPrecisionMode = false;
     let isCustomPivot = true; 
     let isUserVisible = true;
-    let userLineColor = 'none';
     let gridStrokeColor = 'rgba(255,255,255,0.3)';
     
     let pivot = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
@@ -389,7 +388,6 @@
         drawer.classList.toggle('open');
     }
 
-    // Выбор слоя для управления
     function setControlTarget(target) {
         currentTarget = target;
         document.getElementById('target-user').classList.toggle('active-btn', target === 'user');
@@ -497,6 +495,8 @@
                 if (key === 'x') s.x += val;
                 if (key === 'y') s.y += val;
                 if (key === 'r') {
+                    // Блокируем поворот для рефа
+                    if (t === 'ref') return;
                     const dx = s.x - activePivotX, dy = s.y - activePivotY;
                     const angle = Math.atan2(dy, dx) + (val * Math.PI / 180);
                     const dist = Math.hypot(dx, dy);
@@ -561,17 +561,27 @@
             const angle = Math.atan2(pts[1].y - pts[0].y, pts[1].x - pts[0].x) * 180 / Math.PI;
             
             const sFact = initialDist > 0 ? dist / initialDist : 1;
-            const aDiff = isLinked ? 0 : (angle - initialAngle);
+            const aDiff = angle - initialAngle;
             
+            const midX = (pts[0].x + pts[1].x) / 2;
+            const midY = (pts[0].y + pts[1].y) / 2;
+
             targets.forEach(t => { 
                 const s = states[t];
-                // Масштабирование относительно центра пальцев
-                const midX = (pts[0].x + pts[1].x) / 2;
-                const midY = (pts[0].y + pts[1].y) / 2;
+                // Масштабирование
                 s.x = midX + (s.x - midX) * sFact;
                 s.y = midY + (s.y - midY) * sFact;
                 s.s *= sFact; 
-                s.r += aDiff; 
+                
+                // Поворот только для user (даже в связке реф не крутим)
+                if (t === 'user') {
+                    const dx = s.x - midX, dy = s.y - midY;
+                    const rad = aDiff * Math.PI / 180;
+                    const cos = Math.cos(rad), sin = Math.sin(rad);
+                    s.x = midX + (dx * cos - dy * sin);
+                    s.y = midY + (dx * sin + dy * cos);
+                    s.r += aDiff;
+                }
             });
             initialDist = dist; initialAngle = angle;
         }
