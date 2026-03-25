@@ -207,7 +207,7 @@
     <div class="canvas-area">
         <div id="placeholder" class="text-gray-500 text-center pointer-events-none px-6 w-full">
             <p class="text-xl font-bold mb-2">ArtRef</p>
-            <p class="text-xs opacity-70 uppercase tracking-widest">Меню справа. Реф заблокирован от поворота.</p>
+            <p class="text-xs opacity-70 uppercase tracking-widest">Загрузите изображения. Они автоматически впишутся в экран.</p>
         </div>
         <img id="ref-image" class="img-layer" alt="Ref">
         <img id="user-image" class="img-layer" alt="User">
@@ -438,6 +438,28 @@
         }
     }
 
+    // НОВАЯ ФУНКЦИЯ: Расчет масштаба для вписывания в экран
+    function fitImageToScreen(img, key) {
+        const screenW = window.innerWidth;
+        const screenH = window.innerHeight;
+        const imgW = img.naturalWidth;
+        const imgH = img.naturalHeight;
+
+        const ratioW = screenW / imgW;
+        const ratioH = screenH / imgH;
+        
+        // Берем минимальное соотношение, чтобы картинка влезла целиком (contain)
+        const scale = Math.min(ratioW, ratioH) * 0.9; // 0.9 для небольшого отступа от краев
+
+        states[key] = {
+            x: screenW / 2,
+            y: screenH / 2,
+            s: scale,
+            r: 0
+        };
+        applyTransforms();
+    }
+
     function loadFile(input, id) {
         if (input.files?.[0]) {
             const reader = new FileReader();
@@ -445,9 +467,15 @@
                 const img = document.getElementById(id);
                 img.src = e.target.result;
                 img.style.display = 'block';
-                const pl = document.getElementById('placeholder');
-                if (pl) pl.style.display = 'none';
-                applyTransforms();
+                
+                // Ждем загрузки метаданных изображения для расчета размеров
+                img.onload = () => {
+                    const key = (id === 'ref-image') ? 'ref' : 'user';
+                    fitImageToScreen(img, key);
+                    
+                    const pl = document.getElementById('placeholder');
+                    if (pl) pl.style.display = 'none';
+                };
             };
             reader.readAsDataURL(input.files[0]);
         }
@@ -495,7 +523,6 @@
                 if (key === 'x') s.x += val;
                 if (key === 'y') s.y += val;
                 if (key === 'r') {
-                    // Блокируем поворот для рефа
                     if (t === 'ref') return;
                     const dx = s.x - activePivotX, dy = s.y - activePivotY;
                     const angle = Math.atan2(dy, dx) + (val * Math.PI / 180);
@@ -568,12 +595,10 @@
 
             targets.forEach(t => { 
                 const s = states[t];
-                // Масштабирование
                 s.x = midX + (s.x - midX) * sFact;
                 s.y = midY + (s.y - midY) * sFact;
                 s.s *= sFact; 
                 
-                // Поворот только для user (даже в связке реф не крутим)
                 if (t === 'user') {
                     const dx = s.x - midX, dy = s.y - midY;
                     const rad = aDiff * Math.PI / 180;
@@ -620,8 +645,10 @@
     }
 
     function resetAll() {
-        states.ref = { x: window.innerWidth/2, y: window.innerHeight/2, s: 1, r: 0 };
-        states.user = { x: window.innerWidth/2, y: window.innerHeight/2, s: 1, r: 0 };
+        // При сбросе тоже пытаемся вписать текущие изображения
+        if (refEl.src) fitImageToScreen(refEl, 'ref');
+        if (userEl.src) fitImageToScreen(userEl, 'user');
+        
         document.getElementById('opacity-slider').value = 80;
         document.getElementById('contrast-slider').value = 100;
         document.getElementById('brightness-slider').value = 100;
