@@ -199,6 +199,13 @@
             border: 1px solid rgba(255,255,255,0.2);
             backdrop-filter: blur(5px);
         }
+
+        /* Стили для заблокированной кнопки */
+        .btn-disabled {
+            opacity: 0.4;
+            cursor: not-allowed !important;
+            filter: grayscale(1);
+        }
     </style>
 </head>
 <body oncontextmenu="return false;">
@@ -207,7 +214,7 @@
     <div class="canvas-area">
         <div id="placeholder" class="text-gray-500 text-center pointer-events-none px-6 w-full">
             <p class="text-xl font-bold mb-2">ArtRef</p>
-            <p class="text-xs opacity-70 uppercase tracking-widest">Загрузите изображения. Они автоматически впишутся в экран.</p>
+            <p class="text-xs opacity-70 uppercase tracking-widest">Шаг 1: Загрузите Референс</p>
         </div>
         <img id="ref-image" class="img-layer" alt="Ref">
         <img id="user-image" class="img-layer" alt="User">
@@ -215,7 +222,7 @@
     </div>
 
     <div id="pivot-point"></div>
-    <div id="target-ui" class="target-indicator">Слой: Рисунок</div>
+    <div id="target-ui" class="target-indicator">Ожидание референса...</div>
 
     <!-- ПАНЕЛЬ ТОЧНОГО ПЕРЕМЕЩЕНИЯ -->
     <div id="perimeter-panel" class="perimeter-panel">
@@ -288,8 +295,10 @@
             <div class="space-y-2">
                 <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Загрузка</label>
                 <div class="grid grid-cols-2 gap-2">
+                    <!-- Всегда активна -->
                     <button onclick="document.getElementById('ref-input').click()" class="py-3 px-2 border-2 rounded-xl text-[10px] font-bold uppercase text-gray-700">Референс</button>
-                    <button onclick="document.getElementById('user-input').click()" class="py-3 px-2 border-2 rounded-xl text-[10px] font-bold uppercase text-gray-700">Рисунок</button>
+                    <!-- Заблокирована по умолчанию -->
+                    <button id="btn-user-load" onclick="triggerUserLoad()" class="py-3 px-2 border-2 rounded-xl text-[10px] font-bold uppercase text-gray-700 btn-disabled">Рисунок</button>
                 </div>
                 <input type="file" id="ref-input" class="hidden" accept="image/*" onchange="loadFile(this, 'ref-image')">
                 <input type="file" id="user-input" class="hidden" accept="image/*" onchange="loadFile(this, 'user-image')">
@@ -370,6 +379,7 @@
     let isPrecisionMode = false;
     let isCustomPivot = true; 
     let isUserVisible = true;
+    let isRefLoaded = false; // Флаг состояния загрузки референса
     let gridStrokeColor = 'rgba(255,255,255,0.3)';
     
     let pivot = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
@@ -383,12 +393,20 @@
     const perimeterPanel = document.getElementById('perimeter-panel');
     const eyeIcon = document.getElementById('eye-icon');
     const targetIndicator = document.getElementById('target-ui');
+    const userLoadBtn = document.getElementById('btn-user-load');
 
     function toggleDrawer() {
         drawer.classList.toggle('open');
     }
 
+    // Обработка нажатия на кнопку Рисунок
+    function triggerUserLoad() {
+        if (!isRefLoaded) return; // Если реф не загружен, ничего не делаем
+        document.getElementById('user-input').click();
+    }
+
     function setControlTarget(target) {
+        if (target === 'user' && !isRefLoaded) return;
         currentTarget = target;
         document.getElementById('target-user').classList.toggle('active-btn', target === 'user');
         document.getElementById('target-ref').classList.toggle('active-btn', target === 'ref');
@@ -438,7 +456,6 @@
         }
     }
 
-    // НОВАЯ ФУНКЦИЯ: Расчет масштаба для вписывания в экран
     function fitImageToScreen(img, key) {
         const screenW = window.innerWidth;
         const screenH = window.innerHeight;
@@ -448,8 +465,7 @@
         const ratioW = screenW / imgW;
         const ratioH = screenH / imgH;
         
-        // Берем минимальное соотношение, чтобы картинка влезла целиком (contain)
-        const scale = Math.min(ratioW, ratioH) * 0.9; // 0.9 для небольшого отступа от краев
+        const scale = Math.min(ratioW, ratioH) * 0.9;
 
         states[key] = {
             x: screenW / 2,
@@ -468,13 +484,20 @@
                 img.src = e.target.result;
                 img.style.display = 'block';
                 
-                // Ждем загрузки метаданных изображения для расчета размеров
                 img.onload = () => {
                     const key = (id === 'ref-image') ? 'ref' : 'user';
                     fitImageToScreen(img, key);
                     
                     const pl = document.getElementById('placeholder');
                     if (pl) pl.style.display = 'none';
+
+                    // Если загружен референс — разблокируем функционал
+                    if (id === 'ref-image') {
+                        isRefLoaded = true;
+                        userLoadBtn.classList.remove('btn-disabled');
+                        targetIndicator.innerText = `Слой: Рисунок`;
+                        setControlTarget('user');
+                    }
                 };
             };
             reader.readAsDataURL(input.files[0]);
@@ -645,7 +668,6 @@
     }
 
     function resetAll() {
-        // При сбросе тоже пытаемся вписать текущие изображения
         if (refEl.src) fitImageToScreen(refEl, 'ref');
         if (userEl.src) fitImageToScreen(userEl, 'user');
         
