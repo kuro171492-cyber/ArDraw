@@ -52,7 +52,7 @@
             will-change: transform, filter, opacity;
             transition: opacity 0.2s ease;
         }
-        #ref-image { z-index: 2; filter: none !important; }
+        #ref-image { z-index: 2; }
         #user-image { z-index: 3; }
 
         .settings-drawer {
@@ -130,7 +130,6 @@
         
         .edge-btn.active-target { border-color: var(--primary); background: rgba(255, 95, 95, 0.2); }
         .edge-btn.active-target svg { stroke: var(--primary); }
-        .edge-btn.hidden-state svg { stroke: #666; }
 
         .p-top-left { 
             position: absolute; 
@@ -181,11 +180,25 @@
             width: 32px; height: 32px; border-radius: 50%; cursor: pointer;
             border: 1px solid rgba(0,0,0,0.1); transition: transform 0.2s;
             display: flex; align-items: center; justify-content: center;
-            position: relative;
         }
         .color-dot.active { border: 2px solid var(--primary); transform: scale(1.1); }
         
-        .setting-dot { width: 28px; height: 28px; }
+        .target-indicator {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0,0,0,0.6);
+            padding: 8px 12px;
+            border-radius: 20px;
+            font-size: 10px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            z-index: 40;
+            pointer-events: none;
+            border: 1px solid rgba(255,255,255,0.2);
+            backdrop-filter: blur(5px);
+        }
     </style>
 </head>
 <body oncontextmenu="return false;">
@@ -194,7 +207,7 @@
     <div class="canvas-area">
         <div id="placeholder" class="text-gray-500 text-center pointer-events-none px-6 w-full">
             <p class="text-xl font-bold mb-2">ArtRef</p>
-            <p class="text-xs opacity-70 uppercase tracking-widest">Нажмите на стрелку справа для меню</p>
+            <p class="text-xs opacity-70 uppercase tracking-widest">Меню справа. Жесты управляют выбранным слоем.</p>
         </div>
         <img id="ref-image" class="img-layer" alt="Ref">
         <img id="user-image" class="img-layer" alt="User">
@@ -202,6 +215,7 @@
     </div>
 
     <div id="pivot-point"></div>
+    <div id="target-ui" class="target-indicator">Слой: Рисунок</div>
 
     <!-- ПАНЕЛЬ ТОЧНОГО ПЕРЕМЕЩЕНИЯ -->
     <div id="perimeter-panel" class="perimeter-panel">
@@ -264,6 +278,14 @@
             <h2 class="text-xl font-bold border-b pb-2 text-gray-800">Настройки</h2>
             
             <div class="space-y-2">
+                <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Управление слоями</label>
+                <div class="flex bg-gray-100 p-1 rounded-xl">
+                    <button onclick="setControlTarget('user')" id="target-user" class="flex-1 py-2 text-[10px] font-bold uppercase rounded-lg active-btn transition-colors">Рисунок</button>
+                    <button onclick="setControlTarget('ref')" id="target-ref" class="flex-1 py-2 text-[10px] font-bold uppercase rounded-lg transition-colors">Референс</button>
+                </div>
+            </div>
+
+            <div class="space-y-2">
                 <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Загрузка</label>
                 <div class="grid grid-cols-2 gap-2">
                     <button onclick="document.getElementById('ref-input').click()" class="py-3 px-2 border-2 rounded-xl text-[10px] font-bold uppercase text-gray-700">Референс</button>
@@ -322,11 +344,11 @@
                     <div class="space-y-2">
                         <span class="text-[10px] font-medium text-gray-400 uppercase">Цвет сетки</span>
                         <div class="flex justify-between items-center px-1">
-                            <div class="color-dot setting-dot bg-white border border-gray-200 active" data-grid-color="rgba(255,255,255,0.3)" onclick="setGridColor(this, 'rgba(255,255,255,0.3)')"></div>
-                            <div class="color-dot setting-dot bg-black" data-grid-color="rgba(0,0,0,0.4)" onclick="setGridColor(this, 'rgba(0,0,0,0.4)')"></div>
-                            <div class="color-dot setting-dot bg-red-500" data-grid-color="rgba(239,68,68,0.4)" onclick="setGridColor(this, 'rgba(239,68,68,0.4)')"></div>
-                            <div class="color-dot setting-dot bg-blue-500" data-grid-color="rgba(59,130,246,0.4)" onclick="setGridColor(this, 'rgba(59,130,246,0.4)')"></div>
-                            <div class="color-dot setting-dot bg-green-500" data-grid-color="rgba(34,197,94,0.4)" onclick="setGridColor(this, 'rgba(34,197,94,0.4)')"></div>
+                            <div class="color-dot bg-white border border-gray-200 active" data-grid-color="rgba(255,255,255,0.3)" onclick="setGridColor(this, 'rgba(255,255,255,0.3)')"></div>
+                            <div class="color-dot bg-black" data-grid-color="rgba(0,0,0,0.4)" onclick="setGridColor(this, 'rgba(0,0,0,0.4)')"></div>
+                            <div class="color-dot bg-red-500" data-grid-color="rgba(239,68,68,0.4)" onclick="setGridColor(this, 'rgba(239,68,68,0.4)')"></div>
+                            <div class="color-dot bg-blue-500" data-grid-color="rgba(59,130,246,0.4)" onclick="setGridColor(this, 'rgba(59,130,246,0.4)')"></div>
+                            <div class="color-dot bg-green-500" data-grid-color="rgba(34,197,94,0.4)" onclick="setGridColor(this, 'rgba(34,197,94,0.4)')"></div>
                         </div>
                     </div>
                 </div>
@@ -343,6 +365,7 @@
         user: { x: window.innerWidth/2, y: window.innerHeight/2, s: 1, r: 0 }
     };
     
+    let currentTarget = 'user'; // 'user' или 'ref'
     let isLinked = false;
     let isPrecisionMode = false;
     let isCustomPivot = true; 
@@ -360,13 +383,19 @@
     const drawer = document.getElementById('drawer');
     const perimeterPanel = document.getElementById('perimeter-panel');
     const eyeIcon = document.getElementById('eye-icon');
+    const targetIndicator = document.getElementById('target-ui');
 
-    // Функция переключения меню по нажатию
     function toggleDrawer() {
         drawer.classList.toggle('open');
     }
 
-    // Свайпы удалены по просьбе пользователя
+    // Выбор слоя для управления
+    function setControlTarget(target) {
+        currentTarget = target;
+        document.getElementById('target-user').classList.toggle('active-btn', target === 'user');
+        document.getElementById('target-ref').classList.toggle('active-btn', target === 'ref');
+        targetIndicator.innerText = `Слой: ${target === 'user' ? 'Рисунок' : 'Референс'}`;
+    }
 
     function toggleLink() {
         isLinked = !isLinked;
@@ -383,7 +412,6 @@
     function toggleUserVisibility() {
         isUserVisible = !isUserVisible;
         const btn = document.getElementById('btn-visibility-toggle');
-        
         if (isUserVisible) {
             btn.classList.remove('hidden-state');
             userEl.style.opacity = document.getElementById('opacity-slider').value / 100;
@@ -433,30 +461,13 @@
         const brightnessEl = document.getElementById('brightness-slider');
         if (!opacityEl || !contrastEl || !brightnessEl) return;
 
-        const userOpacity = opacityEl.value;
-        const userContrast = contrastEl.value;
-        const userBrightness = brightnessEl.value;
-        
-        document.getElementById('opacity-val').innerText = userOpacity + '%';
-        document.getElementById('contrast-val').innerText = userContrast + '%';
-        document.getElementById('brightness-val').innerText = userBrightness + '%';
+        document.getElementById('opacity-val').innerText = opacityEl.value + '%';
+        document.getElementById('contrast-val').innerText = contrastEl.value + '%';
+        document.getElementById('brightness-val').innerText = brightnessEl.value + '%';
 
-        let filterString = `contrast(${userContrast}%) brightness(${userBrightness}%)`;
-        if (userLineColor === 'white') {
-            filterString += " invert(1) brightness(2) contrast(150%)";
-        }
-        
-        if (isUserVisible) {
-            userEl.style.opacity = userOpacity / 100;
-        }
+        let filterString = `contrast(${contrastEl.value}%) brightness(${brightnessEl.value}%)`;
+        if (isUserVisible) userEl.style.opacity = opacityEl.value / 100;
         userEl.style.filter = filterString;
-    }
-
-    function setLineColor(dot, color) {
-        dot.parentNode.querySelectorAll('.color-dot').forEach(d => d.classList.remove('active'));
-        dot.classList.add('active');
-        userLineColor = color;
-        updateFilters();
     }
 
     function setGridColor(dot, color) {
@@ -471,7 +482,6 @@
         [refEl, userEl].forEach((el, index) => {
             const key = index === 0 ? 'ref' : 'user';
             const s = states[key];
-            if (!s) return;
             el.style.transform = `translate(-50%, -50%) translate(${s.x - cx}px, ${s.y - cy}px) rotate(${s.r}deg) scale(${s.s})`;
         });
     }
@@ -479,7 +489,7 @@
     function startNudge(key, val) {
         stopNudge();
         const perform = () => {
-            const targets = isLinked ? ['ref', 'user'] : ['user'];
+            const targets = isLinked ? ['ref', 'user'] : [currentTarget];
             const activePivotX = (isPrecisionMode && isCustomPivot) ? pivot.x : window.innerWidth/2;
             const activePivotY = (isPrecisionMode && isCustomPivot) ? pivot.y : window.innerHeight/2;
             targets.forEach(t => {
@@ -512,7 +522,6 @@
     let initialDist = 0, initialAngle = 0;
 
     zone.addEventListener('pointerdown', e => {
-        // Игнорируем нажатия на кнопки интерфейса и открытое меню
         if (e.target.closest('#drawer') || e.target.closest('.edge-btn') || e.target.closest('.drawer-handle')) return;
         
         if (isPrecisionMode && isCustomPivot) {
@@ -523,7 +532,8 @@
         }
         activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
         if (activePointers.size === 2) {
-            const pts = Array.from(activePointers.values());
+            const pts = Array.from(activePointers.values()).filter(p => p !== 'pivot');
+            if (pts.length < 2) return;
             initialDist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
             initialAngle = Math.atan2(pts[1].y - pts[0].y, pts[1].x - pts[0].x) * 180 / Math.PI;
         }
@@ -537,10 +547,9 @@
             return;
         }
 
-        const targets = isLinked ? ['ref', 'user'] : ['user'];
+        const targets = isLinked ? ['ref', 'user'] : [currentTarget];
         if (activePointers.size === 1) {
             const prev = activePointers.get(e.pointerId);
-            if (prev === 'pivot') return; 
             const dx = e.clientX - prev.x, dy = e.clientY - prev.y;
             targets.forEach(t => { states[t].x += dx; states[t].y += dy; });
             activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
@@ -554,7 +563,16 @@
             const sFact = initialDist > 0 ? dist / initialDist : 1;
             const aDiff = isLinked ? 0 : (angle - initialAngle);
             
-            targets.forEach(t => { states[t].s *= sFact; states[t].r += aDiff; });
+            targets.forEach(t => { 
+                const s = states[t];
+                // Масштабирование относительно центра пальцев
+                const midX = (pts[0].x + pts[1].x) / 2;
+                const midY = (pts[0].y + pts[1].y) / 2;
+                s.x = midX + (s.x - midX) * sFact;
+                s.y = midY + (s.y - midY) * sFact;
+                s.s *= sFact; 
+                s.r += aDiff; 
+            });
             initialDist = dist; initialAngle = angle;
         }
         applyTransforms();
@@ -566,22 +584,13 @@
     function toggleGrid() {
         const svg = document.getElementById('grid-overlay');
         const isHidden = svg.classList.toggle('hidden');
-        
-        const toggleEl = document.getElementById('grid-toggle');
-        if (toggleEl) toggleEl.checked = !isHidden;
-        
-        const mainBtn = document.getElementById('btn-grid-toggle-main');
-        if (mainBtn) {
-            mainBtn.classList.toggle('active-target', !isHidden);
-        }
-        
+        document.getElementById('grid-toggle').checked = !isHidden;
+        document.getElementById('btn-grid-toggle-main').classList.toggle('active-target', !isHidden);
         if (!isHidden) drawGrid();
     }
 
     function drawGrid() {
-        const sizeEl = document.getElementById('grid-size');
-        if (!sizeEl) return;
-        const size = sizeEl.value;
+        const size = document.getElementById('grid-size').value;
         const svg = document.getElementById('grid-overlay');
         const w = window.innerWidth, h = window.innerHeight;
         svg.innerHTML = '';
@@ -603,37 +612,14 @@
     function resetAll() {
         states.ref = { x: window.innerWidth/2, y: window.innerHeight/2, s: 1, r: 0 };
         states.user = { x: window.innerWidth/2, y: window.innerHeight/2, s: 1, r: 0 };
-        
-        const opacityEl = document.getElementById('opacity-slider');
-        const contrastEl = document.getElementById('contrast-slider');
-        const brightnessEl = document.getElementById('brightness-slider');
-        
-        if (opacityEl) opacityEl.value = 80;
-        if (contrastEl) contrastEl.value = 100;
-        if (brightnessEl) brightnessEl.value = 100;
-        
-        userLineColor = 'none';
-        isUserVisible = true;
-        const visibilityBtn = document.getElementById('btn-visibility-toggle');
-        if (visibilityBtn) visibilityBtn.classList.remove('hidden-state');
-        
-        const svg = document.getElementById('grid-overlay');
-        svg.classList.add('hidden');
-        const gridToggle = document.getElementById('grid-toggle');
-        if (gridToggle) gridToggle.checked = false;
-        
-        const mainBtn = document.getElementById('btn-grid-toggle-main');
-        if (mainBtn) mainBtn.classList.remove('active-target');
-
+        document.getElementById('opacity-slider').value = 80;
+        document.getElementById('contrast-slider').value = 100;
+        document.getElementById('brightness-slider').value = 100;
         updateFilters();
         applyTransforms();
-        drawGrid();
     }
 
-    window.addEventListener('load', () => {
-        drawGrid();
-        applyTransforms();
-    });
+    window.addEventListener('load', () => { drawGrid(); applyTransforms(); });
     window.addEventListener('resize', () => { drawGrid(); applyTransforms(); });
 </script>
 </body>
