@@ -35,12 +35,6 @@
             z-index: 1;
         }
         
-        #placeholder {
-            position: absolute;
-            top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-        }
-
         .img-layer {
             position: absolute;
             left: 50%; top: 50%;
@@ -55,17 +49,16 @@
         #ref-image { z-index: 2; }
         #user-image { z-index: 3; }
 
-        /* Анимации скрытия интерфейса */
+        /* UI States */
         .ui-element {
             transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.5s ease;
         }
-        
-        /* Состояние скрытого интерфейса */
         .ui-hidden-state .hide-on-idle {
             opacity: 0;
             pointer-events: none !important;
         }
 
+        /* Drawer */
         .settings-drawer {
             position: absolute;
             top: 0; right: 0; width: 300px; height: 100%;
@@ -78,9 +71,6 @@
         }
         @media (max-width: 640px) { .settings-drawer { width: 85%; } }
         .settings-drawer.open { transform: translateX(0); }
-        
-        .ui-hidden-state .settings-drawer:not(.open) { transform: translateX(100%); }
-
         .drawer-handle {
             position: absolute;
             left: -48px; top: 80px; width: 48px; height: 48px;
@@ -88,11 +78,10 @@
             display: flex; align-items: center; justify-content: center;
             cursor: pointer; color: var(--primary);
             box-shadow: -2px 0 10px rgba(0,0,0,0.1);
-            pointer-events: auto;
-            transition: transform 0.3s ease, opacity 0.3s ease;
             z-index: 101;
         }
 
+        /* Pivot */
         #pivot-point {
             position: absolute;
             width: 32px; height: 32px;
@@ -105,93 +94,92 @@
             background: rgba(255, 95, 95, 0.1);
         }
 
+        /* Perimeter Controls */
         .perimeter-panel {
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
             pointer-events: none;
             z-index: 50;
-            display: block; /* Всегда включен */
         }
-        
         .edge-btn-container {
-            width: 60px;
-            height: 60px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            pointer-events: auto;
+            width: 60px; height: 60px;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; pointer-events: auto;
             -webkit-tap-highlight-color: transparent;
             transition: transform 0.4s ease, opacity 0.4s ease;
         }
-
         .edge-btn {
-            width: 32px;
-            height: 32px;
-            background: #2A2A2A; 
-            border-radius: 8px;
-            display: flex;
+            width: 32px; height: 32px;
+            background: #2A2A2A; border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            border: 1px solid #555;
+            transition: transform 0.1s, background 0.1s;
+        }
+        .edge-btn.nudge-btn { background: var(--primary); border: none; box-shadow: 0 2px 8px rgba(255, 95, 95, 0.3); }
+        .edge-btn-container:active .edge-btn { transform: scale(0.85); }
+        .edge-btn svg { width: 18px; height: 18px; stroke: white; fill: none; stroke-width: 2.5; }
+        .active-target .edge-btn { border-color: var(--primary); background: #4D2626; }
+
+        /* Positions */
+        .p-top-left { position: absolute; top: max(8px, env(safe-area-inset-top)); left: max(8px, env(safe-area-inset-left)); display: flex; flex-direction: column; }
+        .p-top-center { position: absolute; top: max(8px, env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); display: flex; }
+        .p-top-right { position: absolute; top: max(8px, env(safe-area-inset-top)); right: max(8px, env(safe-area-inset-right)); }
+        .p-mid-left { position: absolute; top: 50%; left: max(8px, env(safe-area-inset-left)); transform: translateY(-50%); }
+        .p-mid-right { position: absolute; top: 50%; right: max(8px, env(safe-area-inset-right)); transform: translateY(-50%); }
+        .p-bottom-left { position: absolute; bottom: max(12px, env(safe-area-inset-bottom)); left: max(8px, env(safe-area-inset-left)); }
+        .p-bottom-center { position: absolute; bottom: max(12px, env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); }
+        .p-bottom-right { position: absolute; bottom: max(12px, env(safe-area-inset-bottom)); right: max(8px, env(safe-area-inset-right)); }
+
+        .ui-hidden-state .p-top-left .edge-btn-container { transform: translate(-80px, -80px); }
+        .ui-hidden-state .p-top-center .edge-btn-container { transform: translateY(-80px); }
+        .ui-hidden-state .p-top-right { transform: translate(80px, -80px); }
+        .ui-hidden-state .p-mid-left { transform: translate(-80px, -50%); }
+        .ui-hidden-state .p-mid-right { transform: translate(80px, -50%); }
+        .ui-hidden-state .p-bottom-left { transform: translate(-80px, 80px); }
+        .ui-hidden-state .p-bottom-center { transform: translate(-50%, 80px); }
+        .ui-hidden-state .p-bottom-right { transform: translate(80px, 80px); }
+
+        /* Crop Overlay */
+        #crop-screen {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.85);
+            z-index: 200;
+            display: none;
+            flex-direction: column;
             align-items: center;
             justify-content: center;
-            border: 1px solid #555;
-            transition: transform 0.1s, background 0.1s, border-color 0.2s;
         }
-
-        .edge-btn.nudge-btn {
-            background: var(--primary); 
-            border: none;
-            box-shadow: 0 2px 8px rgba(255, 95, 95, 0.3);
-        }
-
-        .edge-btn-container:active .edge-btn { transform: scale(0.85); opacity: 0.8; }
-        .edge-btn svg { width: 18px; height: 18px; stroke: white; fill: none; stroke-width: 2.5; }
-        
-        .active-target .edge-btn { border-color: var(--primary); background: #4D2626; }
-        .active-target .edge-btn svg { stroke: var(--primary); }
-
-        /* Позиционирование кнопок с логикой вылета */
-        .p-top-left { position: absolute; top: max(8px, env(safe-area-inset-top)); left: max(8px, env(safe-area-inset-left)); display: flex; flex-direction: column; }
-        .ui-hidden-state .p-top-left .edge-btn-container { transform: translate(-80px, -80px); }
-        
-        .p-top-center { position: absolute; top: max(8px, env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); display: flex; flex-direction: row; }
-        .ui-hidden-state .p-top-center .edge-btn-container { transform: translateY(-80px); }
-
-        .p-top-right { position: absolute; top: max(8px, env(safe-area-inset-top)); right: max(8px, env(safe-area-inset-right)); }
-        .ui-hidden-state .p-top-right { transform: translate(80px, -80px); }
-
-        .p-mid-left { position: absolute; top: 50%; left: max(8px, env(safe-area-inset-left)); transform: translateY(-50%); }
-        .ui-hidden-state .p-mid-left { transform: translate(-80px, -50%); }
-
-        .p-mid-right { position: absolute; top: 50%; right: max(8px, env(safe-area-inset-right)); transform: translateY(-50%); }
-        .ui-hidden-state .p-mid-right { transform: translate(80px, -50%); }
-
-        .p-bottom-left { position: absolute; bottom: max(12px, env(safe-area-inset-bottom)); left: max(8px, env(safe-area-inset-left)); }
-        .ui-hidden-state .p-bottom-left { transform: translate(-80px, 80px); }
-        
-        .p-bottom-center { position: absolute; bottom: max(12px, env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); }
-        .ui-hidden-state .p-bottom-center { transform: translate(-50%, 80px); }
-
-        .p-bottom-right { position: absolute; bottom: max(12px, env(safe-area-inset-bottom)); right: max(8px, env(safe-area-inset-right)); }
-        .ui-hidden-state .p-bottom-right { transform: translate(80px, 80px); }
-        
-        .target-indicator {
-            position: absolute;
-            bottom: 20px;
-            left: 20px;
+        #crop-container {
+            position: relative;
+            max-width: 90vw;
+            max-height: 70vh;
+            overflow: hidden;
             background: #222;
-            padding: 6px 10px;
-            border-radius: 20px;
-            font-size: 9px;
-            font-weight: bold;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            z-index: 40;
-            pointer-events: none;
-            border: 1px solid #444;
-            transition: transform 0.4s ease, opacity 0.4s ease;
         }
-        .ui-hidden-state .target-indicator { transform: translateX(-100px); opacity: 0; }
-        .target-indicator.user-mode { color: var(--primary); }
+        #crop-img {
+            max-width: 90vw;
+            max-height: 70vh;
+            display: block;
+        }
+        #crop-box {
+            position: absolute;
+            border: 2px solid var(--primary);
+            box-shadow: 0 0 0 5000px rgba(0,0,0,0.6);
+            cursor: move;
+            touch-action: none;
+        }
+        .crop-handle {
+            position: absolute;
+            width: 20px; height: 20px;
+            background: white;
+            border: 2px solid var(--primary);
+            border-radius: 4px;
+        }
+        .ch-nw { top: -10px; left: -10px; cursor: nw-resize; }
+        .ch-ne { top: -10px; right: -10px; cursor: ne-resize; }
+        .ch-sw { bottom: -10px; left: -10px; cursor: sw-resize; }
+        .ch-se { bottom: -10px; right: -10px; cursor: se-resize; }
 
         .btn-disabled { opacity: 0.4; cursor: not-allowed !important; filter: grayscale(1); }
         .active-btn { background-color: var(--primary) !important; color: white !important; }
@@ -201,7 +189,7 @@
 
 <div class="app-container" id="interaction-zone">
     <div class="canvas-area">
-        <div id="placeholder" class="text-gray-500 text-center pointer-events-none px-6 w-full">
+        <div id="placeholder" class="text-gray-500 text-center pointer-events-none px-6 w-full absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
             <p class="text-xl font-bold mb-2 text-white">ArtRef</p>
             <p class="text-xs opacity-70 uppercase tracking-widest text-red-400">Шаг 1: Загрузите Референс</p>
         </div>
@@ -211,11 +199,8 @@
     </div>
 
     <div id="pivot-point"></div>
-    <div id="target-ui" class="target-indicator ui-element hide-on-idle">Ожидание...</div>
 
-    <!-- Режим точности теперь включен всегда -->
     <div id="perimeter-panel" class="perimeter-panel ui-element hide-on-idle">
-        
         <div class="p-top-left">
             <div class="edge-btn-container" onpointerdown="startNudge('r', -0.5)" onpointerup="stopNudge()" onpointerleave="stopNudge()">
                 <div class="edge-btn nudge-btn">
@@ -228,62 +213,54 @@
                 </div>
             </div>
         </div>
-        
         <div class="p-top-center">
             <div class="edge-btn-container" onclick="toggleUserVisibility()">
                 <div class="edge-btn" id="btn-visibility-toggle">
-                    <svg id="eye-icon" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
-                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                        <circle cx="12" cy="12" r="3"></circle>
-                    </svg>
+                    <svg id="eye-icon" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
                 </div>
             </div>
             <div class="edge-btn-container" onpointerdown="startNudge('y', -2)" onpointerup="stopNudge()" onpointerleave="stopNudge()">
-                <div class="edge-btn nudge-btn">
-                    <svg viewBox="0 0 24 24"><path d="m18 15-6-6-6 6"/></svg>
-                </div>
+                <div class="edge-btn nudge-btn"><svg viewBox="0 0 24 24"><path d="m18 15-6-6-6 6"/></svg></div>
             </div>
             <div class="edge-btn-container active-target" id="btn-pivot-toggle" onclick="toggleCustomPivot()">
-                <div class="edge-btn">
-                    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 2v20M2 12h20"/></svg>
-                </div>
+                <div class="edge-btn"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 2v20M2 12h20"/></svg></div>
             </div>
         </div>
-
         <div class="p-top-right edge-btn-container" onpointerdown="startNudge('r', 0.5)" onpointerup="stopNudge()" onpointerleave="stopNudge()">
-            <div class="edge-btn nudge-btn">
-                <svg viewBox="0 0 24 24" style="transform: scaleX(-1)"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
-            </div>
+            <div class="edge-btn nudge-btn"><svg viewBox="0 0 24 24" style="transform: scaleX(-1)"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg></div>
         </div>
-
         <div class="p-mid-left edge-btn-container" onpointerdown="startNudge('x', -2)" onpointerup="stopNudge()" onpointerleave="stopNudge()">
-            <div class="edge-btn nudge-btn">
-                <svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg>
-            </div>
+            <div class="edge-btn nudge-btn"><svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg></div>
         </div>
-        
         <div class="p-mid-right edge-btn-container" onpointerdown="startNudge('x', 2)" onpointerup="stopNudge()" onpointerleave="stopNudge()">
-            <div class="edge-btn nudge-btn">
-                <svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
-            </div>
+            <div class="edge-btn nudge-btn"><svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></div>
         </div>
-
         <div class="p-bottom-left edge-btn-container" onpointerdown="startNudge('s', 0.995)" onpointerup="stopNudge()" onpointerleave="stopNudge()">
-            <div class="edge-btn nudge-btn">
-                <svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg>
-            </div>
+            <div class="edge-btn nudge-btn"><svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg></div>
         </div>
-        
         <div class="p-bottom-center edge-btn-container" onpointerdown="startNudge('y', 2)" onpointerup="stopNudge()" onpointerleave="stopNudge()">
-            <div class="edge-btn nudge-btn">
-                <svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
+            <div class="edge-btn nudge-btn"><svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></div>
+        </div>
+        <div class="p-bottom-right edge-btn-container" onpointerdown="startNudge('s', 1.005)" onpointerup="stopNudge()" onpointerleave="stopNudge()">
+            <div class="edge-btn nudge-btn"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></div>
+        </div>
+    </div>
+
+    <!-- Crop Screen -->
+    <div id="crop-screen">
+        <h3 class="text-white mb-4 font-bold uppercase tracking-widest">Обрезать референс</h3>
+        <div id="crop-container">
+            <img id="crop-img" src="" alt="">
+            <div id="crop-box">
+                <div class="crop-handle ch-nw" data-handle="nw"></div>
+                <div class="crop-handle ch-ne" data-handle="ne"></div>
+                <div class="crop-handle ch-sw" data-handle="sw"></div>
+                <div class="crop-handle ch-se" data-handle="se"></div>
             </div>
         </div>
-
-        <div class="p-bottom-right edge-btn-container" onpointerdown="startNudge('s', 1.005)" onpointerup="stopNudge()" onpointerleave="stopNudge()">
-            <div class="edge-btn nudge-btn">
-                <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
-            </div>
+        <div class="flex gap-4 mt-6">
+            <button onclick="closeCrop(false)" class="px-6 py-2 bg-gray-600 rounded-lg font-bold">ОТМЕНА</button>
+            <button onclick="closeCrop(true)" class="px-8 py-2 bg-red-500 rounded-lg font-bold">ГОТОВО</button>
         </div>
     </div>
 
@@ -293,27 +270,26 @@
         </div>
         <div class="p-6 h-full overflow-y-auto space-y-6">
             <div class="flex items-center justify-between border-b pb-2">
-                <h2 class="text-xl font-bold text-gray-800">Настройки</h2>
-                <span id="auto-status-text" class="text-[10px] text-red-500 font-bold uppercase tracking-tighter">Ожидание</span>
+                <h2 class="text-xl font-bold">Настройки</h2>
+                <span id="auto-status-text" class="text-[10px] text-red-500 font-bold uppercase">Ожидание</span>
             </div>
             
             <div class="space-y-2">
                 <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Загрузка</label>
                 <div class="grid grid-cols-2 gap-2">
-                    <button onclick="document.getElementById('ref-input').click()" class="py-3 px-2 border-2 border-gray-100 rounded-xl text-[10px] font-bold uppercase text-gray-700 hover:bg-gray-50">Референс</button>
-                    <button id="btn-user-load" onclick="triggerUserLoad()" class="py-3 px-2 border-2 border-gray-100 rounded-xl text-[10px] font-bold uppercase text-gray-700 btn-disabled">Рисунок</button>
+                    <button onclick="document.getElementById('ref-input').click()" class="py-3 border-2 border-gray-100 rounded-xl text-[10px] font-bold uppercase">Референс</button>
+                    <button id="btn-user-load" onclick="triggerUserLoad()" class="py-3 border-2 border-gray-100 rounded-xl text-[10px] font-bold uppercase btn-disabled">Рисунок</button>
                 </div>
-                <input type="file" id="ref-input" class="hidden" accept="image/*" onchange="loadFile(this, 'ref-image')">
+                <input type="file" id="ref-input" class="hidden" accept="image/*" onchange="initCrop(this)">
                 <input type="file" id="user-input" class="hidden" accept="image/*" onchange="loadFile(this, 'user-image')">
             </div>
 
             <div class="grid grid-cols-2 gap-2">
-                <button id="btn-link" onclick="toggleLink()" class="flex flex-col items-center py-3 bg-gray-100 rounded-xl transition-colors text-gray-700">
+                <button id="btn-link" onclick="toggleLink()" class="flex flex-col items-center py-3 bg-gray-100 rounded-xl text-gray-700">
                     <svg class="mb-1" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
                     <span class="text-[9px] font-bold uppercase">Связка</span>
                 </button>
-                <!-- Кнопка "Точность" удалена, так как режим включен постоянно -->
-                <button onclick="resetAll()" class="flex flex-col items-center py-3 bg-gray-100 rounded-xl transition-colors text-gray-700">
+                <button onclick="resetAll()" class="flex flex-col items-center py-3 bg-gray-100 rounded-xl text-gray-700">
                     <svg class="mb-1" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
                     <span class="text-[9px] font-bold uppercase">Сброс</span>
                 </button>
@@ -324,27 +300,19 @@
                     <label id="active-target-label" class="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Настройка Слой</label>
                     <div id="target-pulse" class="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></div>
                 </div>
-
                 <div id="opacity-control">
                     <div class="flex justify-between items-center mb-1">
-                        <span class="text-[10px] font-medium text-gray-400 uppercase">Прозрачность</span>
+                        <span class="text-[10px] font-medium text-gray-400 uppercase tracking-widest">Прозрачность</span>
                         <span id="opacity-val" class="text-xs font-bold text-red-500">80%</span>
                     </div>
                     <input type="range" id="opacity-slider" min="0" max="100" value="80" class="w-full accent-red-500" oninput="updateFilters()">
                 </div>
                 <div>
                     <div class="flex justify-between items-center mb-1">
-                        <span class="text-[10px] font-medium text-gray-400 uppercase">Контраст</span>
+                        <span class="text-[10px] font-medium text-gray-400 uppercase tracking-widest">Контраст</span>
                         <span id="contrast-val" class="text-xs font-bold text-red-500">100%</span>
                     </div>
                     <input type="range" id="contrast-slider" min="50" max="300" value="100" class="w-full accent-red-500" oninput="updateFilters()">
-                </div>
-                <div>
-                    <div class="flex justify-between items-center mb-1">
-                        <span class="text-[10px] font-medium text-gray-400 uppercase">Яркость</span>
-                        <span id="brightness-val" class="text-xs font-bold text-red-500">100%</span>
-                    </div>
-                    <input type="range" id="brightness-slider" min="0" max="200" value="100" class="w-full accent-red-500" oninput="updateFilters()">
                 </div>
             </div>
         </div>
@@ -363,128 +331,153 @@
     let isUserVisible = true;
     let isRefLoaded = false;
     let isUserLoaded = false;
-    let gridStrokeColor = 'rgba(255,255,255,0.3)';
     
     let pivot = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
     let activePointers = new Map();
     let nudgeInterval = null;
-
     let idleTimer = null;
-    const IDLE_TIME = 10000;
+    const IDLE_TIME = 8000;
 
     const refEl = document.getElementById('ref-image');
     const userEl = document.getElementById('user-image');
     const pivotEl = document.getElementById('pivot-point');
     const drawer = document.getElementById('drawer');
-    const perimeterPanel = document.getElementById('perimeter-panel');
     const eyeIcon = document.getElementById('eye-icon');
-    const targetIndicator = document.getElementById('target-ui');
     const userLoadBtn = document.getElementById('btn-user-load');
-    const autoStatusText = document.getElementById('auto-status-text');
-    const targetLabel = document.getElementById('active-target-label');
-    const targetPulse = document.getElementById('target-pulse');
     const appContainer = document.getElementById('interaction-zone');
 
-    function toggleDrawer() {
-        resetIdleTimer();
-        drawer.classList.toggle('open');
-        if (drawer.classList.contains('open')) syncSlidersToCurrentTarget();
+    // --- CROP LOGIC ---
+    let originalImageSrc = "";
+    const cropScreen = document.getElementById('crop-screen');
+    const cropImg = document.getElementById('crop-img');
+    const cropBox = document.getElementById('crop-box');
+    let cropRect = { x: 50, y: 50, w: 200, h: 200 };
+    let cropActive = false;
+    let cropHandle = null;
+
+    function initCrop(input) {
+        if (!input.files?.[0]) return;
+        const reader = new FileReader();
+        reader.onload = e => {
+            originalImageSrc = e.target.result;
+            cropImg.src = originalImageSrc;
+            cropScreen.style.display = 'flex';
+            cropImg.onload = () => {
+                const rect = cropImg.getBoundingClientRect();
+                cropRect = { x: 20, y: 20, w: rect.width - 40, h: rect.height - 40 };
+                updateCropBox();
+            };
+        };
+        reader.readAsDataURL(input.files[0]);
     }
 
-    function triggerUserLoad() {
-        if (!isRefLoaded) return;
-        document.getElementById('user-input').click();
+    function updateCropBox() {
+        cropBox.style.left = cropRect.x + 'px';
+        cropBox.style.top = cropRect.y + 'px';
+        cropBox.style.width = cropRect.w + 'px';
+        cropBox.style.height = cropRect.h + 'px';
     }
+
+    cropBox.addEventListener('pointerdown', e => {
+        cropActive = true;
+        cropHandle = e.target.dataset.handle || 'move';
+        e.stopPropagation();
+    });
+
+    window.addEventListener('pointermove', e => {
+        if (!cropActive) return;
+        const container = cropImg.getBoundingClientRect();
+        const mx = e.clientX - container.left;
+        const my = e.clientY - container.top;
+
+        if (cropHandle === 'move') {
+            cropRect.x = Math.max(0, Math.min(container.width - cropRect.w, mx - cropRect.w / 2));
+            cropRect.y = Math.max(0, Math.min(container.height - cropRect.h, my - cropRect.h / 2));
+        } else {
+            if (cropHandle.includes('e')) cropRect.w = Math.max(30, Math.min(container.width - cropRect.x, mx - cropRect.x));
+            if (cropHandle.includes('s')) cropRect.h = Math.max(30, Math.min(container.height - cropRect.y, my - cropRect.y));
+            if (cropHandle.includes('w')) {
+                const dx = cropRect.x - mx;
+                if (cropRect.w + dx > 30 && mx > 0) { cropRect.x = mx; cropRect.w += dx; }
+            }
+            if (cropHandle.includes('n')) {
+                const dy = cropRect.y - my;
+                if (cropRect.h + dy > 30 && my > 0) { cropRect.y = my; cropRect.h += dy; }
+            }
+        }
+        updateCropBox();
+    });
+
+    window.addEventListener('pointerup', () => { cropActive = false; });
+
+    function closeCrop(apply) {
+        if (apply) {
+            const canvas = document.createElement('canvas');
+            const img = cropImg;
+            const scaleX = img.naturalWidth / img.width;
+            const scaleY = img.naturalHeight / img.height;
+            
+            canvas.width = cropRect.w * scaleX;
+            canvas.height = cropRect.h * scaleY;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, cropRect.x * scaleX, cropRect.y * scaleY, canvas.width, canvas.height, 0, 0, canvas.width, canvas.height);
+            
+            refEl.src = canvas.toDataURL();
+            refEl.style.display = 'block';
+            isRefLoaded = true;
+            userLoadBtn.classList.remove('btn-disabled');
+            fitImageToScreen(refEl, 'ref');
+            checkAutoTarget();
+        }
+        cropScreen.style.display = 'none';
+        document.getElementById('ref-input').value = "";
+    }
+
+    // --- MAIN LOGIC ---
+    function toggleDrawer() { resetIdleTimer(); drawer.classList.toggle('open'); if (drawer.classList.contains('open')) syncSlidersToCurrentTarget(); }
+    function triggerUserLoad() { if (isRefLoaded) document.getElementById('user-input').click(); }
 
     function syncSlidersToCurrentTarget() {
         const s = states[currentTarget];
         document.getElementById('opacity-slider').value = s.opacity * 100;
         document.getElementById('contrast-slider').value = s.contrast;
-        document.getElementById('brightness-slider').value = s.brightness;
-        
         document.getElementById('opacity-val').innerText = Math.round(s.opacity * 100) + '%';
         document.getElementById('contrast-val').innerText = s.contrast + '%';
-        document.getElementById('brightness-val').innerText = s.brightness + '%';
-
         const isUser = currentTarget === 'user';
         document.getElementById('opacity-control').style.opacity = isUser ? '1' : '0.4';
-        document.getElementById('opacity-control').style.pointerEvents = isUser ? 'auto' : 'none';
-
-        targetLabel.innerText = isUser ? 'Настройка рисунка' : 'Настройка референса';
-        targetPulse.className = `w-1.5 h-1.5 rounded-full animate-pulse ${isUser ? 'bg-red-500' : 'bg-gray-400'}`;
+        document.getElementById('active-target-label').innerText = isUser ? 'Настройка рисунка' : 'Настройка референса';
     }
 
     function checkAutoTarget() {
-        const prevTarget = currentTarget;
-        if (!isUserLoaded) {
-            currentTarget = 'ref';
-        } else {
-            const userOpacitySetting = states.user.opacity;
-            if (!isUserVisible || userOpacitySetting === 0) {
-                currentTarget = 'ref';
-            } else {
-                currentTarget = 'user';
-            }
-        }
-        
-        // В режиме референса авто-центр вращения всегда экранный, если не выбран рисунок
-        if (currentTarget === 'ref' && isCustomPivot) {
-            isCustomPivot = false;
-            updatePivotUI();
-        }
-
-        if (prevTarget !== currentTarget) syncSlidersToCurrentTarget();
-        updateTargetUI();
+        if (!isUserLoaded) currentTarget = 'ref';
+        else currentTarget = (isUserVisible && states.user.opacity > 0) ? 'user' : 'ref';
+        syncSlidersToCurrentTarget();
     }
 
-    function updateTargetUI() {
-        const isUser = currentTarget === 'user';
-        targetIndicator.innerText = `Слой: ${isUser ? 'Рисунок' : 'Референс'}`;
-        targetIndicator.className = `target-indicator ${isUser ? 'user-mode' : ''}`;
-        autoStatusText.innerText = isUser ? 'Рисунок' : 'Референс';
-    }
-
-    function toggleLink() {
-        resetIdleTimer();
-        isLinked = !isLinked;
-        document.getElementById('btn-link').classList.toggle('active-btn', isLinked);
-    }
+    function toggleLink() { resetIdleTimer(); isLinked = !isLinked; document.getElementById('btn-link').classList.toggle('active-btn', isLinked); }
 
     function toggleUserVisibility() {
         resetIdleTimer();
         isUserVisible = !isUserVisible;
-        if (isUserVisible) {
-            eyeIcon.innerHTML = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle>';
-        } else {
-            eyeIcon.innerHTML = '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line>';
-        }
+        eyeIcon.innerHTML = isUserVisible ? 
+            '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle>' :
+            '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line>';
         applyFiltersToElements();
         checkAutoTarget();
     }
 
-    function toggleCustomPivot() {
-        resetIdleTimer();
-        isCustomPivot = !isCustomPivot;
-        updatePivotUI();
-    }
-
+    function toggleCustomPivot() { resetIdleTimer(); isCustomPivot = !isCustomPivot; updatePivotUI(); }
     function updatePivotUI() {
-        if (isCustomPivot) {
-            pivotEl.style.display = 'block';
-            pivotEl.style.left = pivot.x + 'px';
-            pivotEl.style.top = pivot.y + 'px';
-            document.getElementById('btn-pivot-toggle').classList.add('active-target');
-        } else {
-            pivotEl.style.display = 'none';
-            document.getElementById('btn-pivot-toggle').classList.remove('active-target');
-        }
+        pivotEl.style.display = isCustomPivot ? 'block' : 'none';
+        pivotEl.style.left = pivot.x + 'px';
+        pivotEl.style.top = pivot.y + 'px';
+        document.getElementById('btn-pivot-toggle').classList.toggle('active-target', isCustomPivot);
     }
 
     function fitImageToScreen(img, key) {
-        const screenW = window.innerWidth, screenH = window.innerHeight;
-        const scale = Math.min(screenW / img.naturalWidth, screenH / img.naturalHeight) * 0.9;
-        const s = states[key];
-        s.x = screenW / 2; s.y = screenH / 2; s.s = scale; s.r = 0;
+        const sw = window.innerWidth, sh = window.innerHeight;
+        const scale = Math.min(sw / img.naturalWidth, sh / img.naturalHeight) * 0.9;
+        states[key] = { ...states[key], x: sw/2, y: sh/2, s: scale, r: 0 };
         applyTransforms();
     }
 
@@ -496,12 +489,8 @@
                 img.src = e.target.result;
                 img.style.display = 'block';
                 img.onload = () => {
-                    const key = (id === 'ref-image') ? 'ref' : 'user';
-                    fitImageToScreen(img, key);
-                    if (id === 'ref-image') {
-                        isRefLoaded = true;
-                        userLoadBtn.classList.remove('btn-disabled');
-                    } else {
+                    fitImageToScreen(img, id.includes('ref') ? 'ref' : 'user');
+                    if (id.includes('user')) {
                         isUserLoaded = true;
                         document.getElementById('placeholder').style.display = 'none';
                     }
@@ -513,18 +502,13 @@
     }
 
     function updateFilters() {
-        resetIdleTimer();
-        const opValue = parseInt(document.getElementById('opacity-slider').value);
-        const coValue = parseInt(document.getElementById('contrast-slider').value);
-        const brValue = parseInt(document.getElementById('brightness-slider').value);
-        const s = states[currentTarget];
-        if (currentTarget === 'user') s.opacity = opValue / 100;
-        s.contrast = coValue; s.brightness = brValue;
-        document.getElementById('opacity-val').innerText = opValue + '%';
-        document.getElementById('contrast-val').innerText = coValue + '%';
-        document.getElementById('brightness-val').innerText = brValue + '%';
+        const op = parseInt(document.getElementById('opacity-slider').value);
+        const co = parseInt(document.getElementById('contrast-slider').value);
+        if (currentTarget === 'user') states.user.opacity = op / 100;
+        states[currentTarget].contrast = co;
         applyFiltersToElements();
-        if (currentTarget === 'user' && opValue === 0) checkAutoTarget();
+        syncSlidersToCurrentTarget();
+        if (currentTarget === 'user' && op === 0) checkAutoTarget();
     }
 
     function applyFiltersToElements() {
@@ -535,16 +519,14 @@
 
     function applyTransforms() {
         const cx = window.innerWidth / 2, cy = window.innerHeight / 2;
-        [refEl, userEl].forEach((el, index) => {
-            const key = index === 0 ? 'ref' : 'user';
-            const s = states[key];
+        [refEl, userEl].forEach((el, i) => {
+            const s = states[i === 0 ? 'ref' : 'user'];
             el.style.transform = `translate(-50%, -50%) translate(${s.x - cx}px, ${s.y - cy}px) rotate(${s.r}deg) scale(${s.s})`;
         });
     }
 
     function startNudge(key, val) {
-        resetIdleTimer();
-        stopNudge();
+        resetIdleTimer(); stopNudge();
         const perform = () => {
             const targets = isLinked ? ['ref', 'user'] : [currentTarget];
             const px = isCustomPivot ? pivot.x : window.innerWidth/2;
@@ -559,57 +541,31 @@
                     const cos = Math.cos(rad), sin = Math.sin(rad);
                     s.x = px + (dx * cos - dy * sin); s.y = py + (dx * sin + dy * cos); s.r += val;
                 }
-                if (key === 's') {
-                    s.x = px + (s.x - px) * val; s.y = py + (s.y - py) * val; s.s *= val;
-                }
+                if (key === 's') { s.x = px + (s.x - px) * val; s.y = py + (s.y - py) * val; s.s *= val; }
             });
             applyTransforms();
         };
-        perform();
-        nudgeInterval = setInterval(perform, 30);
+        perform(); nudgeInterval = setInterval(perform, 30);
     }
-
     function stopNudge() { if (nudgeInterval) clearInterval(nudgeInterval); }
 
-    function showUI() {
-        appContainer.classList.remove('ui-hidden-state');
-        resetIdleTimer();
-    }
-
-    function hideUI() {
-        if (drawer.classList.contains('open')) return;
-        appContainer.classList.add('ui-hidden-state');
-    }
-
     function resetIdleTimer() {
+        appContainer.classList.remove('ui-hidden-state');
         if (idleTimer) clearTimeout(idleTimer);
-        idleTimer = setTimeout(hideUI, IDLE_TIME);
+        idleTimer = setTimeout(() => { if (!drawer.classList.contains('open')) appContainer.classList.add('ui-hidden-state'); }, IDLE_TIME);
     }
 
     const zone = document.getElementById('interaction-zone');
-    
     zone.addEventListener('pointerdown', e => {
-        showUI();
-        if (e.target.closest('#drawer') || e.target.closest('.edge-btn-container') || e.target.closest('.drawer-handle')) return;
-        
-        if (isCustomPivot) {
-            pivot = { x: e.clientX, y: e.clientY };
-            updatePivotUI();
-            activePointers.set(e.pointerId, 'pivot');
-            return;
-        }
-        activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        resetIdleTimer();
+        if (e.target.closest('#drawer') || e.target.closest('.edge-btn-container')) return;
+        if (isCustomPivot) { pivot = { x: e.clientX, y: e.clientY }; updatePivotUI(); activePointers.set(e.pointerId, 'pivot'); }
+        else activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
     });
-
     zone.addEventListener('pointermove', e => {
         if (!activePointers.has(e.pointerId)) return;
-        showUI();
-
-        if (activePointers.get(e.pointerId) === 'pivot') {
-            pivot = { x: e.clientX, y: e.clientY };
-            updatePivotUI();
-            return;
-        }
+        resetIdleTimer();
+        if (activePointers.get(e.pointerId) === 'pivot') { pivot = { x: e.clientX, y: e.clientY }; updatePivotUI(); return; }
         const targets = isLinked ? ['ref', 'user'] : [currentTarget];
         if (activePointers.size === 1) {
             const prev = activePointers.get(e.pointerId);
@@ -619,52 +575,40 @@
         }
         applyTransforms();
     });
-
     zone.addEventListener('pointerup', e => activePointers.delete(e.pointerId));
-    zone.addEventListener('pointercancel', e => activePointers.delete(e.pointerId));
 
-    function toggleGrid() {
-        resetIdleTimer();
-        const isHidden = document.getElementById('grid-overlay').classList.toggle('hidden');
+    function toggleGrid() { 
+        resetIdleTimer(); 
+        const isHidden = document.getElementById('grid-overlay').classList.toggle('hidden'); 
         document.getElementById('btn-grid-toggle-main').classList.toggle('active-target', !isHidden);
         if (!isHidden) drawGrid();
     }
-
     function drawGrid() {
         const svg = document.getElementById('grid-overlay');
         const w = window.innerWidth, h = window.innerHeight;
         svg.innerHTML = '';
         const step = w / 10;
-        for(let x=0; x<=w; x+=step) {
+        for(let i=0; i<=w; i+=step) {
             const l = document.createElementNS("http://www.w3.org/2000/svg", "line");
-            l.setAttribute("x1", x); l.setAttribute("y1", 0); l.setAttribute("x2", x); l.setAttribute("y2", h);
-            l.setAttribute("stroke", gridStrokeColor); svg.appendChild(l);
+            l.setAttribute("x1", i); l.setAttribute("y1", 0); l.setAttribute("x2", i); l.setAttribute("y2", h);
+            l.setAttribute("stroke", "rgba(255,255,255,0.2)"); svg.appendChild(l);
         }
-        for(let y=0; y<=h; y+=step) {
+        for(let i=0; i<=h; i+=step) {
             const l = document.createElementNS("http://www.w3.org/2000/svg", "line");
-            l.setAttribute("x1", 0); l.setAttribute("y1", y); l.setAttribute("x2", w); l.setAttribute("y2", y);
-            l.setAttribute("stroke", gridStrokeColor); svg.appendChild(l);
+            l.setAttribute("x1", 0); l.setAttribute("y1", i); l.setAttribute("x2", w); l.setAttribute("y2", i);
+            l.setAttribute("stroke", "rgba(255,255,255,0.2)"); svg.appendChild(l);
         }
     }
 
     function resetAll() {
-        resetIdleTimer();
         if (refEl.src) fitImageToScreen(refEl, 'ref');
         if (userEl.src) fitImageToScreen(userEl, 'user');
-        states.ref.contrast = 100; states.ref.brightness = 100;
-        states.user.opacity = 0.8; states.user.contrast = 100; states.user.brightness = 100;
-        syncSlidersToCurrentTarget();
+        states.user.opacity = 0.8;
         applyFiltersToElements();
+        syncSlidersToCurrentTarget();
     }
 
-    window.addEventListener('load', () => { 
-        drawGrid(); 
-        applyTransforms(); 
-        updateTargetUI(); 
-        resetIdleTimer();
-        updatePivotUI();
-    });
-    window.addEventListener('resize', () => { drawGrid(); applyTransforms(); });
+    window.addEventListener('load', () => { drawGrid(); applyTransforms(); updatePivotUI(); resetIdleTimer(); });
 </script>
 </body>
 </html>
