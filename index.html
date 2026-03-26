@@ -78,17 +78,10 @@
             pointer-events: auto;
         }
 
-        .drawer-handle svg {
-            transition: transform 0.3s ease;
-        }
-        .settings-drawer.open #drawer-icon {
-            transform: rotate(180deg);
-        }
-
         #pivot-point {
             position: absolute;
-            width: 44px; height: 44px;
-            border: 2px solid var(--primary);
+            width: 32px; height: 32px;
+            border: 1.5px solid var(--primary);
             border-radius: 50%;
             z-index: 60;
             pointer-events: none; 
@@ -96,11 +89,6 @@
             display: none;
             background: rgba(255, 95, 95, 0.1);
         }
-        #pivot-point::before, #pivot-point::after {
-            content: ''; position: absolute; background: var(--primary);
-        }
-        #pivot-point::before { top: 50%; left: -10px; right: -10px; height: 1px; transform: translateY(-50%); }
-        #pivot-point::after { left: 50%; top: -10px; bottom: -10px; width: 1px; transform: translateX(-50%); }
 
         .perimeter-panel {
             position: absolute;
@@ -110,74 +98,73 @@
             display: none;
         }
         
-        .edge-btn {
-            width: 48px;
-            height: 48px;
-            background: #2A2A2A; 
-            border-radius: 12px;
+        /* Хитбокс остается большим для удобства нажатия (60x60) */
+        .edge-btn-container {
+            width: 60px;
+            height: 60px;
             display: flex;
             align-items: center;
             justify-content: center;
             cursor: pointer;
             pointer-events: auto;
-            border: 1px solid #555;
-            transition: transform 0.1s, background 0.1s, border-color 0.2s;
             -webkit-tap-highlight-color: transparent;
         }
 
-        /* Стиль для стрелок: такой же цвет, как у кнопки Precision */
+        /* Сама кнопка теперь меньше (32x32) */
+        .edge-btn {
+            width: 32px;
+            height: 32px;
+            background: #2A2A2A; 
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid #555;
+            transition: transform 0.1s, background 0.1s, border-color 0.2s;
+        }
+
+        /* Красный стиль для стрелок из "Точности" */
         .edge-btn.nudge-btn {
             background: var(--primary); 
             border: none;
-            box-shadow: 0 4px 12px rgba(255, 95, 95, 0.3);
+            box-shadow: 0 2px 8px rgba(255, 95, 95, 0.3);
         }
 
-        .edge-btn:active { transform: scale(0.9); opacity: 0.8; }
-        .edge-btn svg { width: 24px; height: 24px; stroke: white; fill: none; stroke-width: 2.5; }
+        .edge-btn-container:active .edge-btn { transform: scale(0.85); opacity: 0.8; }
+        .edge-btn svg { width: 18px; height: 18px; stroke: white; fill: none; stroke-width: 2.5; }
         
-        .edge-btn.active-target { border-color: var(--primary); background: #4D2626; }
-        .edge-btn.active-target svg { stroke: var(--primary); }
+        .active-target .edge-btn { border-color: var(--primary); background: #4D2626; }
+        .active-target .edge-btn svg { stroke: var(--primary); }
 
+        /* Позиционирование контейнеров */
         .p-top-left { 
             position: absolute; 
-            top: max(16px, env(safe-area-inset-top)); 
-            left: max(16px, env(safe-area-inset-left)); 
+            top: max(8px, env(safe-area-inset-top)); 
+            left: max(8px, env(safe-area-inset-left)); 
             display: flex;
             flex-direction: column;
-            gap: 10px;
-            pointer-events: none;
         }
         
         .p-top-center { 
             position: absolute; 
-            top: max(16px, env(safe-area-inset-top)); 
+            top: max(8px, env(safe-area-inset-top)); 
             left: 50%; 
             transform: translateX(-50%); 
             display: flex;
             flex-direction: row;
-            gap: 12px;
-            align-items: center;
-            pointer-events: none;
         }
 
-        .p-top-right { position: absolute; top: max(16px, env(safe-area-inset-top)); right: max(16px, env(safe-area-inset-right)); }
-        
-        .p-mid-left { position: absolute; top: 50%; left: max(16px, env(safe-area-inset-left)); transform: translateY(-50%); }
-        .p-mid-right { position: absolute; top: 50%; right: max(16px, env(safe-area-inset-right)); transform: translateY(-50%); }
-        
-        .p-bottom-left { position: absolute; bottom: max(20px, env(safe-area-inset-bottom)); left: max(16px, env(safe-area-inset-left)); }
-        .p-bottom-right { position: absolute; bottom: max(20px, env(safe-area-inset-bottom)); right: max(16px, env(safe-area-inset-right)); }
+        .p-top-right { position: absolute; top: max(8px, env(safe-area-inset-top)); right: max(8px, env(safe-area-inset-right)); }
+        .p-mid-left { position: absolute; top: 50%; left: max(8px, env(safe-area-inset-left)); transform: translateY(-50%); }
+        .p-mid-right { position: absolute; top: 50%; right: max(8px, env(safe-area-inset-right)); transform: translateY(-50%); }
+        .p-bottom-left { position: absolute; bottom: max(12px, env(safe-area-inset-bottom)); left: max(8px, env(safe-area-inset-left)); }
+        .p-bottom-right { position: absolute; bottom: max(12px, env(safe-area-inset-bottom)); right: max(8px, env(safe-area-inset-right)); }
         
         .p-bottom-center {
             position: absolute;
-            bottom: max(20px, env(safe-area-inset-bottom));
+            bottom: max(12px, env(safe-area-inset-bottom));
             left: 50%;
             transform: translateX(-50%);
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            align-items: center;
-            pointer-events: none;
         }
 
         .active-btn { background-color: var(--primary) !important; color: white !important; }
@@ -187,24 +174,19 @@
             bottom: 20px;
             left: 20px;
             background: #222;
-            padding: 8px 12px;
+            padding: 6px 10px;
             border-radius: 20px;
-            font-size: 10px;
+            font-size: 9px;
             font-weight: bold;
             text-transform: uppercase;
-            letter-spacing: 1px;
+            letter-spacing: 0.5px;
             z-index: 40;
             pointer-events: none;
             border: 1px solid #444;
         }
-        .target-indicator.ref-mode { color: #fff; }
         .target-indicator.user-mode { color: var(--primary); }
 
-        .btn-disabled {
-            opacity: 0.4;
-            cursor: not-allowed !important;
-            filter: grayscale(1);
-        }
+        .btn-disabled { opacity: 0.4; cursor: not-allowed !important; filter: grayscale(1); }
     </style>
 </head>
 <body oncontextmenu="return false;">
@@ -223,54 +205,77 @@
     <div id="pivot-point"></div>
     <div id="target-ui" class="target-indicator">Ожидание...</div>
 
+    <!-- Панель управления (режим Точности) -->
     <div id="perimeter-panel" class="perimeter-panel">
+        
         <div class="p-top-left">
-            <div class="edge-btn nudge-btn" onpointerdown="startNudge('r', -0.5)" onpointerup="stopNudge()" onpointerleave="stopNudge()">
-                <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+            <div class="edge-btn-container" onpointerdown="startNudge('r', -0.5)" onpointerup="stopNudge()" onpointerleave="stopNudge()">
+                <div class="edge-btn nudge-btn">
+                    <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+                </div>
             </div>
-            <div id="btn-grid-toggle-main" class="edge-btn" onclick="toggleGrid()">
-                <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg>
+            <div class="edge-btn-container" onclick="toggleGrid()" id="btn-grid-toggle-main">
+                <div class="edge-btn">
+                    <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg>
+                </div>
             </div>
         </div>
         
         <div class="p-top-center">
-            <div id="btn-visibility-toggle" class="edge-btn" onclick="toggleUserVisibility()">
-                <svg id="eye-icon" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
-                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                    <circle cx="12" cy="12" r="3"></circle>
-                </svg>
+            <div class="edge-btn-container" onclick="toggleUserVisibility()">
+                <div class="edge-btn" id="btn-visibility-toggle">
+                    <svg id="eye-icon" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                        <circle cx="12" cy="12" r="3"></circle>
+                    </svg>
+                </div>
             </div>
-            <div class="edge-btn nudge-btn" onpointerdown="startNudge('y', -2)" onpointerup="stopNudge()" onpointerleave="stopNudge()">
-                <svg viewBox="0 0 24 24"><path d="m18 15-6-6-6 6"/></svg>
+            <div class="edge-btn-container" onpointerdown="startNudge('y', -2)" onpointerup="stopNudge()" onpointerleave="stopNudge()">
+                <div class="edge-btn nudge-btn">
+                    <svg viewBox="0 0 24 24"><path d="m18 15-6-6-6 6"/></svg>
+                </div>
             </div>
-            <div id="btn-pivot-toggle" class="edge-btn active-target" onclick="toggleCustomPivot()">
-                <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 2v20M2 12h20"/></svg>
+            <div class="edge-btn-container active-target" id="btn-pivot-toggle" onclick="toggleCustomPivot()">
+                <div class="edge-btn">
+                    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 2v20M2 12h20"/></svg>
+                </div>
             </div>
         </div>
 
-        <div class="edge-btn nudge-btn p-top-right" onpointerdown="startNudge('r', 0.5)" onpointerup="stopNudge()" onpointerleave="stopNudge()">
-            <svg viewBox="0 0 24 24" style="transform: scaleX(-1)"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+        <div class="p-top-right edge-btn-container" onpointerdown="startNudge('r', 0.5)" onpointerup="stopNudge()" onpointerleave="stopNudge()">
+            <div class="edge-btn nudge-btn">
+                <svg viewBox="0 0 24 24" style="transform: scaleX(-1)"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+            </div>
         </div>
 
-        <div class="edge-btn nudge-btn p-mid-left" onpointerdown="startNudge('x', -2)" onpointerup="stopNudge()" onpointerleave="stopNudge()">
-            <svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg>
-        </div>
-        <div class="edge-btn nudge-btn p-mid-right" onpointerdown="startNudge('x', 2)" onpointerup="stopNudge()" onpointerleave="stopNudge()">
-            <svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
-        </div>
-
-        <div class="edge-btn nudge-btn p-bottom-left" onpointerdown="startNudge('s', 0.995)" onpointerup="stopNudge()" onpointerleave="stopNudge()">
-            <svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg>
+        <div class="p-mid-left edge-btn-container" onpointerdown="startNudge('x', -2)" onpointerup="stopNudge()" onpointerleave="stopNudge()">
+            <div class="edge-btn nudge-btn">
+                <svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg>
+            </div>
         </div>
         
-        <div class="p-bottom-center">
-            <div class="edge-btn nudge-btn" onpointerdown="startNudge('y', 2)" onpointerup="stopNudge()" onpointerleave="stopNudge()">
+        <div class="p-mid-right edge-btn-container" onpointerdown="startNudge('x', 2)" onpointerup="stopNudge()" onpointerleave="stopNudge()">
+            <div class="edge-btn nudge-btn">
+                <svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
+            </div>
+        </div>
+
+        <div class="p-bottom-left edge-btn-container" onpointerdown="startNudge('s', 0.995)" onpointerup="stopNudge()" onpointerleave="stopNudge()">
+            <div class="edge-btn nudge-btn">
+                <svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg>
+            </div>
+        </div>
+        
+        <div class="p-bottom-center edge-btn-container" onpointerdown="startNudge('y', 2)" onpointerup="stopNudge()" onpointerleave="stopNudge()">
+            <div class="edge-btn nudge-btn">
                 <svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
             </div>
         </div>
 
-        <div class="edge-btn nudge-btn p-bottom-right" onpointerdown="startNudge('s', 1.005)" onpointerup="stopNudge()" onpointerleave="stopNudge()">
-            <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+        <div class="p-bottom-right edge-btn-container" onpointerdown="startNudge('s', 1.005)" onpointerup="stopNudge()" onpointerleave="stopNudge()">
+            <div class="edge-btn nudge-btn">
+                <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+            </div>
         </div>
     </div>
 
@@ -374,9 +379,7 @@
 
     function toggleDrawer() {
         drawer.classList.toggle('open');
-        if (drawer.classList.contains('open')) {
-            syncSlidersToCurrentTarget();
-        }
+        if (drawer.classList.contains('open')) syncSlidersToCurrentTarget();
     }
 
     function triggerUserLoad() {
@@ -419,16 +422,14 @@
             updatePivotUI();
         }
 
-        if (prevTarget !== currentTarget) {
-            syncSlidersToCurrentTarget();
-        }
+        if (prevTarget !== currentTarget) syncSlidersToCurrentTarget();
         updateTargetUI();
     }
 
     function updateTargetUI() {
         const isUser = currentTarget === 'user';
         targetIndicator.innerText = `Слой: ${isUser ? 'Рисунок' : 'Референс'}`;
-        targetIndicator.className = `target-indicator ${isUser ? 'user-mode' : 'ref-mode'}`;
+        targetIndicator.className = `target-indicator ${isUser ? 'user-mode' : ''}`;
         autoStatusText.innerText = isUser ? 'Рисунок' : 'Референс';
     }
 
@@ -441,11 +442,7 @@
         isPrecisionMode = !isPrecisionMode;
         document.getElementById('btn-precision').classList.toggle('active-btn', isPrecisionMode);
         perimeterPanel.style.display = isPrecisionMode ? 'block' : 'none';
-        
-        if (isPrecisionMode && currentTarget === 'ref') {
-            isCustomPivot = false;
-        }
-        
+        if (isPrecisionMode && currentTarget === 'ref') isCustomPivot = false;
         updatePivotUI();
     }
 
@@ -495,14 +492,12 @@
                 img.onload = () => {
                     const key = (id === 'ref-image') ? 'ref' : 'user';
                     fitImageToScreen(img, key);
-                    const pl = document.getElementById('placeholder');
                     if (id === 'ref-image') {
                         isRefLoaded = true;
-                        if (pl) pl.querySelector('p:nth-child(2)').innerText = "Шаг 2: Загрузите Рисунок";
                         userLoadBtn.classList.remove('btn-disabled');
                     } else {
                         isUserLoaded = true;
-                        if (pl) pl.style.display = 'none';
+                        document.getElementById('placeholder').style.display = 'none';
                     }
                     checkAutoTarget();
                 };
@@ -515,30 +510,19 @@
         const opValue = parseInt(document.getElementById('opacity-slider').value);
         const coValue = parseInt(document.getElementById('contrast-slider').value);
         const brValue = parseInt(document.getElementById('brightness-slider').value);
-
         const s = states[currentTarget];
         if (currentTarget === 'user') s.opacity = opValue / 100;
-        s.contrast = coValue;
-        s.brightness = brValue;
-
+        s.contrast = coValue; s.brightness = brValue;
         document.getElementById('opacity-val').innerText = opValue + '%';
         document.getElementById('contrast-val').innerText = coValue + '%';
         document.getElementById('brightness-val').innerText = brValue + '%';
-
         applyFiltersToElements();
-        
-        if (currentTarget === 'user' && opValue === 0) {
-            checkAutoTarget();
-        }
+        if (currentTarget === 'user' && opValue === 0) checkAutoTarget();
     }
 
     function applyFiltersToElements() {
         refEl.style.filter = `contrast(${states.ref.contrast}%) brightness(${states.ref.brightness}%)`;
-        if (isUserVisible) {
-            userEl.style.opacity = states.user.opacity;
-        } else {
-            userEl.style.opacity = '0';
-        }
+        userEl.style.opacity = isUserVisible ? states.user.opacity : '0';
         userEl.style.filter = `contrast(${states.user.contrast}%) brightness(${states.user.brightness}%)`;
     }
 
@@ -557,7 +541,6 @@
             const targets = isLinked ? ['ref', 'user'] : [currentTarget];
             const px = (isPrecisionMode && isCustomPivot) ? pivot.x : window.innerWidth/2;
             const py = (isPrecisionMode && isCustomPivot) ? pivot.y : window.innerHeight/2;
-            
             targets.forEach(t => {
                 const s = states[t];
                 if (key === 'x') s.x += val;
@@ -566,14 +549,10 @@
                     const dx = s.x - px, dy = s.y - py;
                     const rad = val * Math.PI / 180;
                     const cos = Math.cos(rad), sin = Math.sin(rad);
-                    s.x = px + (dx * cos - dy * sin);
-                    s.y = py + (dx * sin + dy * cos);
-                    s.r += val;
+                    s.x = px + (dx * cos - dy * sin); s.y = py + (dx * sin + dy * cos); s.r += val;
                 }
                 if (key === 's') {
-                    s.x = px + (s.x - px) * val;
-                    s.y = py + (s.y - py) * val;
-                    s.s *= val;
+                    s.x = px + (s.x - px) * val; s.y = py + (s.y - py) * val; s.s *= val;
                 }
             });
             applyTransforms();
@@ -585,10 +564,8 @@
     function stopNudge() { if (nudgeInterval) clearInterval(nudgeInterval); }
 
     const zone = document.getElementById('interaction-zone');
-    let initialDist = 0, initialAngle = 0;
-
     zone.addEventListener('pointerdown', e => {
-        if (e.target.closest('#drawer') || e.target.closest('.edge-btn') || e.target.closest('.drawer-handle')) return;
+        if (e.target.closest('#drawer') || e.target.closest('.edge-btn-container') || e.target.closest('.drawer-handle')) return;
         if (isPrecisionMode && isCustomPivot) {
             pivot = { x: e.clientX, y: e.clientY };
             updatePivotUI();
@@ -596,12 +573,6 @@
             return;
         }
         activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-        if (activePointers.size === 2) {
-            const pts = Array.from(activePointers.values()).filter(p => p !== 'pivot');
-            if (pts.length < 2) return;
-            initialDist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
-            initialAngle = Math.atan2(pts[1].y - pts[0].y, pts[1].x - pts[0].x) * 180 / Math.PI;
-        }
     });
 
     zone.addEventListener('pointermove', e => {
@@ -611,32 +582,12 @@
             updatePivotUI();
             return;
         }
-
         const targets = isLinked ? ['ref', 'user'] : [currentTarget];
         if (activePointers.size === 1) {
             const prev = activePointers.get(e.pointerId);
             const dx = e.clientX - prev.x, dy = e.clientY - prev.y;
             targets.forEach(t => { states[t].x += dx; states[t].y += dy; });
             activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-        } else if (activePointers.size === 2) {
-            activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-            const pts = Array.from(activePointers.values()).filter(p => p !== 'pivot');
-            if (pts.length < 2) return;
-            const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
-            const angle = Math.atan2(pts[1].y - pts[0].y, pts[1].x - pts[0].x) * 180 / Math.PI;
-            const sFact = initialDist > 0 ? dist / initialDist : 1;
-            const aDiff = angle - initialAngle;
-            const mx = (pts[0].x + pts[1].x) / 2, my = (pts[0].y + pts[1].y) / 2;
-
-            targets.forEach(t => { 
-                const s = states[t];
-                s.x = mx + (s.x - mx) * sFact; s.y = my + (s.y - my) * sFact; s.s *= sFact; 
-                const dx = s.x - mx, dy = s.y - my;
-                const rad = aDiff * Math.PI / 180;
-                const cos = Math.cos(rad), sin = Math.sin(rad);
-                s.x = mx + (dx * cos - dy * sin); s.y = my + (dx * sin + dy * cos); s.r += aDiff;
-            });
-            initialDist = dist; initialAngle = angle;
         }
         applyTransforms();
     });
@@ -645,8 +596,7 @@
     zone.addEventListener('pointercancel', e => activePointers.delete(e.pointerId));
 
     function toggleGrid() {
-        const svg = document.getElementById('grid-overlay');
-        const isHidden = svg.classList.toggle('hidden');
+        const isHidden = document.getElementById('grid-overlay').classList.toggle('hidden');
         document.getElementById('btn-grid-toggle-main').classList.toggle('active-target', !isHidden);
         if (!isHidden) drawGrid();
     }
