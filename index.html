@@ -192,6 +192,49 @@
 
         .btn-disabled { opacity: 0.4; cursor: not-allowed !important; filter: grayscale(1); }
         .active-btn { background-color: var(--primary) !important; color: white !important; }
+
+        /* CROP OVERLAY STYLES */
+        #crop-modal {
+            position: fixed;
+            inset: 0;
+            z-index: 200;
+            background: rgba(0,0,0,0.95);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        #crop-container {
+            position: relative;
+            max-width: 90vw;
+            max-height: 70vh;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        #crop-img {
+            max-width: 100%;
+            max-height: 100%;
+            display: block;
+        }
+        #crop-box {
+            position: absolute;
+            border: 2px solid var(--primary);
+            box-shadow: 0 0 0 4000px rgba(0,0,0,0.6);
+            cursor: move;
+            touch-action: none;
+        }
+        .crop-handle {
+            position: absolute;
+            width: 20px; height: 20px;
+            background: var(--primary);
+            border-radius: 50%;
+        }
+        .ch-nw { top: -10px; left: -10px; cursor: nw-resize; }
+        .ch-ne { top: -10px; right: -10px; cursor: ne-resize; }
+        .ch-sw { bottom: -10px; left: -10px; cursor: sw-resize; }
+        .ch-se { bottom: -10px; right: -10px; cursor: se-resize; }
     </style>
 </head>
 <body oncontextmenu="return false;">
@@ -282,6 +325,24 @@
         </div>
     </div>
 
+    <!-- CROP MODAL -->
+    <div id="crop-modal">
+        <h3 class="mb-4 text-sm font-bold uppercase tracking-widest text-red-500">Обрезать референс</h3>
+        <div id="crop-container">
+            <img id="crop-img" alt="Crop Preview">
+            <div id="crop-box">
+                <div class="crop-handle ch-nw" data-handle="nw"></div>
+                <div class="crop-handle ch-ne" data-handle="ne"></div>
+                <div class="crop-handle ch-sw" data-handle="sw"></div>
+                <div class="crop-handle ch-se" data-handle="se"></div>
+            </div>
+        </div>
+        <div class="flex gap-4 mt-6">
+            <button onclick="cancelCrop()" class="px-6 py-2 rounded-full border border-gray-600 text-gray-400 uppercase text-xs font-bold">Отмена</button>
+            <button onclick="applyCrop()" class="px-8 py-2 rounded-full bg-red-500 text-white uppercase text-xs font-bold">Готово</button>
+        </div>
+    </div>
+
     <aside id="drawer" class="settings-drawer text-gray-800 ui-element">
         <div class="drawer-handle" onclick="toggleDrawer()">
             <svg id="drawer-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
@@ -298,7 +359,7 @@
                     <button onclick="document.getElementById('ref-input').click()" class="py-3 px-2 border-2 border-gray-100 rounded-xl text-[10px] font-bold uppercase text-gray-700 hover:bg-gray-50">Референс</button>
                     <button id="btn-user-load" onclick="triggerUserLoad()" class="py-3 px-2 border-2 border-gray-100 rounded-xl text-[10px] font-bold uppercase text-gray-700 btn-disabled">Рисунок</button>
                 </div>
-                <input type="file" id="ref-input" class="hidden" accept="image/*" onchange="loadFile(this, 'ref-image')">
+                <input type="file" id="ref-input" class="hidden" accept="image/*" onchange="initCrop(this)">
                 <input type="file" id="user-input" class="hidden" accept="image/*" onchange="loadFile(this, 'user-image')">
             </div>
 
@@ -380,6 +441,122 @@
     const targetPulse = document.getElementById('target-pulse');
     const appContainer = document.getElementById('interaction-zone');
 
+    // --- CROP LOGIC ---
+    const cropModal = document.getElementById('crop-modal');
+    const cropImg = document.getElementById('crop-img');
+    const cropBox = document.getElementById('crop-box');
+    let cropActive = false;
+    let originalFileSrc = null;
+
+    function initCrop(input) {
+        if (input.files?.[0]) {
+            const reader = new FileReader();
+            reader.onload = e => {
+                originalFileSrc = e.target.result;
+                cropImg.src = e.target.result;
+                cropModal.style.display = 'flex';
+                cropImg.onload = () => {
+                    const rect = cropImg.getBoundingClientRect();
+                    // Начальное положение рамки (центр 80%)
+                    cropBox.style.width = (rect.width * 0.8) + 'px';
+                    cropBox.style.height = (rect.height * 0.8) + 'px';
+                    cropBox.style.left = (rect.width * 0.1) + 'px';
+                    cropBox.style.top = (rect.height * 0.1) + 'px';
+                };
+            };
+            reader.readAsDataURL(input.files[0]);
+        }
+    }
+
+    function cancelCrop() {
+        cropModal.style.display = 'none';
+        document.getElementById('ref-input').value = '';
+    }
+
+    function applyCrop() {
+        const rect = cropImg.getBoundingClientRect();
+        const box = cropBox.getBoundingClientRect();
+        
+        // Относительные координаты
+        const rx = (box.left - rect.left) / rect.width;
+        const ry = (box.top - rect.top) / rect.height;
+        const rw = box.width / rect.width;
+        const rh = box.height / rect.height;
+
+        const canvas = document.createElement('canvas');
+        const tempImg = new Image();
+        tempImg.onload = () => {
+            canvas.width = tempImg.width * rw;
+            canvas.height = tempImg.height * rh;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(tempImg, tempImg.width * rx, tempImg.height * ry, tempImg.width * rw, tempImg.height * rh, 0, 0, canvas.width, canvas.height);
+            
+            refEl.src = canvas.toDataURL('image/jpeg', 0.85);
+            refEl.style.display = 'block';
+            isRefLoaded = true;
+            userLoadBtn.classList.remove('btn-disabled');
+            
+            fitImageToScreen(refEl, 'ref');
+            checkAutoTarget();
+            saveToStorage();
+            cropModal.style.display = 'none';
+        };
+        tempImg.src = originalFileSrc;
+    }
+
+    // Обработка перетаскивания рамки
+    let cropDrag = null;
+    cropBox.onpointerdown = e => {
+        e.stopPropagation();
+        const handle = e.target.dataset.handle;
+        cropDrag = {
+            type: handle || 'move',
+            startX: e.clientX,
+            startY: e.clientY,
+            startW: cropBox.offsetWidth,
+            startH: cropBox.offsetHeight,
+            startL: cropBox.offsetLeft,
+            startT: cropBox.offsetTop
+        };
+        cropBox.setPointerCapture(e.pointerId);
+    };
+
+    cropBox.onpointermove = e => {
+        if (!cropDrag) return;
+        const dx = e.clientX - cropDrag.startX;
+        const dy = e.clientY - cropDrag.startY;
+        const parent = cropImg.getBoundingClientRect();
+
+        if (cropDrag.type === 'move') {
+            let nl = cropDrag.startL + dx;
+            let nt = cropDrag.startT + dy;
+            nl = Math.max(0, Math.min(nl, parent.width - cropBox.offsetWidth));
+            nt = Math.max(0, Math.min(nt, parent.height - cropBox.offsetHeight));
+            cropBox.style.left = nl + 'px';
+            cropBox.style.top = nt + 'px';
+        } else {
+            // Resize logic
+            if (cropDrag.type.includes('e')) cropBox.style.width = Math.max(30, Math.min(cropDrag.startW + dx, parent.width - cropDrag.startL)) + 'px';
+            if (cropDrag.type.includes('s')) cropBox.style.height = Math.max(30, Math.min(cropDrag.startH + dy, parent.height - cropDrag.startT)) + 'px';
+            if (cropDrag.type.includes('w')) {
+                const nw = Math.max(30, cropDrag.startW - dx);
+                if (nw !== 30) {
+                    cropBox.style.width = nw + 'px';
+                    cropBox.style.left = (cropDrag.startL + dx) + 'px';
+                }
+            }
+            if (cropDrag.type.includes('n')) {
+                const nh = Math.max(30, cropDrag.startH - dy);
+                if (nh !== 30) {
+                    cropBox.style.height = nh + 'px';
+                    cropBox.style.top = (cropDrag.startT + dy) + 'px';
+                }
+            }
+        }
+    };
+
+    cropBox.onpointerup = () => cropDrag = null;
+
     // --- ЛОГИКА АВТОСОХРАНЕНИЯ ---
     function saveToStorage() {
         const data = {
@@ -389,22 +566,19 @@
             isUserVisible,
             pivot,
             gridVisible,
-            // Сохраняем картинки только если они не слишком огромные (простая защита localStorage)
             refImg: refEl.src.startsWith('data:') ? refEl.src : null,
             userImg: userEl.src.startsWith('data:') ? userEl.src : null
         };
         try {
-            localStorage.setItem('artref_settings', JSON.stringify(data));
+            localStorage.setItem('artref_settings_v2', JSON.stringify(data));
         } catch(e) {
-            console.warn("Storage full, images not saved");
-            // Если место кончилось, пробуем сохранить без картинок
             data.refImg = null; data.userImg = null;
-            localStorage.setItem('artref_settings', JSON.stringify(data));
+            localStorage.setItem('artref_settings_v2', JSON.stringify(data));
         }
     }
 
     function loadFromStorage() {
-        const saved = localStorage.getItem('artref_settings');
+        const saved = localStorage.getItem('artref_settings_v2');
         if (!saved) return;
         try {
             const data = JSON.parse(saved);
@@ -415,13 +589,11 @@
             pivot = data.pivot || pivot;
             gridVisible = !!data.gridVisible;
 
-            // Восстановление UI
             document.getElementById('btn-link').classList.toggle('active-btn', isLinked);
             if (gridVisible) toggleGrid(true);
             updatePivotUI();
             updateVisibilityIcon();
             
-            // Восстановление картинок
             if (data.refImg) {
                 refEl.src = data.refImg;
                 refEl.style.display = 'block';
@@ -438,9 +610,7 @@
             applyFiltersToElements();
             applyTransforms();
             checkAutoTarget();
-        } catch(e) {
-            console.error("Failed to load settings", e);
-        }
+        } catch(e) { console.error(e); }
     }
 
     // --- Интерфейс и функции ---
@@ -546,7 +716,6 @@
         const s = states[key];
         s.x = screenW / 2; s.y = screenH / 2; s.s = scale; s.r = 0;
         applyTransforms();
-        saveToStorage();
     }
 
     function loadFile(input, id) {
@@ -641,7 +810,7 @@
     }
 
     function hideUI() {
-        if (drawer.classList.contains('open')) return;
+        if (drawer.classList.contains('open') || cropModal.style.display === 'flex') return;
         appContainer.classList.add('ui-hidden-state');
     }
 
@@ -654,7 +823,7 @@
     
     zone.addEventListener('pointerdown', e => {
         showUI();
-        if (e.target.closest('#drawer') || e.target.closest('.edge-btn-container') || e.target.closest('.drawer-handle')) return;
+        if (e.target.closest('#drawer') || e.target.closest('.edge-btn-container') || e.target.closest('.drawer-handle') || e.target.closest('#crop-modal')) return;
         
         if (isCustomPivot) {
             pivot = { x: e.clientX, y: e.clientY };
@@ -669,7 +838,6 @@
     zone.addEventListener('pointermove', e => {
         if (!activePointers.has(e.pointerId)) return;
         showUI();
-
         if (activePointers.get(e.pointerId) === 'pivot') {
             pivot = { x: e.clientX, y: e.clientY };
             updatePivotUI();
@@ -689,8 +857,6 @@
         activePointers.delete(e.pointerId);
         saveToStorage();
     });
-    
-    zone.addEventListener('pointercancel', e => activePointers.delete(e.pointerId));
 
     function toggleGrid(forceState) {
         resetIdleTimer();
