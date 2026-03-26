@@ -55,6 +55,15 @@
         #ref-image { z-index: 2; }
         #user-image { z-index: 3; }
 
+        /* Настройки скрытия интерфейса */
+        .ui-element {
+            transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.5s ease;
+        }
+        .ui-hidden {
+            opacity: 0;
+            pointer-events: none !important;
+        }
+
         .settings-drawer {
             position: absolute;
             top: 0; right: 0; width: 300px; height: 100%;
@@ -68,6 +77,10 @@
         @media (max-width: 640px) { .settings-drawer { width: 85%; } }
         .settings-drawer.open { transform: translateX(0); }
         
+        /* Скрытие ящика при бездействии */
+        .ui-hidden.settings-drawer:not(.open) { transform: translateX(110%); }
+        .ui-hidden .drawer-handle { transform: translateX(60px); opacity: 0; }
+
         .drawer-handle {
             position: absolute;
             left: -48px; top: 80px; width: 48px; height: 48px;
@@ -76,6 +89,7 @@
             cursor: pointer; color: var(--primary);
             box-shadow: -2px 0 10px rgba(0,0,0,0.1);
             pointer-events: auto;
+            transition: transform 0.3s ease, opacity 0.3s ease;
         }
 
         #pivot-point {
@@ -98,7 +112,6 @@
             display: none;
         }
         
-        /* Хитбокс остается большим для удобства нажатия (60x60) */
         .edge-btn-container {
             width: 60px;
             height: 60px;
@@ -108,9 +121,9 @@
             cursor: pointer;
             pointer-events: auto;
             -webkit-tap-highlight-color: transparent;
+            transition: transform 0.4s ease, opacity 0.4s ease;
         }
 
-        /* Сама кнопка теперь меньше (32x32) */
         .edge-btn {
             width: 32px;
             height: 32px;
@@ -123,7 +136,6 @@
             transition: transform 0.1s, background 0.1s, border-color 0.2s;
         }
 
-        /* Красный стиль для стрелок из "Точности" */
         .edge-btn.nudge-btn {
             background: var(--primary); 
             border: none;
@@ -136,7 +148,7 @@
         .active-target .edge-btn { border-color: var(--primary); background: #4D2626; }
         .active-target .edge-btn svg { stroke: var(--primary); }
 
-        /* Позиционирование контейнеров */
+        /* Позиционирование контейнеров со смещением для скрытия */
         .p-top-left { 
             position: absolute; 
             top: max(8px, env(safe-area-inset-top)); 
@@ -144,6 +156,7 @@
             display: flex;
             flex-direction: column;
         }
+        .ui-hidden .p-top-left .edge-btn-container { transform: translate(-80px, -80px); }
         
         .p-top-center { 
             position: absolute; 
@@ -153,12 +166,19 @@
             display: flex;
             flex-direction: row;
         }
+        .ui-hidden .p-top-center .edge-btn-container { transform: translateY(-80px); }
 
         .p-top-right { position: absolute; top: max(8px, env(safe-area-inset-top)); right: max(8px, env(safe-area-inset-right)); }
+        .ui-hidden .p-top-right { transform: translate(80px, -80px); }
+
         .p-mid-left { position: absolute; top: 50%; left: max(8px, env(safe-area-inset-left)); transform: translateY(-50%); }
+        .ui-hidden .p-mid-left { transform: translate(-80px, -50%); }
+
         .p-mid-right { position: absolute; top: 50%; right: max(8px, env(safe-area-inset-right)); transform: translateY(-50%); }
+        .ui-hidden .p-mid-right { transform: translate(80px, -50%); }
+
         .p-bottom-left { position: absolute; bottom: max(12px, env(safe-area-inset-bottom)); left: max(8px, env(safe-area-inset-left)); }
-        .p-bottom-right { position: absolute; bottom: max(12px, env(safe-area-inset-bottom)); right: max(8px, env(safe-area-inset-right)); }
+        .ui-hidden .p-bottom-left { transform: translate(-80px, 80px); }
         
         .p-bottom-center {
             position: absolute;
@@ -166,7 +186,11 @@
             left: 50%;
             transform: translateX(-50%);
         }
+        .ui-hidden .p-bottom-center { transform: translate(-50%, 80px); }
 
+        .p-bottom-right { position: absolute; bottom: max(12px, env(safe-area-inset-bottom)); right: max(8px, env(safe-area-inset-right)); }
+        .ui-hidden .p-bottom-right { transform: translate(80px, 80px); }
+        
         .active-btn { background-color: var(--primary) !important; color: white !important; }
         
         .target-indicator {
@@ -183,7 +207,9 @@
             z-index: 40;
             pointer-events: none;
             border: 1px solid #444;
+            transition: transform 0.4s ease, opacity 0.4s ease;
         }
+        .ui-hidden .target-indicator { transform: translateX(-100px); opacity: 0; }
         .target-indicator.user-mode { color: var(--primary); }
 
         .btn-disabled { opacity: 0.4; cursor: not-allowed !important; filter: grayscale(1); }
@@ -203,10 +229,10 @@
     </div>
 
     <div id="pivot-point"></div>
-    <div id="target-ui" class="target-indicator">Ожидание...</div>
+    <div id="target-ui" class="target-indicator ui-element">Ожидание...</div>
 
     <!-- Панель управления (режим Точности) -->
-    <div id="perimeter-panel" class="perimeter-panel">
+    <div id="perimeter-panel" class="perimeter-panel ui-element">
         
         <div class="p-top-left">
             <div class="edge-btn-container" onpointerdown="startNudge('r', -0.5)" onpointerup="stopNudge()" onpointerleave="stopNudge()">
@@ -279,7 +305,7 @@
         </div>
     </div>
 
-    <aside id="drawer" class="settings-drawer text-gray-800">
+    <aside id="drawer" class="settings-drawer text-gray-800 ui-element">
         <div class="drawer-handle" onclick="toggleDrawer()">
             <svg id="drawer-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
         </div>
@@ -365,6 +391,10 @@
     let activePointers = new Map();
     let nudgeInterval = null;
 
+    // Переменные для автоматического скрытия интерфейса
+    let idleTimer = null;
+    const IDLE_TIME = 10000; // 10 секунд
+
     const refEl = document.getElementById('ref-image');
     const userEl = document.getElementById('user-image');
     const pivotEl = document.getElementById('pivot-point');
@@ -376,8 +406,10 @@
     const autoStatusText = document.getElementById('auto-status-text');
     const targetLabel = document.getElementById('active-target-label');
     const targetPulse = document.getElementById('target-pulse');
+    const appContainer = document.getElementById('interaction-zone');
 
     function toggleDrawer() {
+        resetIdleTimer();
         drawer.classList.toggle('open');
         if (drawer.classList.contains('open')) syncSlidersToCurrentTarget();
     }
@@ -434,11 +466,13 @@
     }
 
     function toggleLink() {
+        resetIdleTimer();
         isLinked = !isLinked;
         document.getElementById('btn-link').classList.toggle('active-btn', isLinked);
     }
 
     function togglePrecision() {
+        resetIdleTimer();
         isPrecisionMode = !isPrecisionMode;
         document.getElementById('btn-precision').classList.toggle('active-btn', isPrecisionMode);
         perimeterPanel.style.display = isPrecisionMode ? 'block' : 'none';
@@ -447,6 +481,7 @@
     }
 
     function toggleUserVisibility() {
+        resetIdleTimer();
         isUserVisible = !isUserVisible;
         if (isUserVisible) {
             eyeIcon.innerHTML = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle>';
@@ -458,6 +493,7 @@
     }
 
     function toggleCustomPivot() {
+        resetIdleTimer();
         isCustomPivot = !isCustomPivot;
         updatePivotUI();
     }
@@ -507,6 +543,7 @@
     }
 
     function updateFilters() {
+        resetIdleTimer();
         const opValue = parseInt(document.getElementById('opacity-slider').value);
         const coValue = parseInt(document.getElementById('contrast-slider').value);
         const brValue = parseInt(document.getElementById('brightness-slider').value);
@@ -536,6 +573,7 @@
     }
 
     function startNudge(key, val) {
+        resetIdleTimer();
         stopNudge();
         const perform = () => {
             const targets = isLinked ? ['ref', 'user'] : [currentTarget];
@@ -563,9 +601,31 @@
 
     function stopNudge() { if (nudgeInterval) clearInterval(nudgeInterval); }
 
+    // Логика автоматического скрытия интерфейса
+    function showUI() {
+        appContainer.classList.remove('ui-hidden');
+        resetIdleTimer();
+    }
+
+    function hideUI() {
+        // Не скрываем, если открыто меню настроек
+        if (drawer.classList.contains('open')) return;
+        appContainer.classList.add('ui-hidden');
+    }
+
+    function resetIdleTimer() {
+        if (idleTimer) clearTimeout(idleTimer);
+        idleTimer = setTimeout(hideUI, IDLE_TIME);
+    }
+
     const zone = document.getElementById('interaction-zone');
+    
+    // Обработка любых взаимодействий для возврата интерфейса
     zone.addEventListener('pointerdown', e => {
+        showUI(); // Любое касание показывает UI
+
         if (e.target.closest('#drawer') || e.target.closest('.edge-btn-container') || e.target.closest('.drawer-handle')) return;
+        
         if (isPrecisionMode && isCustomPivot) {
             pivot = { x: e.clientX, y: e.clientY };
             updatePivotUI();
@@ -577,6 +637,8 @@
 
     zone.addEventListener('pointermove', e => {
         if (!activePointers.has(e.pointerId)) return;
+        showUI(); // Движение тоже сбрасывает таймер
+
         if (activePointers.get(e.pointerId) === 'pivot') {
             pivot = { x: e.clientX, y: e.clientY };
             updatePivotUI();
@@ -596,6 +658,7 @@
     zone.addEventListener('pointercancel', e => activePointers.delete(e.pointerId));
 
     function toggleGrid() {
+        resetIdleTimer();
         const isHidden = document.getElementById('grid-overlay').classList.toggle('hidden');
         document.getElementById('btn-grid-toggle-main').classList.toggle('active-target', !isHidden);
         if (!isHidden) drawGrid();
@@ -619,6 +682,7 @@
     }
 
     function resetAll() {
+        resetIdleTimer();
         if (refEl.src) fitImageToScreen(refEl, 'ref');
         if (userEl.src) fitImageToScreen(userEl, 'user');
         states.ref.contrast = 100; states.ref.brightness = 100;
@@ -627,7 +691,12 @@
         applyFiltersToElements();
     }
 
-    window.addEventListener('load', () => { drawGrid(); applyTransforms(); updateTargetUI(); });
+    window.addEventListener('load', () => { 
+        drawGrid(); 
+        applyTransforms(); 
+        updateTargetUI(); 
+        resetIdleTimer(); // Запуск таймера при загрузке
+    });
     window.addEventListener('resize', () => { drawGrid(); applyTransforms(); });
 </script>
 </body>
