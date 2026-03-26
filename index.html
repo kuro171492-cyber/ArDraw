@@ -9,7 +9,6 @@
         :root {
             --primary: #FF5F5F;
             --bg-dark: #111;
-            --nudge-bg: rgba(255, 95, 95, 0.4); /* Полупрозрачный красный для стрелок */
         }
         body {
             background-color: var(--bg-dark);
@@ -111,37 +110,32 @@
             display: none;
         }
         
-        /* Базовый стиль кнопки */
         .edge-btn {
             width: 48px;
             height: 48px;
-            background: rgba(30, 30, 30, 0.9);
+            background: #2A2A2A; 
             border-radius: 12px;
             display: flex;
             align-items: center;
             justify-content: center;
             cursor: pointer;
             pointer-events: auto;
-            border: 1px solid rgba(255,255,255,0.1);
-            backdrop-filter: blur(10px);
+            border: 1px solid #555;
             transition: transform 0.1s, background 0.1s, border-color 0.2s;
             -webkit-tap-highlight-color: transparent;
         }
 
-        /* Выделенный стиль для кнопок движения (стрелок) */
+        /* Стиль для стрелок: такой же цвет, как у кнопки Precision */
         .edge-btn.nudge-btn {
-            background: var(--nudge-bg);
-            border-color: rgba(255, 95, 95, 0.5);
-        }
-        .edge-btn.nudge-btn svg {
-            stroke: #fff;
-            filter: drop-shadow(0 0 2px rgba(0,0,0,0.5));
+            background: var(--primary); 
+            border: none;
+            box-shadow: 0 4px 12px rgba(255, 95, 95, 0.3);
         }
 
-        .edge-btn:active { transform: scale(0.95); background: var(--primary); }
+        .edge-btn:active { transform: scale(0.9); opacity: 0.8; }
         .edge-btn svg { width: 24px; height: 24px; stroke: white; fill: none; stroke-width: 2.5; }
         
-        .edge-btn.active-target { border-color: var(--primary); background: rgba(255, 95, 95, 0.3); }
+        .edge-btn.active-target { border-color: var(--primary); background: #4D2626; }
         .edge-btn.active-target svg { stroke: var(--primary); }
 
         .p-top-left { 
@@ -192,7 +186,7 @@
             position: absolute;
             bottom: 20px;
             left: 20px;
-            background: rgba(0,0,0,0.6);
+            background: #222;
             padding: 8px 12px;
             border-radius: 20px;
             font-size: 10px;
@@ -201,8 +195,7 @@
             letter-spacing: 1px;
             z-index: 40;
             pointer-events: none;
-            border: 1px solid rgba(255,255,255,0.2);
-            backdrop-filter: blur(5px);
+            border: 1px solid #444;
         }
         .target-indicator.ref-mode { color: #fff; }
         .target-indicator.user-mode { color: var(--primary); }
@@ -230,74 +223,57 @@
     <div id="pivot-point"></div>
     <div id="target-ui" class="target-indicator">Ожидание...</div>
 
-    <!-- ПАНЕЛЬ ТОЧНОГО ПЕРЕМЕЩЕНИЯ -->
     <div id="perimeter-panel" class="perimeter-panel">
         <div class="p-top-left">
-            <!-- Свртете лево -->
             <div class="edge-btn nudge-btn" onpointerdown="startNudge('r', -0.5)" onpointerup="stopNudge()" onpointerleave="stopNudge()">
                 <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
             </div>
-            <!-- Мрежа -->
             <div id="btn-grid-toggle-main" class="edge-btn" onclick="toggleGrid()">
                 <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg>
             </div>
         </div>
         
         <div class="p-top-center">
-            <!-- Видливост (Глазиќ) -->
             <div id="btn-visibility-toggle" class="edge-btn" onclick="toggleUserVisibility()">
                 <svg id="eye-icon" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
                     <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
                     <circle cx="12" cy="12" r="3"></circle>
                 </svg>
             </div>
-            <!-- Нагоре -->
             <div class="edge-btn nudge-btn" onpointerdown="startNudge('y', -2)" onpointerup="stopNudge()" onpointerleave="stopNudge()">
                 <svg viewBox="0 0 24 24"><path d="m18 15-6-6-6 6"/></svg>
             </div>
-            <!-- Пивот -->
             <div id="btn-pivot-toggle" class="edge-btn active-target" onclick="toggleCustomPivot()">
                 <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 2v20M2 12h20"/></svg>
             </div>
         </div>
 
-        <!-- Свртете десно -->
         <div class="edge-btn nudge-btn p-top-right" onpointerdown="startNudge('r', 0.5)" onpointerup="stopNudge()" onpointerleave="stopNudge()">
             <svg viewBox="0 0 24 24" style="transform: scaleX(-1)"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
         </div>
 
-        <!-- Влево -->
         <div class="edge-btn nudge-btn p-mid-left" onpointerdown="startNudge('x', -2)" onpointerup="stopNudge()" onpointerleave="stopNudge()">
             <svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg>
         </div>
-        <!-- Вправо -->
         <div class="edge-btn nudge-btn p-mid-right" onpointerdown="startNudge('x', 2)" onpointerup="stopNudge()" onpointerleave="stopNudge()">
             <svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
         </div>
 
-        <!-- Уменьшить -->
-        <div class="edge-btn nudge-btn p-bottom-left" onpointerdown="startNudge('s', 0.995)" onpointerup="stopNudge()" onpointerleave="stopNudge()">
-            <svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg>
-        </div>
-        <!-- Намали -->
         <div class="edge-btn nudge-btn p-bottom-left" onpointerdown="startNudge('s', 0.995)" onpointerup="stopNudge()" onpointerleave="stopNudge()">
             <svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg>
         </div>
         
         <div class="p-bottom-center">
-            <!-- Надолу -->
             <div class="edge-btn nudge-btn" onpointerdown="startNudge('y', 2)" onpointerup="stopNudge()" onpointerleave="stopNudge()">
                 <svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
             </div>
         </div>
 
-        <!-- Зголеми -->
         <div class="edge-btn nudge-btn p-bottom-right" onpointerdown="startNudge('s', 1.005)" onpointerup="stopNudge()" onpointerleave="stopNudge()">
             <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
         </div>
     </div>
 
-    <!-- МЕНЮ НАСТРОЕК (БЕЗ ИЗМЕНЕНИЙ) -->
     <aside id="drawer" class="settings-drawer text-gray-800">
         <div class="drawer-handle" onclick="toggleDrawer()">
             <svg id="drawer-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
