@@ -200,7 +200,6 @@
             backdrop-filter: blur(5px);
         }
 
-        /* Стили для заблокированной кнопки */
         .btn-disabled {
             opacity: 0.4;
             cursor: not-allowed !important;
@@ -213,8 +212,8 @@
 <div class="app-container" id="interaction-zone">
     <div class="canvas-area">
         <div id="placeholder" class="text-gray-500 text-center pointer-events-none px-6 w-full">
-            <p class="text-xl font-bold mb-2">ArtRef</p>
-            <p class="text-xs opacity-70 uppercase tracking-widest">Шаг 1: Загрузите Референс</p>
+            <p class="text-xl font-bold mb-2 text-white">ArtRef</p>
+            <p class="text-xs opacity-70 uppercase tracking-widest text-red-400">Шаг 1: Загрузите Референс</p>
         </div>
         <img id="ref-image" class="img-layer" alt="Ref">
         <img id="user-image" class="img-layer" alt="User">
@@ -222,12 +221,12 @@
     </div>
 
     <div id="pivot-point"></div>
-    <div id="target-ui" class="target-indicator">Ожидание референса...</div>
+    <div id="target-ui" class="target-indicator">Ожидание...</div>
 
     <!-- ПАНЕЛЬ ТОЧНОГО ПЕРЕМЕЩЕНИЯ -->
     <div id="perimeter-panel" class="perimeter-panel">
         <div class="p-top-left">
-            <div class="edge-btn" onpointerdown="startNudge('r', -0.5)" onpointerup="stopNudge()">
+            <div class="edge-btn" onpointerdown="startNudge('r', -0.5)" onpointerup="stopNudge()" onpointerleave="stopNudge()">
                 <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
             </div>
             <div id="btn-grid-toggle-main" class="edge-btn" onclick="toggleGrid()">
@@ -236,29 +235,29 @@
         </div>
         
         <div class="p-top-center">
-            <div class="edge-btn" onpointerdown="startNudge('y', -2)" onpointerup="stopNudge()">
+            <div class="edge-btn" onpointerdown="startNudge('y', -2)" onpointerup="stopNudge()" onpointerleave="stopNudge()">
                 <svg viewBox="0 0 24 24"><path d="m18 15-6-6-6 6"/></svg>
             </div>
             <div id="btn-visibility-toggle" class="edge-btn" onclick="toggleUserVisibility()">
-                <svg id="eye-icon" viewBox="0 0 24 24">
+                <svg id="eye-icon" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
                     <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
                     <circle cx="12" cy="12" r="3"></circle>
                 </svg>
             </div>
         </div>
 
-        <div class="edge-btn p-top-right" onpointerdown="startNudge('r', 0.5)" onpointerup="stopNudge()">
+        <div class="edge-btn p-top-right" onpointerdown="startNudge('r', 0.5)" onpointerup="stopNudge()" onpointerleave="stopNudge()">
             <svg viewBox="0 0 24 24" style="transform: scaleX(-1)"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
         </div>
 
-        <div class="edge-btn p-mid-left" onpointerdown="startNudge('x', -2)" onpointerup="stopNudge()">
+        <div class="edge-btn p-mid-left" onpointerdown="startNudge('x', -2)" onpointerup="stopNudge()" onpointerleave="stopNudge()">
             <svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg>
         </div>
-        <div class="edge-btn p-mid-right" onpointerdown="startNudge('x', 2)" onpointerup="stopNudge()">
+        <div class="edge-btn p-mid-right" onpointerdown="startNudge('x', 2)" onpointerup="stopNudge()" onpointerleave="stopNudge()">
             <svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
         </div>
 
-        <div class="edge-btn p-bottom-left" onpointerdown="startNudge('s', 0.995)" onpointerup="stopNudge()">
+        <div class="edge-btn p-bottom-left" onpointerdown="startNudge('s', 0.995)" onpointerup="stopNudge()" onpointerleave="stopNudge()">
             <svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg>
         </div>
         
@@ -266,39 +265,40 @@
             <div id="btn-pivot-toggle" class="edge-btn active-target" onclick="toggleCustomPivot()">
                 <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 2v20M2 12h20"/></svg>
             </div>
-            <div class="edge-btn" onpointerdown="startNudge('y', 2)" onpointerup="stopNudge()">
+            <div class="edge-btn" onpointerdown="startNudge('y', 2)" onpointerup="stopNudge()" onpointerleave="stopNudge()">
                 <svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
             </div>
         </div>
 
-        <div class="edge-btn p-bottom-right" onpointerdown="startNudge('s', 1.005)" onpointerup="stopNudge()">
+        <div class="edge-btn p-bottom-right" onpointerdown="startNudge('s', 1.005)" onpointerup="stopNudge()" onpointerleave="stopNudge()">
             <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
         </div>
     </div>
 
     <!-- МЕНЮ НАСТРОЕК -->
-    <aside id="drawer" class="settings-drawer">
+    <aside id="drawer" class="settings-drawer text-gray-800">
         <div class="drawer-handle" onclick="toggleDrawer()">
             <svg id="drawer-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
         </div>
         <div class="p-6 h-full overflow-y-auto space-y-6">
-            <h2 class="text-xl font-bold border-b pb-2 text-gray-800">Настройки</h2>
+            <div class="flex items-center justify-between border-b pb-2">
+                <h2 class="text-xl font-bold text-gray-800">Настройки</h2>
+                <span id="auto-status" class="text-[9px] bg-green-100 text-green-600 px-2 py-0.5 rounded-full font-bold uppercase">Авто-фокус</span>
+            </div>
             
             <div class="space-y-2">
                 <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Управление слоями</label>
                 <div class="flex bg-gray-100 p-1 rounded-xl">
-                    <button onclick="setControlTarget('user')" id="target-user" class="flex-1 py-2 text-[10px] font-bold uppercase rounded-lg active-btn transition-colors">Рисунок</button>
-                    <button onclick="setControlTarget('ref')" id="target-ref" class="flex-1 py-2 text-[10px] font-bold uppercase rounded-lg transition-colors">Референс</button>
+                    <button onclick="manualSetTarget('user')" id="target-user" class="flex-1 py-2 text-[10px] font-bold uppercase rounded-lg active-btn transition-colors">Рисунок</button>
+                    <button onclick="manualSetTarget('ref')" id="target-ref" class="flex-1 py-2 text-[10px] font-bold uppercase rounded-lg transition-colors">Референс</button>
                 </div>
             </div>
 
             <div class="space-y-2">
                 <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Загрузка</label>
                 <div class="grid grid-cols-2 gap-2">
-                    <!-- Всегда активна -->
-                    <button onclick="document.getElementById('ref-input').click()" class="py-3 px-2 border-2 rounded-xl text-[10px] font-bold uppercase text-gray-700">Референс</button>
-                    <!-- Заблокирована по умолчанию -->
-                    <button id="btn-user-load" onclick="triggerUserLoad()" class="py-3 px-2 border-2 rounded-xl text-[10px] font-bold uppercase text-gray-700 btn-disabled">Рисунок</button>
+                    <button onclick="document.getElementById('ref-input').click()" class="py-3 px-2 border-2 border-gray-100 rounded-xl text-[10px] font-bold uppercase text-gray-700 hover:bg-gray-50">Референс</button>
+                    <button id="btn-user-load" onclick="triggerUserLoad()" class="py-3 px-2 border-2 border-gray-100 rounded-xl text-[10px] font-bold uppercase text-gray-700 btn-disabled">Рисунок</button>
                 </div>
                 <input type="file" id="ref-input" class="hidden" accept="image/*" onchange="loadFile(this, 'ref-image')">
                 <input type="file" id="user-input" class="hidden" accept="image/*" onchange="loadFile(this, 'user-image')">
@@ -374,12 +374,13 @@
         user: { x: window.innerWidth/2, y: window.innerHeight/2, s: 1, r: 0 }
     };
     
-    let currentTarget = 'user'; 
+    let currentTarget = 'ref'; 
     let isLinked = false;
     let isPrecisionMode = false;
     let isCustomPivot = true; 
     let isUserVisible = true;
-    let isRefLoaded = false; // Флаг состояния загрузки референса
+    let isRefLoaded = false;
+    let isUserLoaded = false;
     let gridStrokeColor = 'rgba(255,255,255,0.3)';
     
     let pivot = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
@@ -399,18 +400,41 @@
         drawer.classList.toggle('open');
     }
 
-    // Обработка нажатия на кнопку Рисунок
     function triggerUserLoad() {
-        if (!isRefLoaded) return; // Если реф не загружен, ничего не делаем
+        if (!isRefLoaded) return;
         document.getElementById('user-input').click();
     }
 
-    function setControlTarget(target) {
-        if (target === 'user' && !isRefLoaded) return;
+    // Вспомогательная функция для обновления UI кнопок выбора
+    function updateTargetUI() {
+        document.getElementById('target-user').classList.toggle('active-btn', currentTarget === 'user');
+        document.getElementById('target-ref').classList.toggle('active-btn', currentTarget === 'ref');
+        targetIndicator.innerText = `Слой: ${currentTarget === 'user' ? 'Рисунок' : 'Референс'}`;
+    }
+
+    // Логика автоматического переключения
+    function checkAutoTarget() {
+        // Если рисунок не загружен, всегда реф
+        if (!isUserLoaded) {
+            currentTarget = 'ref';
+        } else {
+            const opacity = parseInt(document.getElementById('opacity-slider').value);
+            // Если рисунок скрыт глазиком ИЛИ прозрачность 0 -> режим Референс
+            if (!isUserVisible || opacity === 0) {
+                currentTarget = 'ref';
+            } else {
+                // В остальных случаях -> режим Рисунок
+                currentTarget = 'user';
+            }
+        }
+        updateTargetUI();
+    }
+
+    // Ручное переключение (если пользователь все же нажал кнопку)
+    function manualSetTarget(target) {
+        if (target === 'user' && !isUserLoaded) return;
         currentTarget = target;
-        document.getElementById('target-user').classList.toggle('active-btn', target === 'user');
-        document.getElementById('target-ref').classList.toggle('active-btn', target === 'ref');
-        targetIndicator.innerText = `Слой: ${target === 'user' ? 'Рисунок' : 'Референс'}`;
+        updateTargetUI();
     }
 
     function toggleLink() {
@@ -428,15 +452,19 @@
     function toggleUserVisibility() {
         isUserVisible = !isUserVisible;
         const btn = document.getElementById('btn-visibility-toggle');
+        const opacityVal = document.getElementById('opacity-slider').value;
+
         if (isUserVisible) {
             btn.classList.remove('hidden-state');
-            userEl.style.opacity = document.getElementById('opacity-slider').value / 100;
+            userEl.style.opacity = opacityVal / 100;
             eyeIcon.innerHTML = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle>';
         } else {
             btn.classList.add('hidden-state');
             userEl.style.opacity = '0';
             eyeIcon.innerHTML = '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line>';
         }
+        
+        checkAutoTarget(); // Вызов авто-фокуса
     }
 
     function toggleCustomPivot() {
@@ -461,18 +489,10 @@
         const screenH = window.innerHeight;
         const imgW = img.naturalWidth;
         const imgH = img.naturalHeight;
-
         const ratioW = screenW / imgW;
         const ratioH = screenH / imgH;
-        
         const scale = Math.min(ratioW, ratioH) * 0.9;
-
-        states[key] = {
-            x: screenW / 2,
-            y: screenH / 2,
-            s: scale,
-            r: 0
-        };
+        states[key] = { x: screenW / 2, y: screenH / 2, s: scale, r: 0 };
         applyTransforms();
     }
 
@@ -489,14 +509,18 @@
                     fitImageToScreen(img, key);
                     
                     const pl = document.getElementById('placeholder');
-                    if (pl) pl.style.display = 'none';
-
-                    // Если загружен референс — разблокируем функционал
                     if (id === 'ref-image') {
                         isRefLoaded = true;
+                        if (pl) pl.querySelector('p:nth-child(2)').innerText = "Шаг 2: Загрузите Рисунок";
                         userLoadBtn.classList.remove('btn-disabled');
-                        targetIndicator.innerText = `Слой: Рисунок`;
-                        setControlTarget('user');
+                        
+                        // ПРАВИЛО: При загрузке референса - включаем режим Референс
+                        currentTarget = 'ref';
+                        updateTargetUI();
+                    } else {
+                        isUserLoaded = true;
+                        if (pl) pl.style.display = 'none';
+                        checkAutoTarget(); // Проверяем надобность переключения при загрузке рисунка
                     }
                 };
             };
@@ -508,7 +532,6 @@
         const opacityEl = document.getElementById('opacity-slider');
         const contrastEl = document.getElementById('contrast-slider');
         const brightnessEl = document.getElementById('brightness-slider');
-        if (!opacityEl || !contrastEl || !brightnessEl) return;
 
         document.getElementById('opacity-val').innerText = opacityEl.value + '%';
         document.getElementById('contrast-val').innerText = contrastEl.value + '%';
@@ -517,6 +540,9 @@
         let filterString = `contrast(${contrastEl.value}%) brightness(${brightnessEl.value}%)`;
         if (isUserVisible) userEl.style.opacity = opacityEl.value / 100;
         userEl.style.filter = filterString;
+
+        // ПРАВИЛО: Проверяем авто-фокус при изменении прозрачности
+        checkAutoTarget();
     }
 
     function setGridColor(dot, color) {
@@ -541,17 +567,17 @@
             const targets = isLinked ? ['ref', 'user'] : [currentTarget];
             const activePivotX = (isPrecisionMode && isCustomPivot) ? pivot.x : window.innerWidth/2;
             const activePivotY = (isPrecisionMode && isCustomPivot) ? pivot.y : window.innerHeight/2;
+            
             targets.forEach(t => {
                 const s = states[t];
                 if (key === 'x') s.x += val;
                 if (key === 'y') s.y += val;
                 if (key === 'r') {
-                    if (t === 'ref') return;
                     const dx = s.x - activePivotX, dy = s.y - activePivotY;
-                    const angle = Math.atan2(dy, dx) + (val * Math.PI / 180);
-                    const dist = Math.hypot(dx, dy);
-                    s.x = activePivotX + dist * Math.cos(angle);
-                    s.y = activePivotY + dist * Math.sin(angle);
+                    const rad = val * Math.PI / 180;
+                    const cos = Math.cos(rad), sin = Math.sin(rad);
+                    s.x = activePivotX + (dx * cos - dy * sin);
+                    s.y = activePivotY + (dx * sin + dy * cos);
                     s.r += val;
                 }
                 if (key === 's') {
@@ -622,14 +648,12 @@
                 s.y = midY + (s.y - midY) * sFact;
                 s.s *= sFact; 
                 
-                if (t === 'user') {
-                    const dx = s.x - midX, dy = s.y - midY;
-                    const rad = aDiff * Math.PI / 180;
-                    const cos = Math.cos(rad), sin = Math.sin(rad);
-                    s.x = midX + (dx * cos - dy * sin);
-                    s.y = midY + (dx * sin + dy * cos);
-                    s.r += aDiff;
-                }
+                const dx = s.x - midX, dy = s.y - midY;
+                const rad = aDiff * Math.PI / 180;
+                const cos = Math.cos(rad), sin = Math.sin(rad);
+                s.x = midX + (dx * cos - dy * sin);
+                s.y = midY + (dx * sin + dy * cos);
+                s.r += aDiff;
             });
             initialDist = dist; initialAngle = angle;
         }
@@ -648,7 +672,8 @@
     }
 
     function drawGrid() {
-        const size = document.getElementById('grid-size').value;
+        const sizeInput = document.getElementById('grid-size');
+        const size = sizeInput ? sizeInput.value : 10;
         const svg = document.getElementById('grid-overlay');
         const w = window.innerWidth, h = window.innerHeight;
         svg.innerHTML = '';
@@ -656,13 +681,15 @@
         for(let x=0; x<=w; x+=step) {
             const l = document.createElementNS("http://www.w3.org/2000/svg", "line");
             l.setAttribute("x1", x); l.setAttribute("y1", 0); l.setAttribute("x2", x); l.setAttribute("y2", h);
-            l.setAttribute("class", "grid-line"); l.style.stroke = gridStrokeColor;
+            l.setAttribute("stroke", gridStrokeColor);
+            l.setAttribute("stroke-width", "1");
             svg.appendChild(l);
         }
         for(let y=0; y<=h; y+=step) {
             const l = document.createElementNS("http://www.w3.org/2000/svg", "line");
             l.setAttribute("x1", 0); l.setAttribute("y1", y); l.setAttribute("x2", w); l.setAttribute("y2", y);
-            l.setAttribute("class", "grid-line"); l.style.stroke = gridStrokeColor;
+            l.setAttribute("stroke", gridStrokeColor);
+            l.setAttribute("stroke-width", "1");
             svg.appendChild(l);
         }
     }
@@ -670,7 +697,6 @@
     function resetAll() {
         if (refEl.src) fitImageToScreen(refEl, 'ref');
         if (userEl.src) fitImageToScreen(userEl, 'user');
-        
         document.getElementById('opacity-slider').value = 80;
         document.getElementById('contrast-slider').value = 100;
         document.getElementById('brightness-slider').value = 100;
@@ -678,7 +704,7 @@
         applyTransforms();
     }
 
-    window.addEventListener('load', () => { drawGrid(); applyTransforms(); });
+    window.addEventListener('load', () => { drawGrid(); applyTransforms(); updateTargetUI(); });
     window.addEventListener('resize', () => { drawGrid(); applyTransforms(); });
 </script>
 </body>
