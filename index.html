@@ -243,7 +243,7 @@
     <div class="canvas-area">
         <div id="placeholder" class="text-gray-500 text-center pointer-events-none px-6 w-full">
             <p class="text-xl font-bold mb-2 text-white">ArtRef</p>
-            <p class="text-xs opacity-70 uppercase tracking-widest text-red-400">Шаг 1: Загрузите Референс</p>
+            <p class="text-xs opacity-70 uppercase tracking-widest text-red-400">tab to open</p>
         </div>
         <img id="ref-image" class="img-layer" alt="Ref">
         <img id="user-image" class="img-layer" alt="User">
@@ -476,8 +476,8 @@
     function applyCrop() {
         const rect = cropImg.getBoundingClientRect();
         const box = cropBox.getBoundingClientRect();
-        
-        // Относительные координаты
+
+        // Относительные координаты области кропа на превью
         const rx = (box.left - rect.left) / rect.width;
         const ry = (box.top - rect.top) / rect.height;
         const rw = box.width / rect.width;
@@ -486,20 +486,30 @@
         const canvas = document.createElement('canvas');
         const tempImg = new Image();
         tempImg.onload = () => {
-            canvas.width = tempImg.width * rw;
-            canvas.height = tempImg.height * rh;
+            const sx = Math.round(tempImg.width * rx);
+            const sy = Math.round(tempImg.height * ry);
+            const sw = Math.round(tempImg.width * rw);
+            const sh = Math.round(tempImg.height * rh);
+
+            canvas.width = sw;
+            canvas.height = sh;
+
             const ctx = canvas.getContext('2d');
-            ctx.drawImage(tempImg, tempImg.width * rx, tempImg.height * ry, tempImg.width * rw, tempImg.height * rh, 0, 0, canvas.width, canvas.height);
-            
-            refEl.src = canvas.toDataURL('image/jpeg', 0.85);
+            ctx.drawImage(tempImg, sx, sy, sw, sh, 0, 0, sw, sh);
+
+            refEl.onload = () => {
+                fitImageToScreen(refEl, 'ref');
+                refEl.onload = null;
+            };
+            refEl.src = canvas.toDataURL('image/jpeg', 0.92);
             refEl.style.display = 'block';
             isRefLoaded = true;
             userLoadBtn.classList.remove('btn-disabled');
-            
-            fitImageToScreen(refEl, 'ref');
+
             checkAutoTarget();
             saveToStorage();
             cropModal.style.display = 'none';
+            document.getElementById('ref-input').value = '';
         };
         tempImg.src = originalFileSrc;
     }
