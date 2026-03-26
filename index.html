@@ -55,12 +55,12 @@
         #ref-image { z-index: 2; }
         #user-image { z-index: 3; }
 
-        /* Настройки скрытия интерфейса */
+        /* Анимации скрытия интерфейса */
         .ui-element {
             transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.5s ease;
         }
         
-        /* Специальный класс для скрытия группы элементов */
+        /* Состояние скрытого интерфейса */
         .ui-hidden-state .hide-on-idle {
             opacity: 0;
             pointer-events: none !important;
@@ -79,7 +79,6 @@
         @media (max-width: 640px) { .settings-drawer { width: 85%; } }
         .settings-drawer.open { transform: translateX(0); }
         
-        /* Скрытие основного блока настроек, но НЕ ручки */
         .ui-hidden-state .settings-drawer:not(.open) { transform: translateX(100%); }
 
         .drawer-handle {
@@ -91,9 +90,8 @@
             box-shadow: -2px 0 10px rgba(0,0,0,0.1);
             pointer-events: auto;
             transition: transform 0.3s ease, opacity 0.3s ease;
-            z-index: 101; /* Поверх всего */
+            z-index: 101;
         }
-        /* Ручка ВСЕГДА доступна, поэтому здесь нет стилей для .ui-hidden-state */
 
         #pivot-point {
             position: absolute;
@@ -112,7 +110,7 @@
             top: 0; left: 0; width: 100%; height: 100%;
             pointer-events: none;
             z-index: 50;
-            display: none;
+            display: block; /* Всегда включен */
         }
         
         .edge-btn-container {
@@ -151,24 +149,11 @@
         .active-target .edge-btn { border-color: var(--primary); background: #4D2626; }
         .active-target .edge-btn svg { stroke: var(--primary); }
 
-        /* Позиционирование контейнеров со смещением для скрытия */
-        .p-top-left { 
-            position: absolute; 
-            top: max(8px, env(safe-area-inset-top)); 
-            left: max(8px, env(safe-area-inset-left)); 
-            display: flex;
-            flex-direction: column;
-        }
+        /* Позиционирование кнопок с логикой вылета */
+        .p-top-left { position: absolute; top: max(8px, env(safe-area-inset-top)); left: max(8px, env(safe-area-inset-left)); display: flex; flex-direction: column; }
         .ui-hidden-state .p-top-left .edge-btn-container { transform: translate(-80px, -80px); }
         
-        .p-top-center { 
-            position: absolute; 
-            top: max(8px, env(safe-area-inset-top)); 
-            left: 50%; 
-            transform: translateX(-50%); 
-            display: flex;
-            flex-direction: row;
-        }
+        .p-top-center { position: absolute; top: max(8px, env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); display: flex; flex-direction: row; }
         .ui-hidden-state .p-top-center .edge-btn-container { transform: translateY(-80px); }
 
         .p-top-right { position: absolute; top: max(8px, env(safe-area-inset-top)); right: max(8px, env(safe-area-inset-right)); }
@@ -183,18 +168,11 @@
         .p-bottom-left { position: absolute; bottom: max(12px, env(safe-area-inset-bottom)); left: max(8px, env(safe-area-inset-left)); }
         .ui-hidden-state .p-bottom-left { transform: translate(-80px, 80px); }
         
-        .p-bottom-center {
-            position: absolute;
-            bottom: max(12px, env(safe-area-inset-bottom));
-            left: 50%;
-            transform: translateX(-50%);
-        }
+        .p-bottom-center { position: absolute; bottom: max(12px, env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); }
         .ui-hidden-state .p-bottom-center { transform: translate(-50%, 80px); }
 
         .p-bottom-right { position: absolute; bottom: max(12px, env(safe-area-inset-bottom)); right: max(8px, env(safe-area-inset-right)); }
         .ui-hidden-state .p-bottom-right { transform: translate(80px, 80px); }
-        
-        .active-btn { background-color: var(--primary) !important; color: white !important; }
         
         .target-indicator {
             position: absolute;
@@ -216,6 +194,7 @@
         .target-indicator.user-mode { color: var(--primary); }
 
         .btn-disabled { opacity: 0.4; cursor: not-allowed !important; filter: grayscale(1); }
+        .active-btn { background-color: var(--primary) !important; color: white !important; }
     </style>
 </head>
 <body oncontextmenu="return false;">
@@ -232,10 +211,9 @@
     </div>
 
     <div id="pivot-point"></div>
-    <!-- Добавлен класс hide-on-idle для элементов, которые должны исчезать -->
     <div id="target-ui" class="target-indicator ui-element hide-on-idle">Ожидание...</div>
 
-    <!-- Панель управления (режим Точности) -->
+    <!-- Режим точности теперь включен всегда -->
     <div id="perimeter-panel" class="perimeter-panel ui-element hide-on-idle">
         
         <div class="p-top-left">
@@ -309,7 +287,6 @@
         </div>
     </div>
 
-    <!-- Ручка DrawerHandle вынесена отдельно или оставлена вне hide-on-idle -->
     <aside id="drawer" class="settings-drawer text-gray-800 ui-element">
         <div class="drawer-handle" onclick="toggleDrawer()">
             <svg id="drawer-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
@@ -317,9 +294,7 @@
         <div class="p-6 h-full overflow-y-auto space-y-6">
             <div class="flex items-center justify-between border-b pb-2">
                 <h2 class="text-xl font-bold text-gray-800">Настройки</h2>
-                <div class="flex flex-col items-end">
-                    <span id="auto-status-text" class="text-[10px] text-red-500 font-bold uppercase tracking-tighter">Ожидание</span>
-                </div>
+                <span id="auto-status-text" class="text-[10px] text-red-500 font-bold uppercase tracking-tighter">Ожидание</span>
             </div>
             
             <div class="space-y-2">
@@ -337,9 +312,10 @@
                     <svg class="mb-1" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
                     <span class="text-[9px] font-bold uppercase">Связка</span>
                 </button>
-                <button id="btn-precision" onclick="togglePrecision()" class="flex flex-col items-center py-3 bg-gray-100 rounded-xl transition-colors text-gray-700">
-                    <svg class="mb-1" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="m12 8 4 4-4 4"/></svg>
-                    <span class="text-[9px] font-bold uppercase">Точность</span>
+                <!-- Кнопка "Точность" удалена, так как режим включен постоянно -->
+                <button onclick="resetAll()" class="flex flex-col items-center py-3 bg-gray-100 rounded-xl transition-colors text-gray-700">
+                    <svg class="mb-1" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+                    <span class="text-[9px] font-bold uppercase">Сброс</span>
                 </button>
             </div>
 
@@ -370,8 +346,6 @@
                     </div>
                     <input type="range" id="brightness-slider" min="0" max="200" value="100" class="w-full accent-red-500" oninput="updateFilters()">
                 </div>
-
-                <button onclick="resetAll()" class="w-full py-3 text-red-500 font-bold text-[10px] border border-red-100 rounded-xl hover:bg-red-50 uppercase tracking-widest">Сброс положения</button>
             </div>
         </div>
     </aside>
@@ -385,7 +359,6 @@
     
     let currentTarget = 'ref'; 
     let isLinked = false;
-    let isPrecisionMode = false;
     let isCustomPivot = true; 
     let isUserVisible = true;
     let isRefLoaded = false;
@@ -396,9 +369,8 @@
     let activePointers = new Map();
     let nudgeInterval = null;
 
-    // Переменные для автоматического скрытия интерфейса
     let idleTimer = null;
-    const IDLE_TIME = 10000; // 10 секунд
+    const IDLE_TIME = 10000;
 
     const refEl = document.getElementById('ref-image');
     const userEl = document.getElementById('user-image');
@@ -434,11 +406,12 @@
         document.getElementById('contrast-val').innerText = s.contrast + '%';
         document.getElementById('brightness-val').innerText = s.brightness + '%';
 
-        document.getElementById('opacity-control').style.opacity = currentTarget === 'user' ? '1' : '0.4';
-        document.getElementById('opacity-control').style.pointerEvents = currentTarget === 'user' ? 'auto' : 'none';
+        const isUser = currentTarget === 'user';
+        document.getElementById('opacity-control').style.opacity = isUser ? '1' : '0.4';
+        document.getElementById('opacity-control').style.pointerEvents = isUser ? 'auto' : 'none';
 
-        targetLabel.innerText = currentTarget === 'user' ? 'Настройка рисунка' : 'Настройка референса';
-        targetPulse.className = `w-1.5 h-1.5 rounded-full animate-pulse ${currentTarget === 'user' ? 'bg-red-500' : 'bg-gray-400'}`;
+        targetLabel.innerText = isUser ? 'Настройка рисунка' : 'Настройка референса';
+        targetPulse.className = `w-1.5 h-1.5 rounded-full animate-pulse ${isUser ? 'bg-red-500' : 'bg-gray-400'}`;
     }
 
     function checkAutoTarget() {
@@ -454,6 +427,7 @@
             }
         }
         
+        // В режиме референса авто-центр вращения всегда экранный, если не выбран рисунок
         if (currentTarget === 'ref' && isCustomPivot) {
             isCustomPivot = false;
             updatePivotUI();
@@ -476,15 +450,6 @@
         document.getElementById('btn-link').classList.toggle('active-btn', isLinked);
     }
 
-    function togglePrecision() {
-        resetIdleTimer();
-        isPrecisionMode = !isPrecisionMode;
-        document.getElementById('btn-precision').classList.toggle('active-btn', isPrecisionMode);
-        perimeterPanel.style.display = isPrecisionMode ? 'block' : 'none';
-        if (isPrecisionMode && currentTarget === 'ref') isCustomPivot = false;
-        updatePivotUI();
-    }
-
     function toggleUserVisibility() {
         resetIdleTimer();
         isUserVisible = !isUserVisible;
@@ -504,7 +469,7 @@
     }
 
     function updatePivotUI() {
-        if (isPrecisionMode && isCustomPivot) {
+        if (isCustomPivot) {
             pivotEl.style.display = 'block';
             pivotEl.style.left = pivot.x + 'px';
             pivotEl.style.top = pivot.y + 'px';
@@ -582,8 +547,8 @@
         stopNudge();
         const perform = () => {
             const targets = isLinked ? ['ref', 'user'] : [currentTarget];
-            const px = (isPrecisionMode && isCustomPivot) ? pivot.x : window.innerWidth/2;
-            const py = (isPrecisionMode && isCustomPivot) ? pivot.y : window.innerHeight/2;
+            const px = isCustomPivot ? pivot.x : window.innerWidth/2;
+            const py = isCustomPivot ? pivot.y : window.innerHeight/2;
             targets.forEach(t => {
                 const s = states[t];
                 if (key === 'x') s.x += val;
@@ -606,14 +571,12 @@
 
     function stopNudge() { if (nudgeInterval) clearInterval(nudgeInterval); }
 
-    // Логика автоматического скрытия интерфейса
     function showUI() {
         appContainer.classList.remove('ui-hidden-state');
         resetIdleTimer();
     }
 
     function hideUI() {
-        // Не скрываем, если открыто меню настроек
         if (drawer.classList.contains('open')) return;
         appContainer.classList.add('ui-hidden-state');
     }
@@ -625,13 +588,11 @@
 
     const zone = document.getElementById('interaction-zone');
     
-    // Обработка любых взаимодействий для возврата интерфейса
     zone.addEventListener('pointerdown', e => {
-        showUI(); // Любое касание показывает UI
-
+        showUI();
         if (e.target.closest('#drawer') || e.target.closest('.edge-btn-container') || e.target.closest('.drawer-handle')) return;
         
-        if (isPrecisionMode && isCustomPivot) {
+        if (isCustomPivot) {
             pivot = { x: e.clientX, y: e.clientY };
             updatePivotUI();
             activePointers.set(e.pointerId, 'pivot');
@@ -642,7 +603,7 @@
 
     zone.addEventListener('pointermove', e => {
         if (!activePointers.has(e.pointerId)) return;
-        showUI(); // Движение тоже сбрасывает таймер
+        showUI();
 
         if (activePointers.get(e.pointerId) === 'pivot') {
             pivot = { x: e.clientX, y: e.clientY };
@@ -700,7 +661,8 @@
         drawGrid(); 
         applyTransforms(); 
         updateTargetUI(); 
-        resetIdleTimer(); // Запуск таймера при загрузке
+        resetIdleTimer();
+        updatePivotUI();
     });
     window.addEventListener('resize', () => { drawGrid(); applyTransforms(); });
 </script>
