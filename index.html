@@ -160,8 +160,8 @@
             left: 50%; 
             transform: translateX(-50%); 
             display: flex;
-            flex-direction: column;
-            gap: 10px;
+            flex-direction: row;
+            gap: 12px;
             align-items: center;
             pointer-events: none;
         }
@@ -233,31 +233,35 @@
     <!-- ПАНЕЛЬ ТОЧНОГО ПЕРЕМЕЩЕНИЯ -->
     <div id="perimeter-panel" class="perimeter-panel">
         <div class="p-top-left">
-            <!-- Поворот влево -->
+            <!-- Свртете лево -->
             <div class="edge-btn nudge-btn" onpointerdown="startNudge('r', -0.5)" onpointerup="stopNudge()" onpointerleave="stopNudge()">
                 <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
             </div>
-            <!-- Сетка (служебная) -->
+            <!-- Мрежа -->
             <div id="btn-grid-toggle-main" class="edge-btn" onclick="toggleGrid()">
                 <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg>
             </div>
         </div>
         
         <div class="p-top-center">
-            <!-- Вверх -->
-            <div class="edge-btn nudge-btn" onpointerdown="startNudge('y', -2)" onpointerup="stopNudge()" onpointerleave="stopNudge()">
-                <svg viewBox="0 0 24 24"><path d="m18 15-6-6-6 6"/></svg>
-            </div>
-            <!-- Видимость (служебная) -->
+            <!-- Видливост (Глазиќ) -->
             <div id="btn-visibility-toggle" class="edge-btn" onclick="toggleUserVisibility()">
                 <svg id="eye-icon" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
                     <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
                     <circle cx="12" cy="12" r="3"></circle>
                 </svg>
             </div>
+            <!-- Нагоре -->
+            <div class="edge-btn nudge-btn" onpointerdown="startNudge('y', -2)" onpointerup="stopNudge()" onpointerleave="stopNudge()">
+                <svg viewBox="0 0 24 24"><path d="m18 15-6-6-6 6"/></svg>
+            </div>
+            <!-- Пивот -->
+            <div id="btn-pivot-toggle" class="edge-btn active-target" onclick="toggleCustomPivot()">
+                <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 2v20M2 12h20"/></svg>
+            </div>
         </div>
 
-        <!-- Поворот вправо -->
+        <!-- Свртете десно -->
         <div class="edge-btn nudge-btn p-top-right" onpointerdown="startNudge('r', 0.5)" onpointerup="stopNudge()" onpointerleave="stopNudge()">
             <svg viewBox="0 0 24 24" style="transform: scaleX(-1)"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
         </div>
@@ -275,19 +279,19 @@
         <div class="edge-btn nudge-btn p-bottom-left" onpointerdown="startNudge('s', 0.995)" onpointerup="stopNudge()" onpointerleave="stopNudge()">
             <svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg>
         </div>
+        <!-- Намали -->
+        <div class="edge-btn nudge-btn p-bottom-left" onpointerdown="startNudge('s', 0.995)" onpointerup="stopNudge()" onpointerleave="stopNudge()">
+            <svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg>
+        </div>
         
         <div class="p-bottom-center">
-            <!-- Пивот (служебная) -->
-            <div id="btn-pivot-toggle" class="edge-btn active-target" onclick="toggleCustomPivot()">
-                <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 2v20M2 12h20"/></svg>
-            </div>
-            <!-- Вниз -->
+            <!-- Надолу -->
             <div class="edge-btn nudge-btn" onpointerdown="startNudge('y', 2)" onpointerup="stopNudge()" onpointerleave="stopNudge()">
                 <svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
             </div>
         </div>
 
-        <!-- Увеличить -->
+        <!-- Зголеми -->
         <div class="edge-btn nudge-btn p-bottom-right" onpointerdown="startNudge('s', 1.005)" onpointerup="stopNudge()" onpointerleave="stopNudge()">
             <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
         </div>
