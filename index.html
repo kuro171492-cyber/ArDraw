@@ -174,14 +174,6 @@
         }
 
         .active-btn { background-color: var(--primary) !important; color: white !important; }
-        .grid-line { stroke-width: 1; transition: stroke 0.2s; }
-
-        .color-dot {
-            width: 32px; height: 32px; border-radius: 50%; cursor: pointer;
-            border: 1px solid rgba(0,0,0,0.1); transition: transform 0.2s;
-            display: flex; align-items: center; justify-content: center;
-        }
-        .color-dot.active { border: 2px solid var(--primary); transform: scale(1.1); }
         
         .target-indicator {
             position: absolute;
@@ -199,12 +191,20 @@
             border: 1px solid rgba(255,255,255,0.2);
             backdrop-filter: blur(5px);
         }
+        .target-indicator.ref-mode { color: #fff; }
+        .target-indicator.user-mode { color: var(--primary); }
 
         .btn-disabled {
             opacity: 0.4;
             cursor: not-allowed !important;
             filter: grayscale(1);
         }
+        .color-dot {
+            width: 32px; height: 32px; border-radius: 50%; cursor: pointer;
+            border: 1px solid rgba(0,0,0,0.1); transition: transform 0.2s;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .color-dot.active { border: 2px solid var(--primary); transform: scale(1.1); }
     </style>
 </head>
 <body oncontextmenu="return false;">
@@ -283,17 +283,12 @@
         <div class="p-6 h-full overflow-y-auto space-y-6">
             <div class="flex items-center justify-between border-b pb-2">
                 <h2 class="text-xl font-bold text-gray-800">Настройки</h2>
-                <span id="auto-status" class="text-[9px] bg-green-100 text-green-600 px-2 py-0.5 rounded-full font-bold uppercase">Авто-фокус</span>
-            </div>
-            
-            <div class="space-y-2">
-                <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Управление слоями</label>
-                <div class="flex bg-gray-100 p-1 rounded-xl">
-                    <button onclick="manualSetTarget('user')" id="target-user" class="flex-1 py-2 text-[10px] font-bold uppercase rounded-lg active-btn transition-colors">Рисунок</button>
-                    <button onclick="manualSetTarget('ref')" id="target-ref" class="flex-1 py-2 text-[10px] font-bold uppercase rounded-lg transition-colors">Референс</button>
+                <div class="flex flex-col items-end">
+                    <span class="text-[8px] text-gray-400 uppercase font-bold">Фокус:</span>
+                    <span id="auto-status-text" class="text-[10px] text-red-500 font-bold uppercase tracking-tighter">Ожидание</span>
                 </div>
             </div>
-
+            
             <div class="space-y-2">
                 <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Загрузка</label>
                 <div class="grid grid-cols-2 gap-2">
@@ -316,8 +311,12 @@
             </div>
 
             <div class="space-y-4 border-t pt-4">
-                <label class="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Настройка Рисунка</label>
-                <div>
+                <div class="flex items-center gap-2">
+                    <label id="active-target-label" class="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Настройка Слой</label>
+                    <div id="target-pulse" class="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></div>
+                </div>
+
+                <div id="opacity-control">
                     <div class="flex justify-between items-center mb-1">
                         <span class="text-[10px] font-medium text-gray-400 uppercase">Прозрачность</span>
                         <span id="opacity-val" class="text-xs font-bold text-red-500">80%</span>
@@ -370,8 +369,8 @@
 
 <script>
     let states = {
-        ref: { x: window.innerWidth/2, y: window.innerHeight/2, s: 1, r: 0 },
-        user: { x: window.innerWidth/2, y: window.innerHeight/2, s: 1, r: 0 }
+        ref: { x: window.innerWidth/2, y: window.innerHeight/2, s: 1, r: 0, opacity: 1, contrast: 100, brightness: 100 },
+        user: { x: window.innerWidth/2, y: window.innerHeight/2, s: 1, r: 0, opacity: 0.8, contrast: 100, brightness: 100 }
     };
     
     let currentTarget = 'ref'; 
@@ -395,9 +394,15 @@
     const eyeIcon = document.getElementById('eye-icon');
     const targetIndicator = document.getElementById('target-ui');
     const userLoadBtn = document.getElementById('btn-user-load');
+    const autoStatusText = document.getElementById('auto-status-text');
+    const targetLabel = document.getElementById('active-target-label');
+    const targetPulse = document.getElementById('target-pulse');
 
     function toggleDrawer() {
         drawer.classList.toggle('open');
+        if (drawer.classList.contains('open')) {
+            syncSlidersToCurrentTarget();
+        }
     }
 
     function triggerUserLoad() {
@@ -405,36 +410,53 @@
         document.getElementById('user-input').click();
     }
 
-    // Вспомогательная функция для обновления UI кнопок выбора
-    function updateTargetUI() {
-        document.getElementById('target-user').classList.toggle('active-btn', currentTarget === 'user');
-        document.getElementById('target-ref').classList.toggle('active-btn', currentTarget === 'ref');
-        targetIndicator.innerText = `Слой: ${currentTarget === 'user' ? 'Рисунок' : 'Референс'}`;
+    function syncSlidersToCurrentTarget() {
+        const s = states[currentTarget];
+        document.getElementById('opacity-slider').value = s.opacity * 100;
+        document.getElementById('contrast-slider').value = s.contrast;
+        document.getElementById('brightness-slider').value = s.brightness;
+        
+        document.getElementById('opacity-val').innerText = Math.round(s.opacity * 100) + '%';
+        document.getElementById('contrast-val').innerText = s.contrast + '%';
+        document.getElementById('brightness-val').innerText = s.brightness + '%';
+
+        document.getElementById('opacity-control').style.opacity = currentTarget === 'user' ? '1' : '0.4';
+        document.getElementById('opacity-control').style.pointerEvents = currentTarget === 'user' ? 'auto' : 'none';
+
+        targetLabel.innerText = currentTarget === 'user' ? 'Настройка рисунка' : 'Настройка референса';
+        targetPulse.className = `w-1.5 h-1.5 rounded-full animate-pulse ${currentTarget === 'user' ? 'bg-red-500' : 'bg-gray-400'}`;
     }
 
-    // Логика автоматического переключения
     function checkAutoTarget() {
-        // Если рисунок не загружен, всегда реф
+        const prevTarget = currentTarget;
         if (!isUserLoaded) {
             currentTarget = 'ref';
         } else {
-            const opacity = parseInt(document.getElementById('opacity-slider').value);
-            // Если рисунок скрыт глазиком ИЛИ прозрачность 0 -> режим Референс
-            if (!isUserVisible || opacity === 0) {
+            const userOpacitySetting = states.user.opacity;
+            if (!isUserVisible || userOpacitySetting === 0) {
                 currentTarget = 'ref';
             } else {
-                // В остальных случаях -> режим Рисунок
                 currentTarget = 'user';
             }
+        }
+        
+        // Автоматически отключаем пивот при переходе на референс
+        if (currentTarget === 'ref' && isCustomPivot) {
+            isCustomPivot = false;
+            updatePivotUI();
+        }
+
+        if (prevTarget !== currentTarget) {
+            syncSlidersToCurrentTarget();
         }
         updateTargetUI();
     }
 
-    // Ручное переключение (если пользователь все же нажал кнопку)
-    function manualSetTarget(target) {
-        if (target === 'user' && !isUserLoaded) return;
-        currentTarget = target;
-        updateTargetUI();
+    function updateTargetUI() {
+        const isUser = currentTarget === 'user';
+        targetIndicator.innerText = `Слой: ${isUser ? 'Рисунок' : 'Референс'}`;
+        targetIndicator.className = `target-indicator ${isUser ? 'user-mode' : 'ref-mode'}`;
+        autoStatusText.innerText = isUser ? 'Рисунок' : 'Референс';
     }
 
     function toggleLink() {
@@ -446,28 +468,29 @@
         isPrecisionMode = !isPrecisionMode;
         document.getElementById('btn-precision').classList.toggle('active-btn', isPrecisionMode);
         perimeterPanel.style.display = isPrecisionMode ? 'block' : 'none';
+        
+        // При активации режима точности для референса пивот изначально выключен по умолчанию
+        if (isPrecisionMode && currentTarget === 'ref') {
+            isCustomPivot = false;
+        }
+        
         updatePivotUI();
     }
 
     function toggleUserVisibility() {
         isUserVisible = !isUserVisible;
-        const btn = document.getElementById('btn-visibility-toggle');
-        const opacityVal = document.getElementById('opacity-slider').value;
-
         if (isUserVisible) {
-            btn.classList.remove('hidden-state');
-            userEl.style.opacity = opacityVal / 100;
             eyeIcon.innerHTML = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle>';
         } else {
-            btn.classList.add('hidden-state');
-            userEl.style.opacity = '0';
             eyeIcon.innerHTML = '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line>';
         }
-        
-        checkAutoTarget(); // Вызов авто-фокуса
+        applyFiltersToElements();
+        checkAutoTarget();
     }
 
     function toggleCustomPivot() {
+        // Пивот можно включить вручную, если это нужно пользователю, даже на рефе,
+        // но автоматика будет его гасить при авто-переключении слоев.
         isCustomPivot = !isCustomPivot;
         updatePivotUI();
     }
@@ -485,14 +508,10 @@
     }
 
     function fitImageToScreen(img, key) {
-        const screenW = window.innerWidth;
-        const screenH = window.innerHeight;
-        const imgW = img.naturalWidth;
-        const imgH = img.naturalHeight;
-        const ratioW = screenW / imgW;
-        const ratioH = screenH / imgH;
-        const scale = Math.min(ratioW, ratioH) * 0.9;
-        states[key] = { x: screenW / 2, y: screenH / 2, s: scale, r: 0 };
+        const screenW = window.innerWidth, screenH = window.innerHeight;
+        const scale = Math.min(screenW / img.naturalWidth, screenH / img.naturalHeight) * 0.9;
+        const s = states[key];
+        s.x = screenW / 2; s.y = screenH / 2; s.s = scale; s.r = 0;
         applyTransforms();
     }
 
@@ -503,25 +522,19 @@
                 const img = document.getElementById(id);
                 img.src = e.target.result;
                 img.style.display = 'block';
-                
                 img.onload = () => {
                     const key = (id === 'ref-image') ? 'ref' : 'user';
                     fitImageToScreen(img, key);
-                    
                     const pl = document.getElementById('placeholder');
                     if (id === 'ref-image') {
                         isRefLoaded = true;
                         if (pl) pl.querySelector('p:nth-child(2)').innerText = "Шаг 2: Загрузите Рисунок";
                         userLoadBtn.classList.remove('btn-disabled');
-                        
-                        // ПРАВИЛО: При загрузке референса - включаем режим Референс
-                        currentTarget = 'ref';
-                        updateTargetUI();
                     } else {
                         isUserLoaded = true;
                         if (pl) pl.style.display = 'none';
-                        checkAutoTarget(); // Проверяем надобность переключения при загрузке рисунка
                     }
+                    checkAutoTarget();
                 };
             };
             reader.readAsDataURL(input.files[0]);
@@ -529,20 +542,34 @@
     }
 
     function updateFilters() {
-        const opacityEl = document.getElementById('opacity-slider');
-        const contrastEl = document.getElementById('contrast-slider');
-        const brightnessEl = document.getElementById('brightness-slider');
+        const opValue = parseInt(document.getElementById('opacity-slider').value);
+        const coValue = parseInt(document.getElementById('contrast-slider').value);
+        const brValue = parseInt(document.getElementById('brightness-slider').value);
 
-        document.getElementById('opacity-val').innerText = opacityEl.value + '%';
-        document.getElementById('contrast-val').innerText = contrastEl.value + '%';
-        document.getElementById('brightness-val').innerText = brightnessEl.value + '%';
+        const s = states[currentTarget];
+        if (currentTarget === 'user') s.opacity = opValue / 100;
+        s.contrast = coValue;
+        s.brightness = brValue;
 
-        let filterString = `contrast(${contrastEl.value}%) brightness(${brightnessEl.value}%)`;
-        if (isUserVisible) userEl.style.opacity = opacityEl.value / 100;
-        userEl.style.filter = filterString;
+        document.getElementById('opacity-val').innerText = opValue + '%';
+        document.getElementById('contrast-val').innerText = coValue + '%';
+        document.getElementById('brightness-val').innerText = brValue + '%';
 
-        // ПРАВИЛО: Проверяем авто-фокус при изменении прозрачности
-        checkAutoTarget();
+        applyFiltersToElements();
+        
+        if (currentTarget === 'user' && opValue === 0) {
+            checkAutoTarget();
+        }
+    }
+
+    function applyFiltersToElements() {
+        refEl.style.filter = `contrast(${states.ref.contrast}%) brightness(${states.ref.brightness}%)`;
+        if (isUserVisible) {
+            userEl.style.opacity = states.user.opacity;
+        } else {
+            userEl.style.opacity = '0';
+        }
+        userEl.style.filter = `contrast(${states.user.contrast}%) brightness(${states.user.brightness}%)`;
     }
 
     function setGridColor(dot, color) {
@@ -565,24 +592,24 @@
         stopNudge();
         const perform = () => {
             const targets = isLinked ? ['ref', 'user'] : [currentTarget];
-            const activePivotX = (isPrecisionMode && isCustomPivot) ? pivot.x : window.innerWidth/2;
-            const activePivotY = (isPrecisionMode && isCustomPivot) ? pivot.y : window.innerHeight/2;
+            const px = (isPrecisionMode && isCustomPivot) ? pivot.x : window.innerWidth/2;
+            const py = (isPrecisionMode && isCustomPivot) ? pivot.y : window.innerHeight/2;
             
             targets.forEach(t => {
                 const s = states[t];
                 if (key === 'x') s.x += val;
                 if (key === 'y') s.y += val;
                 if (key === 'r') {
-                    const dx = s.x - activePivotX, dy = s.y - activePivotY;
+                    const dx = s.x - px, dy = s.y - py;
                     const rad = val * Math.PI / 180;
                     const cos = Math.cos(rad), sin = Math.sin(rad);
-                    s.x = activePivotX + (dx * cos - dy * sin);
-                    s.y = activePivotY + (dx * sin + dy * cos);
+                    s.x = px + (dx * cos - dy * sin);
+                    s.y = py + (dx * sin + dy * cos);
                     s.r += val;
                 }
                 if (key === 's') {
-                    s.x = activePivotX + (s.x - activePivotX) * val;
-                    s.y = activePivotY + (s.y - activePivotY) * val;
+                    s.x = px + (s.x - px) * val;
+                    s.y = py + (s.y - py) * val;
                     s.s *= val;
                 }
             });
@@ -599,7 +626,6 @@
 
     zone.addEventListener('pointerdown', e => {
         if (e.target.closest('#drawer') || e.target.closest('.edge-btn') || e.target.closest('.drawer-handle')) return;
-        
         if (isPrecisionMode && isCustomPivot) {
             pivot = { x: e.clientX, y: e.clientY };
             updatePivotUI();
@@ -635,25 +661,17 @@
             if (pts.length < 2) return;
             const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
             const angle = Math.atan2(pts[1].y - pts[0].y, pts[1].x - pts[0].x) * 180 / Math.PI;
-            
             const sFact = initialDist > 0 ? dist / initialDist : 1;
             const aDiff = angle - initialAngle;
-            
-            const midX = (pts[0].x + pts[1].x) / 2;
-            const midY = (pts[0].y + pts[1].y) / 2;
+            const mx = (pts[0].x + pts[1].x) / 2, my = (pts[0].y + pts[1].y) / 2;
 
             targets.forEach(t => { 
                 const s = states[t];
-                s.x = midX + (s.x - midX) * sFact;
-                s.y = midY + (s.y - midY) * sFact;
-                s.s *= sFact; 
-                
-                const dx = s.x - midX, dy = s.y - midY;
+                s.x = mx + (s.x - mx) * sFact; s.y = my + (s.y - my) * sFact; s.s *= sFact; 
+                const dx = s.x - mx, dy = s.y - my;
                 const rad = aDiff * Math.PI / 180;
                 const cos = Math.cos(rad), sin = Math.sin(rad);
-                s.x = midX + (dx * cos - dy * sin);
-                s.y = midY + (dx * sin + dy * cos);
-                s.r += aDiff;
+                s.x = mx + (dx * cos - dy * sin); s.y = my + (dx * sin + dy * cos); s.r += aDiff;
             });
             initialDist = dist; initialAngle = angle;
         }
@@ -672,8 +690,7 @@
     }
 
     function drawGrid() {
-        const sizeInput = document.getElementById('grid-size');
-        const size = sizeInput ? sizeInput.value : 10;
+        const size = document.getElementById('grid-size')?.value || 10;
         const svg = document.getElementById('grid-overlay');
         const w = window.innerWidth, h = window.innerHeight;
         svg.innerHTML = '';
@@ -681,27 +698,22 @@
         for(let x=0; x<=w; x+=step) {
             const l = document.createElementNS("http://www.w3.org/2000/svg", "line");
             l.setAttribute("x1", x); l.setAttribute("y1", 0); l.setAttribute("x2", x); l.setAttribute("y2", h);
-            l.setAttribute("stroke", gridStrokeColor);
-            l.setAttribute("stroke-width", "1");
-            svg.appendChild(l);
+            l.setAttribute("stroke", gridStrokeColor); svg.appendChild(l);
         }
         for(let y=0; y<=h; y+=step) {
             const l = document.createElementNS("http://www.w3.org/2000/svg", "line");
             l.setAttribute("x1", 0); l.setAttribute("y1", y); l.setAttribute("x2", w); l.setAttribute("y2", y);
-            l.setAttribute("stroke", gridStrokeColor);
-            l.setAttribute("stroke-width", "1");
-            svg.appendChild(l);
+            l.setAttribute("stroke", gridStrokeColor); svg.appendChild(l);
         }
     }
 
     function resetAll() {
         if (refEl.src) fitImageToScreen(refEl, 'ref');
         if (userEl.src) fitImageToScreen(userEl, 'user');
-        document.getElementById('opacity-slider').value = 80;
-        document.getElementById('contrast-slider').value = 100;
-        document.getElementById('brightness-slider').value = 100;
-        updateFilters();
-        applyTransforms();
+        states.ref.contrast = 100; states.ref.brightness = 100;
+        states.user.opacity = 0.8; states.user.contrast = 100; states.user.brightness = 100;
+        syncSlidersToCurrentTarget();
+        applyFiltersToElements();
     }
 
     window.addEventListener('load', () => { drawGrid(); applyTransforms(); updateTargetUI(); });
