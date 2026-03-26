@@ -59,7 +59,9 @@
         .ui-element {
             transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.5s ease;
         }
-        .ui-hidden {
+        
+        /* Специальный класс для скрытия группы элементов */
+        .ui-hidden-state .hide-on-idle {
             opacity: 0;
             pointer-events: none !important;
         }
@@ -77,9 +79,8 @@
         @media (max-width: 640px) { .settings-drawer { width: 85%; } }
         .settings-drawer.open { transform: translateX(0); }
         
-        /* Скрытие ящика при бездействии */
-        .ui-hidden.settings-drawer:not(.open) { transform: translateX(110%); }
-        .ui-hidden .drawer-handle { transform: translateX(60px); opacity: 0; }
+        /* Скрытие основного блока настроек, но НЕ ручки */
+        .ui-hidden-state .settings-drawer:not(.open) { transform: translateX(100%); }
 
         .drawer-handle {
             position: absolute;
@@ -90,7 +91,9 @@
             box-shadow: -2px 0 10px rgba(0,0,0,0.1);
             pointer-events: auto;
             transition: transform 0.3s ease, opacity 0.3s ease;
+            z-index: 101; /* Поверх всего */
         }
+        /* Ручка ВСЕГДА доступна, поэтому здесь нет стилей для .ui-hidden-state */
 
         #pivot-point {
             position: absolute;
@@ -156,7 +159,7 @@
             display: flex;
             flex-direction: column;
         }
-        .ui-hidden .p-top-left .edge-btn-container { transform: translate(-80px, -80px); }
+        .ui-hidden-state .p-top-left .edge-btn-container { transform: translate(-80px, -80px); }
         
         .p-top-center { 
             position: absolute; 
@@ -166,19 +169,19 @@
             display: flex;
             flex-direction: row;
         }
-        .ui-hidden .p-top-center .edge-btn-container { transform: translateY(-80px); }
+        .ui-hidden-state .p-top-center .edge-btn-container { transform: translateY(-80px); }
 
         .p-top-right { position: absolute; top: max(8px, env(safe-area-inset-top)); right: max(8px, env(safe-area-inset-right)); }
-        .ui-hidden .p-top-right { transform: translate(80px, -80px); }
+        .ui-hidden-state .p-top-right { transform: translate(80px, -80px); }
 
         .p-mid-left { position: absolute; top: 50%; left: max(8px, env(safe-area-inset-left)); transform: translateY(-50%); }
-        .ui-hidden .p-mid-left { transform: translate(-80px, -50%); }
+        .ui-hidden-state .p-mid-left { transform: translate(-80px, -50%); }
 
         .p-mid-right { position: absolute; top: 50%; right: max(8px, env(safe-area-inset-right)); transform: translateY(-50%); }
-        .ui-hidden .p-mid-right { transform: translate(80px, -50%); }
+        .ui-hidden-state .p-mid-right { transform: translate(80px, -50%); }
 
         .p-bottom-left { position: absolute; bottom: max(12px, env(safe-area-inset-bottom)); left: max(8px, env(safe-area-inset-left)); }
-        .ui-hidden .p-bottom-left { transform: translate(-80px, 80px); }
+        .ui-hidden-state .p-bottom-left { transform: translate(-80px, 80px); }
         
         .p-bottom-center {
             position: absolute;
@@ -186,10 +189,10 @@
             left: 50%;
             transform: translateX(-50%);
         }
-        .ui-hidden .p-bottom-center { transform: translate(-50%, 80px); }
+        .ui-hidden-state .p-bottom-center { transform: translate(-50%, 80px); }
 
         .p-bottom-right { position: absolute; bottom: max(12px, env(safe-area-inset-bottom)); right: max(8px, env(safe-area-inset-right)); }
-        .ui-hidden .p-bottom-right { transform: translate(80px, 80px); }
+        .ui-hidden-state .p-bottom-right { transform: translate(80px, 80px); }
         
         .active-btn { background-color: var(--primary) !important; color: white !important; }
         
@@ -209,7 +212,7 @@
             border: 1px solid #444;
             transition: transform 0.4s ease, opacity 0.4s ease;
         }
-        .ui-hidden .target-indicator { transform: translateX(-100px); opacity: 0; }
+        .ui-hidden-state .target-indicator { transform: translateX(-100px); opacity: 0; }
         .target-indicator.user-mode { color: var(--primary); }
 
         .btn-disabled { opacity: 0.4; cursor: not-allowed !important; filter: grayscale(1); }
@@ -229,10 +232,11 @@
     </div>
 
     <div id="pivot-point"></div>
-    <div id="target-ui" class="target-indicator ui-element">Ожидание...</div>
+    <!-- Добавлен класс hide-on-idle для элементов, которые должны исчезать -->
+    <div id="target-ui" class="target-indicator ui-element hide-on-idle">Ожидание...</div>
 
     <!-- Панель управления (режим Точности) -->
-    <div id="perimeter-panel" class="perimeter-panel ui-element">
+    <div id="perimeter-panel" class="perimeter-panel ui-element hide-on-idle">
         
         <div class="p-top-left">
             <div class="edge-btn-container" onpointerdown="startNudge('r', -0.5)" onpointerup="stopNudge()" onpointerleave="stopNudge()">
@@ -305,6 +309,7 @@
         </div>
     </div>
 
+    <!-- Ручка DrawerHandle вынесена отдельно или оставлена вне hide-on-idle -->
     <aside id="drawer" class="settings-drawer text-gray-800 ui-element">
         <div class="drawer-handle" onclick="toggleDrawer()">
             <svg id="drawer-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
@@ -603,14 +608,14 @@
 
     // Логика автоматического скрытия интерфейса
     function showUI() {
-        appContainer.classList.remove('ui-hidden');
+        appContainer.classList.remove('ui-hidden-state');
         resetIdleTimer();
     }
 
     function hideUI() {
         // Не скрываем, если открыто меню настроек
         if (drawer.classList.contains('open')) return;
-        appContainer.classList.add('ui-hidden');
+        appContainer.classList.add('ui-hidden-state');
     }
 
     function resetIdleTimer() {
