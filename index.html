@@ -460,8 +460,22 @@
     // --- UI и Ползунки ---
     function manualToggleTarget() {
         if (!userEl.src || userEl.src === '') return;
+        if (!isUserVisible || states.user.opacity <= 0) {
+            currentTarget = 'ref';
+            updateTargetUI();
+            return;
+        }
         currentTarget = currentTarget === 'ref' ? 'user' : 'ref';
         updateTargetUI();
+    }
+
+    function enforceReferenceFocusIfUserNotVisible() {
+        if (currentTarget === 'user' && (!isUserVisible || states.user.opacity <= 0)) {
+            currentTarget = 'ref';
+            updateTargetUI();
+            return true;
+        }
+        return false;
     }
 
     function updateTargetUI() {
@@ -489,6 +503,7 @@
         isUserVisible = !isUserVisible; 
         document.getElementById('vis-btn').classList.toggle('active-btn', !isUserVisible);
         updateTransform('user'); 
+        enforceReferenceFocusIfUserNotVisible();
         resetIdleTimer();
     }
 
@@ -553,6 +568,7 @@
         
         syncSliders();
         updateTransform(currentTarget); 
+        enforceReferenceFocusIfUserNotVisible();
         resetIdleTimer();
         saveState();
     }
@@ -697,6 +713,7 @@
                 
                 updateTransform('ref');
                 updateTransform('user');
+                enforceReferenceFocusIfUserNotVisible();
                 updateTargetUI();
             }
         } catch(e) {
