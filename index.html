@@ -431,11 +431,11 @@
     function clearLayer(type) {
         const isRef = type === 'ref';
         const el = isRef ? refEl : userEl;
-        el.src = '';
+        el.removeAttribute('src');
         el.style.display = 'none';
 
         if (isRef) {
-            userEl.src = '';
+            userEl.removeAttribute('src');
             userEl.style.display = 'none';
             states.ref = { x: window.innerWidth/2, y: window.innerHeight/2, s: 1, r: 0, opacity: 1, contrast: 100, brightness: 100 };
             states.user = { x: window.innerWidth/2, y: window.innerHeight/2, s: 1, r: 0, opacity: 0.8, contrast: 100, brightness: 100 };
