@@ -263,8 +263,8 @@
             </div>
         </div>
 
-        <div class="p-mid-left edge-btn-container" onpointerdown="startNudge('x', -2)" onpointerup="stopNudge()" onpointerleave="stopNudge()">
-            <div class="edge-btn nudge-btn"><svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg></div>
+        <div class="p-mid-left edge-btn-container" onpointerdown="startNudge('s', 0.99)" onpointerup="stopNudge()" onpointerleave="stopNudge()">
+            <div class="edge-btn nudge-btn"><svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg></div>
         </div>
         
         <div class="p-mid-right edge-btn-container" onpointerdown="startNudge('x', 2)" onpointerup="stopNudge()" onpointerleave="stopNudge()">
@@ -284,19 +284,14 @@
                 </div>
             </div>
             <div class="nav-row">
-                <div class="edge-btn-container" onpointerdown="startNudge('s', 0.99)" onpointerup="stopNudge()" onpointerleave="stopNudge()">
-                    <div class="edge-btn nudge-btn"><svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg></div>
+                <div class="edge-btn-container" onpointerdown="startNudge('x', -2)" onpointerup="stopNudge()" onpointerleave="stopNudge()">
+                    <div class="edge-btn nudge-btn"><svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg></div>
                 </div>
                 <div class="edge-btn-container" onpointerdown="startNudge('y', 2)" onpointerup="stopNudge()" onpointerleave="stopNudge()">
                     <div class="edge-btn nudge-btn"><svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></div>
                 </div>
-                <div class="edge-btn-container" onpointerdown="startNudge('s', 1.01)" onpointerup="stopNudge()" onpointerleave="stopNudge()">
-                    <div class="edge-btn nudge-btn"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></div>
-                </div>
-            </div>
-            <div class="target-row">
-                <div class="edge-btn-container">
-                    <div id="target-ui" class="target-indicator" onclick="manualToggleTarget()">СЛОЙ: РЕФЕРЕНС</div>
+                <div class="edge-btn-container" onpointerdown="startNudge('x', 2)" onpointerup="stopNudge()" onpointerleave="stopNudge()">
+                    <div class="edge-btn nudge-btn"><svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></div>
                 </div>
             </div>
         </div>
@@ -513,15 +508,18 @@
         const isEmpty = currentTarget === null;
         const isUser = currentTarget === 'user';
         const ui = document.getElementById('target-ui');
-        if (isEmpty) {
-            ui.innerText = 'СЛОЙ: ПУСТО';
-            ui.className = 'target-indicator';
-            document.getElementById('layer-name').innerText = 'Настройка: —';
-        } else {
-            ui.innerText = isUser ? 'СЛОЙ: РИСУНОК' : 'СЛОЙ: РЕФЕРЕНС';
-            ui.className = `target-indicator ${isUser ? 'user-mode' : ''}`;
-            document.getElementById('layer-name').innerText = `Настройка: ${isUser ? 'Рисунок' : 'Референс'}`;
+        if (ui) {
+            if (isEmpty) {
+                ui.innerText = 'СЛОЙ: ПУСТО';
+                ui.className = 'target-indicator';
+            } else {
+                ui.innerText = isUser ? 'СЛОЙ: РИСУНОК' : 'СЛОЙ: РЕФЕРЕНС';
+                ui.className = `target-indicator ${isUser ? 'user-mode' : ''}`;
+            }
         }
+        document.getElementById('layer-name').innerText = isEmpty
+            ? 'Настройка: —'
+            : `Настройка: ${isUser ? 'Рисунок' : 'Референс'}`;
 
         document.querySelectorAll('.nudge-btn').forEach(function(btn) {
             btn.classList.toggle('user-mode', isUser);
@@ -653,7 +651,8 @@
             const list = isLinked ? ['ref', 'user'] : [currentTarget];
             pinchState = {
                 startDistance: Math.hypot(dx, dy),
-                startScales: Object.fromEntries(list.map(function(k) { return [k, states[k].s]; }))
+                startScales: Object.fromEntries(list.map(function(k) { return [k, states[k].s]; })),
+                hasStarted: false
             };
         }
     });
@@ -669,6 +668,15 @@
             const dx = points[0].x - points[1].x;
             const dy = points[0].y - points[1].y;
             const distance = Math.hypot(dx, dy);
+            const pinchDelta = Math.abs(distance - pinchState.startDistance);
+            if (!pinchState.hasStarted) {
+                // Игнорируем микродвижение в момент первого касания двумя пальцами,
+                // чтобы избежать скачка масштаба на старте жеста.
+                if (pinchDelta < 8) return;
+                pinchState.hasStarted = true;
+                pinchState.startDistance = distance;
+                pinchState.startScales = Object.fromEntries(list.map(function(k) { return [k, states[k].s]; }));
+            }
             if (pinchState.startDistance > 0) {
                 const zoomRatio = distance / pinchState.startDistance;
                 list.forEach(function(k) {
