@@ -382,6 +382,11 @@
     const userEl = document.getElementById('user-image');
     const zone = document.getElementById('interaction-zone');
 
+    function hasImageLoaded(el) {
+        const srcAttr = el.getAttribute('src');
+        return !!(srcAttr && srcAttr.trim() !== '');
+    }
+
     // --- Логика файлов и сжатия (без await, полностью на коллбэках) ---
     function loadFile(input, type) {
         if (!input.files || !input.files[0]) return;
@@ -450,7 +455,7 @@
             states.user = { x: window.innerWidth/2, y: window.innerHeight/2, s: 1, r: 0, opacity: 0.8, contrast: 100, brightness: 100 };
         }
 
-        const hasAnyImage = !!refEl.src || !!userEl.src;
+        const hasAnyImage = hasImageLoaded(refEl) || hasImageLoaded(userEl);
         document.getElementById('placeholder').style.display = hasAnyImage ? 'none' : 'block';
         autoSelectTargetMode();
         updateTargetUI();
