@@ -7,16 +7,10 @@
         <style>
         :root {
             --primary: #FF5F5F;
-            --bg-dark: #000;
-            --dot-color: rgba(255, 255, 255, 0.9);
-            --dot-size: 4px;
-            --dot-gap: 24px;
+            --bg-dark: #1f1f1f;
         }
         body {
             background-color: var(--bg-dark);
-            background-image: radial-gradient(circle, var(--dot-color) 0 calc(var(--dot-size) / 2), transparent calc(var(--dot-size) / 2 + 1px));
-            background-size: var(--dot-gap) var(--dot-gap);
-            background-position: 0 0;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             touch-action: none;
             user-select: none;
@@ -367,7 +361,7 @@
         user: { x: window.innerWidth/2, y: window.innerHeight/2, s: 1, r: 0, opacity: 0.8, contrast: 100, brightness: 100 }
     };
     
-    let currentTarget = 'user';
+    let currentTarget = null;
     let isLinked = false;
     let isUserVisible = true;
     let gridVisible = false;
@@ -450,7 +444,7 @@
             states.user = { x: window.innerWidth/2, y: window.innerHeight/2, s: 1, r: 0, opacity: 0.8, contrast: 100, brightness: 100 };
         }
 
-        const hasAnyImage = !!refEl.src || !!userEl.src;
+        const hasAnyImage = hasImageLoaded(refEl) || hasImageLoaded(userEl);
         document.getElementById('placeholder').style.display = hasAnyImage ? 'none' : 'block';
         autoSelectTargetMode();
         updateTargetUI();
@@ -466,7 +460,7 @@
     // --- Трансформации ---
     function updateTransform(type) {
         const el = type === 'ref' ? refEl : userEl;
-        if (!el || !el.src) return;
+        if (!hasImageLoaded(el)) return;
         const s = states[type];
         const cx = window.innerWidth / 2;
         const cy = window.innerHeight / 2;
@@ -488,16 +482,27 @@
     }
 
     // --- UI и Ползунки ---
-    function hasUserImageLoaded() {
-        return !!(userEl.src && userEl.src !== '');
+    function hasImageLoaded(el) {
+        if (!el) return false;
+        const rawSrc = (el.getAttribute('src') || '').trim();
+        return rawSrc.length > 0;
     }
 
-    function shouldUseReferenceMode() {
-        return !hasUserImageLoaded() || !isUserVisible || states.user.opacity <= 0;
+    function getAutoFocusMode() {
+        const hasRef = hasImageLoaded(refEl);
+        const hasUser = hasImageLoaded(userEl);
+
+        if (!hasRef && !hasUser) return 'empty';
+        if (!hasRef && hasUser) return 'user';
+        if (hasRef && !hasUser) return 'ref';
+        if (!isUserVisible || states.user.opacity <= 0) return 'ref';
+        if (hasUser) return 'user';
+        return 'empty';
     }
 
     function autoSelectTargetMode() {
-        currentTarget = shouldUseReferenceMode() ? 'ref' : 'user';
+        const mode = getAutoFocusMode();
+        currentTarget = mode === 'empty' ? null : mode;
     }
 
     function manualToggleTarget() {
@@ -506,11 +511,18 @@
     }
 
     function updateTargetUI() {
+        const isEmpty = currentTarget === null;
         const isUser = currentTarget === 'user';
         const ui = document.getElementById('target-ui');
-        ui.innerText = isUser ? 'СЛОЙ: РИСУНОК' : 'СЛОЙ: РЕФЕРЕНС';
-        ui.className = `target-indicator ${isUser ? 'user-mode' : ''}`;
-        document.getElementById('layer-name').innerText = `Настройка: ${isUser ? 'Рисунок' : 'Референс'}`;
+        if (isEmpty) {
+            ui.innerText = 'СЛОЙ: ПУСТО';
+            ui.className = 'target-indicator';
+            document.getElementById('layer-name').innerText = 'Настройка: —';
+        } else {
+            ui.innerText = isUser ? 'СЛОЙ: РИСУНОК' : 'СЛОЙ: РЕФЕРЕНС';
+            ui.className = `target-indicator ${isUser ? 'user-mode' : ''}`;
+            document.getElementById('layer-name').innerText = `Настройка: ${isUser ? 'Рисунок' : 'Референс'}`;
+        }
         syncSliders();
     }
 
@@ -564,8 +576,8 @@
 
     function resetAll() {
         resetIdleTimer();
-        if (refEl.src && refEl.src !== '') fitImageToScreen(refEl, 'ref');
-        if (userEl.src && userEl.src !== '') fitImageToScreen(userEl, 'user');
+        if (hasImageLoaded(refEl)) fitImageToScreen(refEl, 'ref');
+        if (hasImageLoaded(userEl)) fitImageToScreen(userEl, 'user');
         
         states.ref.contrast = 100; states.ref.brightness = 100; states.ref.opacity = 1;
         states.user.opacity = 0.8; states.user.contrast = 100; states.user.brightness = 100;
@@ -577,6 +589,15 @@
     }
 
     function syncSliders() { 
+        if (!currentTarget) {
+            document.getElementById('op-slider').value = 100;
+            document.getElementById('op-val').innerText = '—';
+            document.getElementById('ct-slider').value = 100;
+            document.getElementById('ct-val').innerText = '—';
+            document.getElementById('br-slider').value = 100;
+            document.getElementById('br-val').innerText = '—';
+            return;
+        }
         const s = states[currentTarget];
         document.getElementById('op-slider').value = s.opacity * 100;
         document.getElementById('op-val').innerText = Math.round(s.opacity * 100) + '%';
@@ -589,6 +610,9 @@
     }
 
     function updateFilters() { 
+        if (!currentTarget) {
+            return;
+        }
         const s = states[currentTarget];
         s.opacity = document.getElementById('op-slider').value / 100; 
         s.contrast = document.getElementById('ct-slider').value;
@@ -618,6 +642,7 @@
         resetIdleTimer();
         activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
         if (activePointers.size === 2) {
+            if (!currentTarget && !isLinked) return;
             const points = Array.from(activePointers.values());
             const dx = points[0].x - points[1].x;
             const dy = points[0].y - points[1].y;
@@ -633,6 +658,7 @@
         if (!activePointers.has(e.pointerId)) return;
         
         const list = isLinked ? ['ref', 'user'] : [currentTarget];
+        if (!currentTarget && !isLinked) return;
         if (activePointers.size >= 2 && pinchState) {
             activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
             const points = Array.from(activePointers.values());
@@ -679,6 +705,7 @@
         resetIdleTimer();
         const step = function() {
             const list = isLinked ? ['ref', 'user'] : [currentTarget];
+            if (!currentTarget && !isLinked) return;
             list.forEach(function(k) {
                 const s = states[k];
                 if (key === 'x') s.x += val;
@@ -707,8 +734,8 @@
         const data = {
             states: states,
             isUserVisible: isUserVisible,
-            refData: refEl.src.length > 100 ? refEl.src : null,
-            userData: userEl.src.length > 100 ? userEl.src : null
+            refData: hasImageLoaded(refEl) ? refEl.src : null,
+            userData: hasImageLoaded(userEl) ? userEl.src : null
         };
         try { 
             // Храним данные ключом artref_v5
