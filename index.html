@@ -4,8 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>ArtRef - Помощник Художника</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
+        <style>
         :root {
             --primary: #FF5F5F;
             --bg-dark: #111;
@@ -182,6 +181,46 @@
             cursor: pointer; background: #e5e7eb;
             border-radius: 2px;
         }
+
+        /* Локальные utility-классы вместо Tailwind CDN */
+        .hidden { display: none; }
+        .text-center { text-align: center; }
+        .text-white { color: #fff; }
+        .text-2xl { font-size: 1.5rem; line-height: 2rem; }
+        .text-xl { font-size: 1.25rem; line-height: 1.75rem; }
+        .text-xs { font-size: 0.75rem; line-height: 1rem; }
+        .text-\[10px\] { font-size: 10px; line-height: 1.2; }
+        .text-\[9px\] { font-size: 9px; line-height: 1.2; }
+        .font-bold { font-weight: 700; }
+        .uppercase { text-transform: uppercase; }
+        .tracking-widest { letter-spacing: .1em; }
+        .text-red-400 { color: #f87171; }
+        .text-red-500 { color: #ef4444; }
+        .text-gray-400 { color: #9ca3af; }
+        .text-gray-600 { color: #4b5563; }
+        .text-gray-700 { color: #374151; }
+        .text-gray-800 { color: #1f2937; }
+        .mb-2 { margin-bottom: .5rem; }
+        .mb-1 { margin-bottom: .25rem; }
+        .p-6 { padding: 1.5rem; }
+        .pb-2 { padding-bottom: .5rem; }
+        .pt-4 { padding-top: 1rem; }
+        .space-y-6 > * + * { margin-top: 1.5rem; }
+        .space-y-5 > * + * { margin-top: 1.25rem; }
+        .space-y-2 > * + * { margin-top: .5rem; }
+        .grid { display: grid; }
+        .grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .gap-2 { gap: .5rem; }
+        .py-3 { padding-top: .75rem; padding-bottom: .75rem; }
+        .border-t { border-top: 1px solid #e5e7eb; }
+        .border-b { border-bottom: 1px solid #e5e7eb; }
+        .border-2 { border-width: 2px; border-style: solid; }
+        .border-gray-100 { border-color: #f3f4f6; }
+        .rounded-xl { border-radius: .75rem; }
+        .hover\:bg-gray-50:hover { background-color: #f9fafb; }
+        .flex { display: flex; }
+        .items-center { align-items: center; }
+        .justify-between { justify-content: space-between; }
     </style>
 </head>
 <body>
