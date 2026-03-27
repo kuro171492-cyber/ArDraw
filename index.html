@@ -294,11 +294,6 @@
                     <div class="edge-btn nudge-btn"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></div>
                 </div>
             </div>
-            <div class="target-row">
-                <div class="edge-btn-container">
-                    <div id="target-ui" class="target-indicator" onclick="manualToggleTarget()">СЛОЙ: РЕФЕРЕНС</div>
-                </div>
-            </div>
         </div>
     </div>
 
@@ -513,15 +508,18 @@
         const isEmpty = currentTarget === null;
         const isUser = currentTarget === 'user';
         const ui = document.getElementById('target-ui');
-        if (isEmpty) {
-            ui.innerText = 'СЛОЙ: ПУСТО';
-            ui.className = 'target-indicator';
-            document.getElementById('layer-name').innerText = 'Настройка: —';
-        } else {
-            ui.innerText = isUser ? 'СЛОЙ: РИСУНОК' : 'СЛОЙ: РЕФЕРЕНС';
-            ui.className = `target-indicator ${isUser ? 'user-mode' : ''}`;
-            document.getElementById('layer-name').innerText = `Настройка: ${isUser ? 'Рисунок' : 'Референс'}`;
+        if (ui) {
+            if (isEmpty) {
+                ui.innerText = 'СЛОЙ: ПУСТО';
+                ui.className = 'target-indicator';
+            } else {
+                ui.innerText = isUser ? 'СЛОЙ: РИСУНОК' : 'СЛОЙ: РЕФЕРЕНС';
+                ui.className = `target-indicator ${isUser ? 'user-mode' : ''}`;
+            }
         }
+        document.getElementById('layer-name').innerText = isEmpty
+            ? 'Настройка: —'
+            : `Настройка: ${isUser ? 'Рисунок' : 'Референс'}`;
 
         document.querySelectorAll('.nudge-btn').forEach(function(btn) {
             btn.classList.toggle('user-mode', isUser);
