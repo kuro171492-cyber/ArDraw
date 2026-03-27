@@ -128,6 +128,7 @@
         }
 
         .edge-btn.nudge-btn { background: var(--primary); border: none; }
+        .edge-btn.nudge-btn.user-mode { background: #22c55e; }
         .edge-btn svg { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 2.5; }
         
         .p-top-left { position: absolute; top: 20px; left: 20px; display: flex; flex-direction: column; gap: 10px; }
@@ -521,6 +522,11 @@
             ui.className = `target-indicator ${isUser ? 'user-mode' : ''}`;
             document.getElementById('layer-name').innerText = `Настройка: ${isUser ? 'Рисунок' : 'Референс'}`;
         }
+
+        document.querySelectorAll('.nudge-btn').forEach(function(btn) {
+            btn.classList.toggle('user-mode', isUser);
+        });
+
         syncSliders();
     }
 
