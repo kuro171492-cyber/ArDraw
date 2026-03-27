@@ -29,16 +29,20 @@
             position: relative;
             overflow: hidden;
         }
-        .canvas-area {
+        
+        /* Зона для обработки касаний и жестов */
+        #interaction-zone {
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
-            z-index: 1;
+            z-index: 10;
         }
-        
+
         #placeholder {
             position: absolute;
             top: 50%; left: 50%;
             transform: translate(-50%, -50%);
+            z-index: 2;
+            pointer-events: none;
         }
 
         .img-layer {
@@ -49,14 +53,22 @@
             max-height: none;
             pointer-events: none;
             display: none;
-            will-change: transform, filter, opacity;
-            transition: opacity 0.2s ease;
+            will-change: transform, opacity, filter;
         }
-        #ref-image { z-index: 2; }
-        #user-image { z-index: 3; }
+        #ref-image { z-index: 3; }
+        #user-image { z-index: 4; }
+        
+        #grid-overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 5;
+            display: none;
+        }
 
         .ui-element {
-            transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.5s ease;
+            transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.4s ease;
+            z-index: 100;
         }
         
         .ui-hidden-state .hide-on-idle {
@@ -68,16 +80,15 @@
             position: absolute;
             top: 0; right: 0; width: 300px; height: 100%;
             background: white;
-            z-index: 100;
+            z-index: 1000;
             transform: translateX(100%);
-            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: transform 0.3s ease;
             box-shadow: -5px 0 25px rgba(0,0,0,0.5);
             color: #333;
+            pointer-events: auto;
         }
         @media (max-width: 640px) { .settings-drawer { width: 85%; } }
         .settings-drawer.open { transform: translateX(0); }
-        
-        .ui-hidden-state .settings-drawer:not(.open) { transform: translateX(100%); }
 
         .drawer-handle {
             position: absolute;
@@ -85,325 +96,208 @@
             background: white; border-radius: 12px 0 0 12px;
             display: flex; align-items: center; justify-content: center;
             cursor: pointer; color: var(--primary);
-            box-shadow: -2px 0 10px rgba(0,0,0,0.1);
             pointer-events: auto;
-            transition: transform 0.3s ease, opacity 0.3s ease;
-            z-index: 101;
-        }
-
-        #pivot-point {
-            position: absolute;
-            width: 32px; height: 32px;
-            border: 1.5px solid var(--primary);
-            border-radius: 50%;
-            z-index: 60;
-            pointer-events: none; 
-            transform: translate(-50%, -50%);
-            display: none;
-            background: rgba(255, 95, 95, 0.1);
+            box-shadow: -2px 0 10px rgba(0,0,0,0.1);
         }
 
         .perimeter-panel {
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
             pointer-events: none;
-            z-index: 50;
-            display: block;
         }
         
         .edge-btn-container {
-            width: 60px;
-            height: 60px;
+            width: 54px;
+            height: 54px;
             display: flex;
             align-items: center;
             justify-content: center;
-            cursor: pointer;
             pointer-events: auto;
-            -webkit-tap-highlight-color: transparent;
-            transition: transform 0.4s ease, opacity 0.4s ease;
         }
 
         .edge-btn {
-            width: 32px;
-            height: 32px;
-            background: #2A2A2A; 
-            border-radius: 8px;
+            width: 36px;
+            height: 36px;
+            background: #222; 
+            border-radius: 10px;
             display: flex;
             align-items: center;
             justify-content: center;
-            border: 1px solid #555;
-            transition: transform 0.1s, background 0.1s, border-color 0.2s;
+            border: 1px solid #444;
+            color: white;
+            cursor: pointer;
         }
 
-        .edge-btn.nudge-btn {
-            background: var(--primary); 
-            border: none;
-            box-shadow: 0 2px 8px rgba(255, 95, 95, 0.3);
-        }
-
-        .edge-btn-container:active .edge-btn { transform: scale(0.85); opacity: 0.8; }
-        .edge-btn svg { width: 18px; height: 18px; stroke: white; fill: none; stroke-width: 2.5; }
+        .edge-btn.nudge-btn { background: var(--primary); border: none; }
+        .edge-btn svg { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 2.5; }
         
-        .active-target .edge-btn { border-color: var(--primary); background: #4D2626; }
-        .active-target .edge-btn svg { stroke: var(--primary); }
-
-        .p-top-left { position: absolute; top: max(8px, env(safe-area-inset-top)); left: max(8px, env(safe-area-inset-left)); display: flex; flex-direction: column; }
-        .ui-hidden-state .p-top-left .edge-btn-container { transform: translate(-80px, -80px); }
-        
-        .p-top-center { position: absolute; top: max(8px, env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); display: flex; flex-direction: row; }
-        .ui-hidden-state .p-top-center .edge-btn-container { transform: translateY(-80px); }
-
-        .p-top-right { position: absolute; top: max(8px, env(safe-area-inset-top)); right: max(8px, env(safe-area-inset-right)); }
-        .ui-hidden-state .p-top-right { transform: translate(80px, -80px); }
-
-        .p-mid-left { position: absolute; top: 50%; left: max(8px, env(safe-area-inset-left)); transform: translateY(-50%); }
-        .ui-hidden-state .p-mid-left { transform: translate(-80px, -50%); }
-
-        .p-mid-right { position: absolute; top: 50%; right: max(8px, env(safe-area-inset-right)); transform: translateY(-50%); }
-        .ui-hidden-state .p-mid-right { transform: translate(80px, -50%); }
-
-        .p-bottom-left { position: absolute; bottom: max(12px, env(safe-area-inset-bottom)); left: max(8px, env(safe-area-inset-left)); }
-        .ui-hidden-state .p-bottom-left { transform: translate(-80px, 80px); }
-        
-        .p-bottom-center { position: absolute; bottom: max(12px, env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); }
-        .ui-hidden-state .p-bottom-center { transform: translate(-50%, 80px); }
-
-        .p-bottom-right { position: absolute; bottom: max(12px, env(safe-area-inset-bottom)); right: max(8px, env(safe-area-inset-right)); }
-        .ui-hidden-state .p-bottom-right { transform: translate(80px, 80px); }
+        .p-top-left { position: absolute; top: 20px; left: 20px; display: flex; flex-direction: column; gap: 10px; }
+        .p-top-center { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 10px; }
+        .p-top-right { position: absolute; top: 20px; right: 20px; }
+        .p-mid-left { position: absolute; top: 50%; left: 10px; transform: translateY(-50%); }
+        .p-mid-right { position: absolute; top: 50%; right: 10px; transform: translateY(-50%); }
+        .p-bottom-left { position: absolute; bottom: 30px; left: 20px; }
+        .p-bottom-center { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); display: flex; gap: 10px;}
+        .p-bottom-right { position: absolute; bottom: 30px; right: 20px; }
         
         .target-indicator {
-            position: absolute;
-            bottom: 20px;
-            left: 20px;
-            background: #222;
-            padding: 6px 10px;
+            background: rgba(0,0,0,0.8);
+            padding: 8px 16px;
             border-radius: 20px;
-            font-size: 9px;
+            font-size: 10px;
             font-weight: bold;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
-            z-index: 40;
-            pointer-events: none;
-            border: 1px solid #444;
-            transition: transform 0.4s ease, opacity 0.4s ease;
-        }
-        .ui-hidden-state .target-indicator { transform: translateX(-100px); opacity: 0; }
-        .target-indicator.user-mode { color: var(--primary); }
-
-        .btn-disabled { opacity: 0.4; cursor: not-allowed !important; filter: grayscale(1); }
-        .active-btn { background-color: var(--primary) !important; color: white !important; }
-
-        /* CROP OVERLAY STYLES */
-        #crop-modal {
-            position: fixed;
-            inset: 0;
-            z-index: 200;
-            background: rgba(0,0,0,0.95);
-            display: none;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-        }
-        #crop-container {
-            position: relative;
-            max-width: 90vw;
-            max-height: 70vh;
-            overflow: hidden;
+            pointer-events: auto;
+            border: 1px solid var(--primary);
+            cursor: pointer;
+            color: white;
             display: flex;
             align-items: center;
             justify-content: center;
+            white-space: nowrap;
         }
-        #crop-img {
-            max-width: 100%;
-            max-height: 100%;
-            display: block;
+        .target-indicator.user-mode { border-color: #4ade80; color: #4ade80; }
+
+        .btn-disabled { opacity: 0.3; pointer-events: none; }
+        .active-btn { background-color: var(--primary) !important; color: white !important; border-color: var(--primary) !important; }
+        
+        /* Ползунки */
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
         }
-        #crop-box {
-            position: absolute;
-            border: 2px solid var(--primary);
-            box-shadow: 0 0 0 4000px rgba(0,0,0,0.6);
-            cursor: move;
-            touch-action: none;
-        }
-        .crop-handle {
-            position: absolute;
-            width: 20px; height: 20px;
-            background: var(--primary);
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 16px; width: 16px;
             border-radius: 50%;
+            background: var(--primary);
+            cursor: pointer;
+            margin-top: -6px;
         }
-        .ch-nw { top: -10px; left: -10px; cursor: nw-resize; }
-        .ch-ne { top: -10px; right: -10px; cursor: ne-resize; }
-        .ch-sw { bottom: -10px; left: -10px; cursor: sw-resize; }
-        .ch-se { bottom: -10px; right: -10px; cursor: se-resize; }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%; height: 4px;
+            cursor: pointer; background: #e5e7eb;
+            border-radius: 2px;
+        }
     </style>
 </head>
-<body oncontextmenu="return false;">
+<body>
 
-<div class="app-container" id="interaction-zone">
-    <div class="canvas-area">
-        <div id="placeholder" class="text-gray-500 text-center pointer-events-none px-6 w-full">
-            <p class="text-xl font-bold mb-2 text-white">ArtRef</p>
-            <p class="text-xs opacity-70 uppercase tracking-widest text-red-400">tab to open</p>
-        </div>
-        <img id="ref-image" class="img-layer" alt="Ref">
-        <img id="user-image" class="img-layer" alt="User">
-        <svg id="grid-overlay" class="absolute inset-0 pointer-events-none z-10 hidden w-full h-full"></svg>
+<div class="app-container">
+    <div id="placeholder" class="text-center">
+        <p class="text-2xl font-bold text-white mb-2">ArtRef</p>
+        <p class="text-xs text-red-400 uppercase tracking-widest">Загрузите референс</p>
     </div>
 
-    <div id="pivot-point"></div>
-    <div id="target-ui" class="target-indicator ui-element hide-on-idle">Ожидание...</div>
+    <!-- Холст с изображениями и сеткой -->
+    <svg id="grid-overlay"></svg>
+    <img id="ref-image" class="img-layer" alt="Референс">
+    <img id="user-image" class="img-layer" alt="Пользовательский рисунок">
 
+    <!-- Зона касаний -->
+    <div id="interaction-zone"></div>
+
+    <!-- UI Элементы -->
     <div id="perimeter-panel" class="perimeter-panel ui-element hide-on-idle">
+        
         <div class="p-top-left">
-            <div class="edge-btn-container" onpointerdown="startNudge('r', -0.5)" onpointerup="stopNudge()" onpointerleave="stopNudge()">
-                <div class="edge-btn nudge-btn">
-                    <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
-                </div>
+            <div class="edge-btn-container" onclick="toggleGrid()">
+                <div class="edge-btn" id="grid-btn"><svg viewBox="0 0 24 24"><path d="M3 9h18M3 15h18M9 3v18M15 3v18" stroke="currentColor"/></svg></div>
             </div>
-            <div class="edge-btn-container" onclick="toggleGrid()" id="btn-grid-toggle-main">
-                <div class="edge-btn">
-                    <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg>
-                </div>
+            <div class="edge-btn-container" onclick="resetAll()">
+                <div class="edge-btn"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5" stroke="currentColor"/></svg></div>
             </div>
         </div>
         
         <div class="p-top-center">
             <div class="edge-btn-container" onclick="toggleUserVisibility()">
-                <div class="edge-btn" id="btn-visibility-toggle">
-                    <svg id="eye-icon" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
-                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                        <circle cx="12" cy="12" r="3"></circle>
-                    </svg>
+                <div class="edge-btn" id="vis-btn">
+                    <svg id="eye-icon" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                 </div>
             </div>
             <div class="edge-btn-container" onpointerdown="startNudge('y', -2)" onpointerup="stopNudge()" onpointerleave="stopNudge()">
-                <div class="edge-btn nudge-btn">
-                    <svg viewBox="0 0 24 24"><path d="m18 15-6-6-6 6"/></svg>
-                </div>
+                <div class="edge-btn nudge-btn"><svg viewBox="0 0 24 24"><path d="m18 15-6-6-6 6"/></svg></div>
             </div>
-            <div class="edge-btn-container active-target" id="btn-pivot-toggle" onclick="toggleCustomPivot()">
-                <div class="edge-btn">
-                    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 2v20M2 12h20"/></svg>
-                </div>
+            <div class="edge-btn-container" onclick="toggleLink()">
+                <div class="edge-btn" id="link-btn"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></div>
             </div>
         </div>
 
-        <div class="p-top-right edge-btn-container" onpointerdown="startNudge('r', 0.5)" onpointerup="stopNudge()" onpointerleave="stopNudge()">
-            <div class="edge-btn nudge-btn">
-                <svg viewBox="0 0 24 24" style="transform: scaleX(-1)"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
-            </div>
+        <div class="p-top-right edge-btn-container" onpointerdown="startNudge('r', 1)" onpointerup="stopNudge()" onpointerleave="stopNudge()">
+            <div class="edge-btn nudge-btn"><svg viewBox="0 0 24 24" style="transform:scaleX(-1)"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/></svg></div>
         </div>
 
         <div class="p-mid-left edge-btn-container" onpointerdown="startNudge('x', -2)" onpointerup="stopNudge()" onpointerleave="stopNudge()">
-            <div class="edge-btn nudge-btn">
-                <svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg>
-            </div>
+            <div class="edge-btn nudge-btn"><svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg></div>
         </div>
         
         <div class="p-mid-right edge-btn-container" onpointerdown="startNudge('x', 2)" onpointerup="stopNudge()" onpointerleave="stopNudge()">
-            <div class="edge-btn nudge-btn">
-                <svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
-            </div>
+            <div class="edge-btn nudge-btn"><svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></div>
         </div>
 
-        <div class="p-bottom-left edge-btn-container" onpointerdown="startNudge('s', 0.995)" onpointerup="stopNudge()" onpointerleave="stopNudge()">
-            <div class="edge-btn nudge-btn">
-                <svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg>
-            </div>
+        <div class="p-bottom-left edge-btn-container" onpointerdown="startNudge('s', 0.99)" onpointerup="stopNudge()" onpointerleave="stopNudge()">
+            <div class="edge-btn nudge-btn"><svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg></div>
         </div>
         
-        <div class="p-bottom-center edge-btn-container" onpointerdown="startNudge('y', 2)" onpointerup="stopNudge()" onpointerleave="stopNudge()">
-            <div class="edge-btn nudge-btn">
-                <svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
+        <div class="p-bottom-center">
+            <div class="edge-btn-container" onpointerdown="startNudge('y', 2)" onpointerup="stopNudge()" onpointerleave="stopNudge()">
+                <div class="edge-btn nudge-btn"><svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></div>
+            </div>
+            <div class="edge-btn-container ml-4">
+                <div id="target-ui" class="target-indicator" onclick="manualToggleTarget()">СЛОЙ: РЕФЕРЕНС</div>
             </div>
         </div>
 
-        <div class="p-bottom-right edge-btn-container" onpointerdown="startNudge('s', 1.005)" onpointerup="stopNudge()" onpointerleave="stopNudge()">
-            <div class="edge-btn nudge-btn">
-                <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
-            </div>
+        <div class="p-bottom-right edge-btn-container" onpointerdown="startNudge('s', 1.01)" onpointerup="stopNudge()" onpointerleave="stopNudge()">
+            <div class="edge-btn nudge-btn"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></div>
         </div>
     </div>
 
-    <!-- CROP MODAL -->
-    <div id="crop-modal">
-        <h3 class="mb-4 text-sm font-bold uppercase tracking-widest text-red-500">Обрезать референс</h3>
-        <div id="crop-container">
-            <img id="crop-img" alt="Crop Preview">
-            <div id="crop-box">
-                <div class="crop-handle ch-nw" data-handle="nw"></div>
-                <div class="crop-handle ch-ne" data-handle="ne"></div>
-                <div class="crop-handle ch-sw" data-handle="sw"></div>
-                <div class="crop-handle ch-se" data-handle="se"></div>
-            </div>
-        </div>
-        <div class="flex gap-4 mt-6">
-            <button onclick="cancelCrop()" class="px-6 py-2 rounded-full border border-gray-600 text-gray-400 uppercase text-xs font-bold">Отмена</button>
-            <button onclick="applyCrop()" class="px-8 py-2 rounded-full bg-red-500 text-white uppercase text-xs font-bold">Готово</button>
-        </div>
-    </div>
-
-    <aside id="drawer" class="settings-drawer text-gray-800 ui-element">
+    <!-- Панель настроек -->
+    <aside id="drawer" class="settings-drawer ui-element">
         <div class="drawer-handle" onclick="toggleDrawer()">
-            <svg id="drawer-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
         </div>
-        <div class="p-6 h-full overflow-y-auto space-y-6">
-            <div class="flex items-center justify-between border-b pb-2">
-                <h2 class="text-xl font-bold text-gray-800">Настройки</h2>
-                <span id="auto-status-text" class="text-[10px] text-red-500 font-bold uppercase tracking-tighter">Ожидание</span>
-            </div>
+        <div class="p-6 space-y-6">
+            <h2 class="text-xl font-bold border-b pb-2 text-gray-800">Инструменты</h2>
             
             <div class="space-y-2">
-                <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Загрузка</label>
+                <p class="text-[10px] font-bold text-gray-400 uppercase">Загрузка слоев</p>
                 <div class="grid grid-cols-2 gap-2">
-                    <button onclick="document.getElementById('ref-input').click()" class="py-3 px-2 border-2 border-gray-100 rounded-xl text-[10px] font-bold uppercase text-gray-700 hover:bg-gray-50">Референс</button>
-                    <button id="btn-user-load" onclick="triggerUserLoad()" class="py-3 px-2 border-2 border-gray-100 rounded-xl text-[10px] font-bold uppercase text-gray-700 btn-disabled">Рисунок</button>
+                    <button onclick="document.getElementById('ref-input').click()" class="py-3 border-2 border-gray-100 rounded-xl text-[10px] font-bold uppercase text-gray-700 hover:bg-gray-50">Референс</button>
+                    <button id="user-btn-load" onclick="document.getElementById('user-input').click()" class="py-3 border-2 border-gray-100 rounded-xl text-[10px] font-bold uppercase text-gray-700 hover:bg-gray-50 btn-disabled">Рисунок</button>
                 </div>
-                <input type="file" id="ref-input" class="hidden" accept="image/*" onchange="initCrop(this)">
-                <input type="file" id="user-input" class="hidden" accept="image/*" onchange="loadFile(this, 'user-image')">
+                <!-- Загрузка файлов работает через коллбэки (без await) -->
+                <input type="file" id="ref-input" class="hidden" accept="image/*" onchange="loadFile(this, 'ref')">
+                <input type="file" id="user-input" class="hidden" accept="image/*" onchange="loadFile(this, 'user')">
             </div>
 
-            <div class="grid grid-cols-3 gap-2">
-                <button id="btn-link" onclick="toggleLink()" class="flex flex-col items-center py-3 bg-gray-100 rounded-xl transition-colors text-gray-700">
-                    <svg class="mb-1" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-                    <span class="text-[9px] font-bold uppercase">Связка</span>
-                </button>
-                <button onclick="resetAll()" class="flex flex-col items-center py-3 bg-gray-100 rounded-xl transition-colors text-gray-700">
-                    <svg class="mb-1" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
-                    <span class="text-[9px] font-bold uppercase">Сброс</span>
-                </button>
-                <button onclick="clearImages()" class="flex flex-col items-center py-3 bg-gray-100 rounded-xl transition-colors text-gray-700">
-                    <svg class="mb-1" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg>
-                    <span class="text-[9px] font-bold uppercase">Очистить</span>
-                </button>
-            </div>
-
-            <div class="space-y-4 border-t pt-4">
-                <div class="flex items-center gap-2">
-                    <label id="active-target-label" class="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Настройка Слой</label>
-                    <div id="target-pulse" class="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></div>
-                </div>
-
-                <div id="opacity-control">
-                    <div class="flex justify-between items-center mb-1">
-                        <span class="text-[10px] font-medium text-gray-400 uppercase">Прозрачность</span>
-                        <span id="opacity-val" class="text-xs font-bold text-red-500">80%</span>
-                    </div>
-                    <input type="range" id="opacity-slider" min="0" max="100" value="80" class="w-full accent-red-500" oninput="updateFilters()">
-                </div>
+            <div class="space-y-5 pt-4 border-t">
+                <div id="layer-name" class="text-xs font-bold text-red-500 uppercase">Настройка: Референс</div>
+                
                 <div>
                     <div class="flex justify-between items-center mb-1">
-                        <span class="text-[10px] font-medium text-gray-400 uppercase">Контраст</span>
-                        <span id="contrast-val" class="text-xs font-bold text-red-500">100%</span>
+                        <label class="text-[9px] uppercase text-gray-400">Прозрачность</label>
+                        <span id="op-val" class="text-[10px] font-bold text-gray-600">100%</span>
                     </div>
-                    <input type="range" id="contrast-slider" min="50" max="300" value="100" class="w-full accent-red-500" oninput="updateFilters()">
+                    <input type="range" id="op-slider" min="0" max="100" value="100" oninput="updateFilters()">
                 </div>
+                
                 <div>
                     <div class="flex justify-between items-center mb-1">
-                        <span class="text-[10px] font-medium text-gray-400 uppercase">Яркость</span>
-                        <span id="brightness-val" class="text-xs font-bold text-red-500">100%</span>
+                        <label class="text-[9px] uppercase text-gray-400">Контрастность</label>
+                        <span id="ct-val" class="text-[10px] font-bold text-gray-600">100%</span>
                     </div>
-                    <input type="range" id="brightness-slider" min="0" max="200" value="100" class="w-full accent-red-500" oninput="updateFilters()">
+                    <input type="range" id="ct-slider" min="0" max="200" value="100" oninput="updateFilters()">
+                </div>
+                
+                <div>
+                    <div class="flex justify-between items-center mb-1">
+                        <label class="text-[9px] uppercase text-gray-400">Яркость</label>
+                        <span id="br-val" class="text-[10px] font-bold text-gray-600">100%</span>
+                    </div>
+                    <input type="range" id="br-slider" min="0" max="200" value="100" oninput="updateFilters()">
                 </div>
             </div>
         </div>
@@ -417,547 +311,147 @@
         user: { x: window.innerWidth/2, y: window.innerHeight/2, s: 1, r: 0, opacity: 0.8, contrast: 100, brightness: 100 }
     };
     
-    let currentTarget = 'ref'; 
+    let currentTarget = 'ref';
     let isLinked = false;
-    let isCustomPivot = true; 
     let isUserVisible = true;
-    let isRefLoaded = false;
-    let isUserLoaded = false;
     let gridVisible = false;
-    let gridStrokeColor = 'rgba(255,255,255,0.3)';
     
-    let pivot = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
     let activePointers = new Map();
     let nudgeInterval = null;
     let idleTimer = null;
-    const IDLE_TIME = 10000;
 
-    const STORAGE_KEY = 'artref_settings_v3';
-
-    // Элементы
+    // Ссылки на DOM
     const refEl = document.getElementById('ref-image');
     const userEl = document.getElementById('user-image');
-    const pivotEl = document.getElementById('pivot-point');
-    const drawer = document.getElementById('drawer');
-    const eyeIcon = document.getElementById('eye-icon');
-    const targetIndicator = document.getElementById('target-ui');
-    const userLoadBtn = document.getElementById('btn-user-load');
-    const autoStatusText = document.getElementById('auto-status-text');
-    const targetLabel = document.getElementById('active-target-label');
-    const targetPulse = document.getElementById('target-pulse');
-    const appContainer = document.getElementById('interaction-zone');
+    const zone = document.getElementById('interaction-zone');
 
-    // --- CROP LOGIC ---
-    const cropModal = document.getElementById('crop-modal');
-    const cropImg = document.getElementById('crop-img');
-    const cropBox = document.getElementById('crop-box');
-    let cropActive = false;
-    let originalFileSrc = null;
-
-    function initCrop(input) {
-        if (input.files?.[0]) {
-            const reader = new FileReader();
-            reader.onload = e => {
-                originalFileSrc = e.target.result;
-                cropImg.src = e.target.result;
-                cropModal.style.display = 'flex';
-                cropImg.onload = () => {
-                    const rect = cropImg.getBoundingClientRect();
-                    // Начальное положение рамки (центр 80%)
-                    cropBox.style.width = (rect.width * 0.8) + 'px';
-                    cropBox.style.height = (rect.height * 0.8) + 'px';
-                    cropBox.style.left = (rect.width * 0.1) + 'px';
-                    cropBox.style.top = (rect.height * 0.1) + 'px';
-                };
-            };
-            reader.readAsDataURL(input.files[0]);
-        }
-    }
-
-    function cancelCrop() {
-        cropModal.style.display = 'none';
-        document.getElementById('ref-input').value = '';
-    }
-
-    function applyCrop() {
-        const rect = cropImg.getBoundingClientRect();
-        const box = cropBox.getBoundingClientRect();
-
-        // Относительные координаты области кропа на превью
-        const rx = (box.left - rect.left) / rect.width;
-        const ry = (box.top - rect.top) / rect.height;
-        const rw = box.width / rect.width;
-        const rh = box.height / rect.height;
-
-        const canvas = document.createElement('canvas');
-        const tempImg = new Image();
-        tempImg.onload = () => {
-            const sx = Math.round(tempImg.width * rx);
-            const sy = Math.round(tempImg.height * ry);
-            const sw = Math.round(tempImg.width * rw);
-            const sh = Math.round(tempImg.height * rh);
-
-            canvas.width = sw;
-            canvas.height = sh;
-
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(tempImg, sx, sy, sw, sh, 0, 0, sw, sh);
-
-            refEl.onload = () => {
-                fitImageToScreen(refEl, 'ref');
-                refEl.onload = null;
-            };
-            refEl.src = canvas.toDataURL('image/jpeg', 0.92);
-            refEl.style.display = 'block';
-            isRefLoaded = true;
-            userLoadBtn.classList.remove('btn-disabled');
-
-            checkAutoTarget();
-            saveToStorage();
-            cropModal.style.display = 'none';
-            document.getElementById('ref-input').value = '';
-        };
-        tempImg.src = originalFileSrc;
-    }
-
-    // Обработка перетаскивания рамки
-    let cropDrag = null;
-    cropBox.onpointerdown = e => {
-        e.stopPropagation();
-        const handle = e.target.dataset.handle;
-        cropDrag = {
-            type: handle || 'move',
-            startX: e.clientX,
-            startY: e.clientY,
-            startW: cropBox.offsetWidth,
-            startH: cropBox.offsetHeight,
-            startL: cropBox.offsetLeft,
-            startT: cropBox.offsetTop
-        };
-        cropBox.setPointerCapture(e.pointerId);
-    };
-
-    cropBox.onpointermove = e => {
-        if (!cropDrag) return;
-        const dx = e.clientX - cropDrag.startX;
-        const dy = e.clientY - cropDrag.startY;
-        const parent = cropImg.getBoundingClientRect();
-
-        if (cropDrag.type === 'move') {
-            let nl = cropDrag.startL + dx;
-            let nt = cropDrag.startT + dy;
-            nl = Math.max(0, Math.min(nl, parent.width - cropBox.offsetWidth));
-            nt = Math.max(0, Math.min(nt, parent.height - cropBox.offsetHeight));
-            cropBox.style.left = nl + 'px';
-            cropBox.style.top = nt + 'px';
-        } else {
-            // Resize logic
-            if (cropDrag.type.includes('e')) cropBox.style.width = Math.max(30, Math.min(cropDrag.startW + dx, parent.width - cropDrag.startL)) + 'px';
-            if (cropDrag.type.includes('s')) cropBox.style.height = Math.max(30, Math.min(cropDrag.startH + dy, parent.height - cropDrag.startT)) + 'px';
-            if (cropDrag.type.includes('w')) {
-                const nw = Math.max(30, cropDrag.startW - dx);
-                if (nw !== 30) {
-                    cropBox.style.width = nw + 'px';
-                    cropBox.style.left = (cropDrag.startL + dx) + 'px';
-                }
-            }
-            if (cropDrag.type.includes('n')) {
-                const nh = Math.max(30, cropDrag.startH - dy);
-                if (nh !== 30) {
-                    cropBox.style.height = nh + 'px';
-                    cropBox.style.top = (cropDrag.startT + dy) + 'px';
-                }
-            }
-        }
-    };
-
-    cropBox.onpointerup = () => cropDrag = null;
-
-    // --- ЛОГИКА АВТОСОХРАНЕНИЯ ---
-    function openImageDb() {
-        if (imageDbPromise) return imageDbPromise;
-
-        imageDbPromise = new Promise((resolve, reject) => {
-            const request = indexedDB.open(IMAGE_DB_NAME, 1);
-
-            request.onupgradeneeded = event => {
-                const db = event.target.result;
-                if (!db.objectStoreNames.contains(IMAGE_DB_STORE)) {
-                    db.createObjectStore(IMAGE_DB_STORE);
-                }
-            };
-
-            request.onsuccess = () => resolve(request.result);
-            request.onerror = () => reject(request.error);
-        });
-
-        return imageDbPromise;
-    }
-
-    async function imageStoreSet(key, value) {
-        const db = await openImageDb();
-        return new Promise((resolve, reject) => {
-            const tx = db.transaction(IMAGE_DB_STORE, 'readwrite');
-            tx.objectStore(IMAGE_DB_STORE).put(value, key);
-            tx.oncomplete = () => resolve();
-            tx.onerror = () => reject(tx.error);
-        });
-    }
-
-    async function imageStoreGet(key) {
-        const db = await openImageDb();
-        return new Promise((resolve, reject) => {
-            const tx = db.transaction(IMAGE_DB_STORE, 'readonly');
-            const req = tx.objectStore(IMAGE_DB_STORE).get(key);
-            req.onsuccess = () => resolve(req.result || null);
-            req.onerror = () => reject(req.error);
-        });
-    }
-
-    async function imageStoreDelete(key) {
-        const db = await openImageDb();
-        return new Promise((resolve, reject) => {
-            const tx = db.transaction(IMAGE_DB_STORE, 'readwrite');
-            tx.objectStore(IMAGE_DB_STORE).delete(key);
-            tx.oncomplete = () => resolve();
-            tx.onerror = () => reject(tx.error);
-        });
-    }
-
-    async function persistImagesIfNeeded() {
-        const refSrc = refEl.src.startsWith('data:') ? refEl.src : null;
-        const userSrc = userEl.src.startsWith('data:') ? userEl.src : null;
-
-        try {
-            if (refSrc !== lastSavedRefSrc) {
-                if (refSrc) await imageStoreSet(REF_IMAGE_KEY, refSrc);
-                else await imageStoreDelete(REF_IMAGE_KEY);
-                lastSavedRefSrc = refSrc;
-            }
-
-            if (userSrc !== lastSavedUserSrc) {
-                if (userSrc) await imageStoreSet(USER_IMAGE_KEY, userSrc);
-                else await imageStoreDelete(USER_IMAGE_KEY);
-                lastSavedUserSrc = userSrc;
-            }
-        } catch (e) {
-            console.warn('Не удалось сохранить изображения в IndexedDB', e);
-        }
-    }
-
-    function saveToStorage() {
-        const data = {
-            states,
-            isLinked,
-            isCustomPivot,
-            isUserVisible,
-            pivot,
-            gridVisible
-        };
-
-        try {
-            localStorage.removeItem('artref_settings_v2');
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-        } catch (e) {
-            console.warn('Не удалось сохранить настройки в localStorage', e);
-        }
-    }
-
-    function loadFromStorage() {
-        const saved = localStorage.getItem(STORAGE_KEY) || localStorage.getItem('artref_settings_v2');
-        if (!saved) return;
-
-        try {
-            const data = JSON.parse(saved);
-            states = data.states || states;
-            const isLegacyData = !savedV3 && !!savedV2;
-            isLinked = !!data.isLinked;
-            isCustomPivot = !!data.isCustomPivot;
-            isUserVisible = data.isUserVisible !== undefined ? data.isUserVisible : true;
-            pivot = data.pivot || pivot;
-            gridVisible = !!data.gridVisible;
-
-            document.getElementById('btn-link').classList.toggle('active-btn', isLinked);
-            if (gridVisible) toggleGrid(true);
-            updatePivotUI();
-            updateVisibilityIcon();
-
-            applyFiltersToElements();
-            applyTransforms();
-            checkAutoTarget();
-
-            localStorage.removeItem('artref_settings_v2');
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-        } catch(e) {
-            console.error(e);
-        }
-    }
-
-    // --- Интерфейс и функции ---
-
-    function toggleDrawer() {
-        resetIdleTimer();
-        drawer.classList.toggle('open');
-        if (drawer.classList.contains('open')) syncSlidersToCurrentTarget();
-    }
-
-    function triggerUserLoad() {
-        if (!isRefLoaded) return;
-        document.getElementById('user-input').click();
-    }
-
-    function syncSlidersToCurrentTarget() {
-        const s = states[currentTarget];
-        document.getElementById('opacity-slider').value = s.opacity * 100;
-        document.getElementById('contrast-slider').value = s.contrast;
-        document.getElementById('brightness-slider').value = s.brightness;
+    // --- Логика файлов и сжатия (без await, полностью на коллбэках) ---
+    function loadFile(input, type) {
+        if (!input.files || !input.files[0]) return;
+        const file = input.files[0];
+        const reader = new FileReader();
         
-        document.getElementById('opacity-val').innerText = Math.round(s.opacity * 100) + '%';
-        document.getElementById('contrast-val').innerText = s.contrast + '%';
-        document.getElementById('brightness-val').innerText = s.brightness + '%';
-
-        const isUser = currentTarget === 'user';
-        document.getElementById('opacity-control').style.opacity = isUser ? '1' : '0.4';
-        document.getElementById('opacity-control').style.pointerEvents = isUser ? 'auto' : 'none';
-
-        targetLabel.innerText = isUser ? 'Настройка рисунка' : 'Настройка референса';
-        targetPulse.className = `w-1.5 h-1.5 rounded-full animate-pulse ${isUser ? 'bg-red-500' : 'bg-gray-400'}`;
+        reader.onload = function(e) {
+            const img = new Image();
+            img.onload = function() {
+                // Сжимаем изображение, чтобы избежать переполнения localStorage
+                const canvas = document.createElement('canvas');
+                const MAX_DIM = 1400; // Безопасное разрешение
+                let w = img.width;
+                let h = img.height;
+                
+                if (w > MAX_DIM || h > MAX_DIM) {
+                    if (w > h) { h = Math.round(h * (MAX_DIM / w)); w = MAX_DIM; }
+                    else { w = Math.round(w * (MAX_DIM / h)); h = MAX_DIM; }
+                }
+                
+                canvas.width = w;
+                canvas.height = h;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, w, h);
+                
+                // Получаем DataURL (JPEG 0.8)
+                const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+                
+                // Применяем
+                const el = type === 'ref' ? refEl : userEl;
+                el.src = dataUrl;
+                el.style.display = 'block';
+                document.getElementById('placeholder').style.display = 'none';
+                
+                if (type === 'ref') {
+                    document.getElementById('user-btn-load').classList.remove('btn-disabled');
+                }
+                
+                fitImageToScreen(el, type);
+                
+                if (type === 'user') {
+                    currentTarget = 'user';
+                }
+                updateTargetUI();
+                saveState();
+            };
+            img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+        
+        // Очищаем инпут
+        input.value = '';
     }
 
-    function checkAutoTarget() {
-        const prevTarget = currentTarget;
-        if (!isUserLoaded) {
-            currentTarget = 'ref';
-        } else {
-            const userOpacitySetting = states.user.opacity;
-            if (!isUserVisible || userOpacitySetting === 0) {
-                currentTarget = 'ref';
-            } else {
-                currentTarget = 'user';
-            }
-        }
-        if (prevTarget !== currentTarget) syncSlidersToCurrentTarget();
+    // --- Трансформации ---
+    function updateTransform(type) {
+        const el = type === 'ref' ? refEl : userEl;
+        if (!el || !el.src) return;
+        const s = states[type];
+        const cx = window.innerWidth / 2;
+        const cy = window.innerHeight / 2;
+        
+        el.style.transform = `translate(-50%, -50%) translate(${s.x - cx}px, ${s.y - cy}px) rotate(${s.r}deg) scale(${s.s})`;
+        el.style.opacity = (type === 'user' && !isUserVisible) ? 0 : s.opacity;
+        el.style.filter = `contrast(${s.contrast}%) brightness(${s.brightness}%)`;
+    }
+
+    function fitImageToScreen(img, type) {
+        if (!img || !img.naturalWidth) return;
+        const s = states[type];
+        const sc = Math.min(window.innerWidth / img.naturalWidth, window.innerHeight / img.naturalHeight) * 0.8;
+        s.x = window.innerWidth / 2;
+        s.y = window.innerHeight / 2;
+        s.s = sc;
+        s.r = 0;
+        updateTransform(type);
+    }
+
+    // --- UI и Ползунки ---
+    function manualToggleTarget() {
+        if (!userEl.src || userEl.src === '') return;
+        currentTarget = currentTarget === 'ref' ? 'user' : 'ref';
         updateTargetUI();
     }
 
     function updateTargetUI() {
         const isUser = currentTarget === 'user';
-        targetIndicator.innerText = `Слой: ${isUser ? 'Рисунок' : 'Референс'}`;
-        targetIndicator.className = `target-indicator ${isUser ? 'user-mode' : ''}`;
-        autoStatusText.innerText = isUser ? 'Рисунок' : 'Референс';
+        const ui = document.getElementById('target-ui');
+        ui.innerText = isUser ? 'СЛОЙ: РИСУНОК' : 'СЛОЙ: РЕФЕРЕНС';
+        ui.className = `target-indicator ${isUser ? 'user-mode' : ''}`;
+        document.getElementById('layer-name').innerText = `Настройка: ${isUser ? 'Рисунок' : 'Референс'}`;
+        syncSliders();
     }
 
-    function toggleLink() {
-        resetIdleTimer();
-        isLinked = !isLinked;
-        document.getElementById('btn-link').classList.toggle('active-btn', isLinked);
-        saveToStorage();
-    }
-
-    function updateVisibilityIcon() {
-        if (isUserVisible) {
-            eyeIcon.innerHTML = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle>';
-        } else {
-            eyeIcon.innerHTML = '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line>';
-        }
-    }
-
-    function toggleUserVisibility() {
-        resetIdleTimer();
-        isUserVisible = !isUserVisible;
-        updateVisibilityIcon();
-        applyFiltersToElements();
-        checkAutoTarget();
-        saveToStorage();
-    }
-
-    function toggleCustomPivot() {
-        resetIdleTimer();
-        isCustomPivot = !isCustomPivot;
-        updatePivotUI();
-        saveToStorage();
-    }
-
-    function updatePivotUI() {
-        if (isCustomPivot) {
-            pivotEl.style.display = 'block';
-            pivotEl.style.left = pivot.x + 'px';
-            pivotEl.style.top = pivot.y + 'px';
-            document.getElementById('btn-pivot-toggle').classList.add('active-target');
-        } else {
-            pivotEl.style.display = 'none';
-            document.getElementById('btn-pivot-toggle').classList.remove('active-target');
-        }
-    }
-
-    function fitImageToScreen(img, key) {
-        const screenW = window.innerWidth, screenH = window.innerHeight;
-        const scale = Math.min(screenW / img.naturalWidth, screenH / img.naturalHeight) * 0.9;
-        const s = states[key];
-        s.x = screenW / 2; s.y = screenH / 2; s.s = scale; s.r = 0;
-        applyTransforms();
-    }
-
-    function loadFile(input, id) {
-        if (input.files?.[0]) {
-            const reader = new FileReader();
-            reader.onload = e => {
-                const img = document.getElementById(id);
-                img.src = e.target.result;
-                img.style.display = 'block';
-                img.onload = () => {
-                    const key = (id === 'ref-image') ? 'ref' : 'user';
-                    fitImageToScreen(img, key);
-                    if (id === 'ref-image') {
-                        isRefLoaded = true;
-                        userLoadBtn.classList.remove('btn-disabled');
-                    } else {
-                        isUserLoaded = true;
-                        document.getElementById('placeholder').style.display = 'none';
-                    }
-                    checkAutoTarget();
-                    saveToStorage();
-                };
-            };
-            reader.readAsDataURL(input.files[0]);
-        }
-    }
-
-    function updateFilters() {
-        resetIdleTimer();
-        const opValue = parseInt(document.getElementById('opacity-slider').value);
-        const coValue = parseInt(document.getElementById('contrast-slider').value);
-        const brValue = parseInt(document.getElementById('brightness-slider').value);
-        const s = states[currentTarget];
-        if (currentTarget === 'user') s.opacity = opValue / 100;
-        s.contrast = coValue; s.brightness = brValue;
-        document.getElementById('opacity-val').innerText = opValue + '%';
-        document.getElementById('contrast-val').innerText = coValue + '%';
-        document.getElementById('brightness-val').innerText = brValue + '%';
-        applyFiltersToElements();
-        if (currentTarget === 'user' && opValue === 0) checkAutoTarget();
-        saveToStorage();
-    }
-
-    function applyFiltersToElements() {
-        refEl.style.filter = `contrast(${states.ref.contrast}%) brightness(${states.ref.brightness}%)`;
-        userEl.style.opacity = isUserVisible ? states.user.opacity : '0';
-        userEl.style.filter = `contrast(${states.user.contrast}%) brightness(${states.user.brightness}%)`;
-    }
-
-    function applyTransforms() {
-        const cx = window.innerWidth / 2, cy = window.innerHeight / 2;
-        [refEl, userEl].forEach((el, index) => {
-            const key = index === 0 ? 'ref' : 'user';
-            const s = states[key];
-            el.style.transform = `translate(-50%, -50%) translate(${s.x - cx}px, ${s.y - cy}px) rotate(${s.r}deg) scale(${s.s})`;
-        });
-    }
-
-    function startNudge(key, val) {
-        resetIdleTimer();
-        stopNudge();
-        const perform = () => {
-            const targets = isLinked ? ['ref', 'user'] : [currentTarget];
-            const px = isCustomPivot ? pivot.x : window.innerWidth/2;
-            const py = isCustomPivot ? pivot.y : window.innerHeight/2;
-            targets.forEach(t => {
-                const s = states[t];
-                if (key === 'x') s.x += val;
-                if (key === 'y') s.y += val;
-                if (key === 'r') {
-                    const dx = s.x - px, dy = s.y - py;
-                    const rad = val * Math.PI / 180;
-                    const cos = Math.cos(rad), sin = Math.sin(rad);
-                    s.x = px + (dx * cos - dy * sin); s.y = py + (dx * sin + dy * cos); s.r += val;
-                }
-                if (key === 's') {
-                    s.x = px + (s.x - px) * val; s.y = py + (s.y - py) * val; s.s *= val;
-                }
-            });
-            applyTransforms();
-            saveToStorage();
-        };
-        perform();
-        nudgeInterval = setInterval(perform, 30);
-    }
-
-    function stopNudge() { if (nudgeInterval) clearInterval(nudgeInterval); }
-
-    function showUI() {
-        appContainer.classList.remove('ui-hidden-state');
+    function toggleDrawer() { 
+        document.getElementById('drawer').classList.toggle('open'); 
+        syncSliders(); 
         resetIdleTimer();
     }
-
-    function hideUI() {
-        if (drawer.classList.contains('open') || cropModal.style.display === 'flex') return;
-        appContainer.classList.add('ui-hidden-state');
-    }
-
-    function resetIdleTimer() {
-        if (idleTimer) clearTimeout(idleTimer);
-        idleTimer = setTimeout(hideUI, IDLE_TIME);
-    }
-
-    const zone = document.getElementById('interaction-zone');
     
-    zone.addEventListener('pointerdown', e => {
-        showUI();
-        if (e.target.closest('#drawer') || e.target.closest('.edge-btn-container') || e.target.closest('.drawer-handle') || e.target.closest('#crop-modal')) return;
-        
-        if (isCustomPivot) {
-            pivot = { x: e.clientX, y: e.clientY };
-            updatePivotUI();
-            activePointers.set(e.pointerId, 'pivot');
-            saveToStorage();
-            return;
-        }
-        activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    });
-
-    zone.addEventListener('pointermove', e => {
-        if (!activePointers.has(e.pointerId)) return;
-        showUI();
-        if (activePointers.get(e.pointerId) === 'pivot') {
-            pivot = { x: e.clientX, y: e.clientY };
-            updatePivotUI();
-            return;
-        }
-        const targets = isLinked ? ['ref', 'user'] : [currentTarget];
-        if (activePointers.size === 1) {
-            const prev = activePointers.get(e.pointerId);
-            const dx = e.clientX - prev.x, dy = e.clientY - prev.y;
-            targets.forEach(t => { states[t].x += dx; states[t].y += dy; });
-            activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-        }
-        applyTransforms();
-    });
-
-    zone.addEventListener('pointerup', e => {
-        activePointers.delete(e.pointerId);
-        saveToStorage();
-    });
-
-    function toggleGrid(forceState) {
+    function toggleLink() { 
+        isLinked = !isLinked; 
+        document.getElementById('link-btn').classList.toggle('active-btn', isLinked); 
         resetIdleTimer();
-        const gridOverlay = document.getElementById('grid-overlay');
-        if (forceState !== undefined) {
-            gridVisible = forceState;
-            if (gridVisible) gridOverlay.classList.remove('hidden');
-            else gridOverlay.classList.add('hidden');
-        } else {
-            gridVisible = gridOverlay.classList.toggle('hidden') === false;
-        }
-        document.getElementById('btn-grid-toggle-main').classList.toggle('active-target', gridVisible);
-        if (gridVisible) drawGrid();
-        saveToStorage();
+    }
+    
+    function toggleUserVisibility() { 
+        isUserVisible = !isUserVisible; 
+        document.getElementById('vis-btn').classList.toggle('active-btn', !isUserVisible);
+        updateTransform('user'); 
+        resetIdleTimer();
     }
 
-    function drawGrid() {
+    function toggleGrid() {
+        gridVisible = !gridVisible;
+        document.getElementById('grid-btn').classList.toggle('active-btn', gridVisible);
         const svg = document.getElementById('grid-overlay');
-        const w = window.innerWidth, h = window.innerHeight;
+        if (!gridVisible) {
+            svg.style.display = 'none';
+            return;
+        }
+        svg.style.display = 'block';
         svg.innerHTML = '';
+        const w = window.innerWidth, h = window.innerHeight;
         const step = w / 10;
+        const gridStrokeColor = 'rgba(255, 255, 255, 0.2)';
+        
         for(let x=0; x<=w; x+=step) {
             const l = document.createElementNS("http://www.w3.org/2000/svg", "line");
             l.setAttribute("x1", x); l.setAttribute("y1", 0); l.setAttribute("x2", x); l.setAttribute("y2", h);
@@ -968,53 +462,185 @@
             l.setAttribute("x1", 0); l.setAttribute("y1", y); l.setAttribute("x2", w); l.setAttribute("y2", y);
             l.setAttribute("stroke", gridStrokeColor); svg.appendChild(l);
         }
+        resetIdleTimer();
     }
 
     function resetAll() {
         resetIdleTimer();
-        if (refEl.src) fitImageToScreen(refEl, 'ref');
-        if (userEl.src) fitImageToScreen(userEl, 'user');
-        states.ref.contrast = 100; states.ref.brightness = 100;
+        if (refEl.src && refEl.src !== '') fitImageToScreen(refEl, 'ref');
+        if (userEl.src && userEl.src !== '') fitImageToScreen(userEl, 'user');
+        
+        states.ref.contrast = 100; states.ref.brightness = 100; states.ref.opacity = 1;
         states.user.opacity = 0.8; states.user.contrast = 100; states.user.brightness = 100;
-        syncSlidersToCurrentTarget();
-        applyFiltersToElements();
-        saveToStorage();
+        
+        updateTransform('ref');
+        updateTransform('user');
+        syncSliders();
+        saveState();
     }
 
-    function clearImages() {
+    function syncSliders() { 
+        const s = states[currentTarget];
+        document.getElementById('op-slider').value = s.opacity * 100;
+        document.getElementById('op-val').innerText = Math.round(s.opacity * 100) + '%';
+        
+        document.getElementById('ct-slider').value = s.contrast;
+        document.getElementById('ct-val').innerText = Math.round(s.contrast) + '%';
+        
+        document.getElementById('br-slider').value = s.brightness;
+        document.getElementById('br-val').innerText = Math.round(s.brightness) + '%';
+    }
+
+    function updateFilters() { 
+        const s = states[currentTarget];
+        s.opacity = document.getElementById('op-slider').value / 100; 
+        s.contrast = document.getElementById('ct-slider').value;
+        s.brightness = document.getElementById('br-slider').value;
+        
+        syncSliders();
+        updateTransform(currentTarget); 
         resetIdleTimer();
-
-        refEl.src = '';
-        userEl.src = '';
-        refEl.style.display = 'none';
-        userEl.style.display = 'none';
-
-        isRefLoaded = false;
-        isUserLoaded = false;
-        currentTarget = 'ref';
-
-        states.ref = { x: window.innerWidth/2, y: window.innerHeight/2, s: 1, r: 0, opacity: 1, contrast: 100, brightness: 100 };
-        states.user = { x: window.innerWidth/2, y: window.innerHeight/2, s: 1, r: 0, opacity: 0.8, contrast: 100, brightness: 100 };
-
-        document.getElementById('placeholder').style.display = 'block';
-        userLoadBtn.classList.add('btn-disabled');
-        document.getElementById('ref-input').value = '';
-        document.getElementById('user-input').value = '';
-
-        cropModal.style.display = 'none';
-        applyFiltersToElements();
-        syncSlidersToCurrentTarget();
-        checkAutoTarget();
-        saveToStorage();
+        saveState();
     }
 
-    window.addEventListener('load', () => { 
-        drawGrid(); 
-        await loadFromStorage();
-        updateTargetUI(); 
+    // --- Авто-скрытие интерфейса ---
+    function resetIdleTimer() { 
+        document.body.classList.remove('ui-hidden-state'); 
+        if (idleTimer) clearTimeout(idleTimer); 
+        idleTimer = setTimeout(function() {
+            if (!document.getElementById('drawer').classList.contains('open')) {
+                document.body.classList.add('ui-hidden-state');
+            }
+        }, 6000); 
+    }
+
+    // --- Жесты и перемещение ---
+    zone.addEventListener('pointerdown', function(e) {
+        resetIdleTimer();
+        activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    });
+
+    zone.addEventListener('pointermove', function(e) {
+        if (!activePointers.has(e.pointerId)) return;
+        
+        const prev = activePointers.get(e.pointerId);
+        const dx = e.clientX - prev.x;
+        const dy = e.clientY - prev.y;
+        
+        const list = isLinked ? ['ref', 'user'] : [currentTarget];
+        list.forEach(function(k) { 
+            states[k].x += dx; 
+            states[k].y += dy; 
+            updateTransform(k);
+        });
+        
+        activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    });
+
+    function handlePointerUp(e) {
+        if (activePointers.has(e.pointerId)) {
+            activePointers.delete(e.pointerId);
+            saveState();
+        }
+    }
+    zone.addEventListener('pointerup', handlePointerUp);
+    zone.addEventListener('pointercancel', handlePointerUp);
+    zone.addEventListener('pointerout', handlePointerUp);
+
+    // --- Управление по краям (Кнопки точной настройки) ---
+    function startNudge(key, val) {
+        stopNudge();
+        resetIdleTimer();
+        const step = function() {
+            const list = isLinked ? ['ref', 'user'] : [currentTarget];
+            const px = window.innerWidth/2;
+            const py = window.innerHeight/2;
+            list.forEach(function(k) {
+                const s = states[k];
+                if (key === 'x') s.x += val;
+                if (key === 'y') s.y += val;
+                if (key === 's') { s.s *= val; }
+                if (key === 'r') {
+                    const rad = val * Math.PI / 180;
+                    const dx = s.x - px, dy = s.y - py;
+                    s.x = px + (dx * Math.cos(rad) - dy * Math.sin(rad));
+                    s.y = py + (dx * Math.sin(rad) + dy * Math.cos(rad));
+                    s.r += val;
+                }
+                updateTransform(k);
+            });
+        };
+        step();
+        nudgeInterval = setInterval(step, 30);
+    }
+    
+    function stopNudge() { 
+        if (nudgeInterval) {
+            clearInterval(nudgeInterval); 
+            nudgeInterval = null;
+            saveState(); 
+        }
+    }
+
+    // --- Сохранение в LocalStorage ---
+    function saveState() {
+        const data = {
+            states: states,
+            isUserVisible: isUserVisible,
+            refData: refEl.src.length > 100 ? refEl.src : null,
+            userData: userEl.src.length > 100 ? userEl.src : null
+        };
+        try { 
+            // Храним данные ключом artref_v5
+            localStorage.setItem('artref_v5', JSON.stringify(data)); 
+        } catch(e) { 
+            console.warn("Storage full", e); 
+        }
+    }
+
+    // --- Инициализация при старте ---
+    window.addEventListener('DOMContentLoaded', function() {
+        try {
+            const saved = localStorage.getItem('artref_v5');
+            if (saved) {
+                const d = JSON.parse(saved);
+                if (d.states) states = d.states;
+                if (d.isUserVisible !== undefined) isUserVisible = d.isUserVisible;
+                
+                if (d.refData) { 
+                    refEl.src = d.refData; 
+                    refEl.style.display = 'block'; 
+                    document.getElementById('user-btn-load').classList.remove('btn-disabled'); 
+                    document.getElementById('placeholder').style.display = 'none'; 
+                }
+                if (d.userData) { 
+                    userEl.src = d.userData; 
+                    userEl.style.display = 'block'; 
+                    document.getElementById('placeholder').style.display = 'none';
+                    currentTarget = 'user'; // Если есть пользовательский слой, выбираем его по умолчанию
+                }
+                
+                updateTransform('ref');
+                updateTransform('user');
+                updateTargetUI();
+            }
+        } catch(e) {
+            console.error("Error loading state:", e);
+        }
+        
+        // Перерисовываем элементы при ресайзе
+        window.addEventListener('resize', function() {
+            updateTransform('ref');
+            updateTransform('user');
+            if (gridVisible) {
+                gridVisible = false;
+                toggleGrid(); // Перерисовать сетку под новый размер
+            }
+        });
+
         resetIdleTimer();
     });
-    window.addEventListener('resize', () => { drawGrid(); applyTransforms(); });
 </script>
+
 </body>
 </html>
