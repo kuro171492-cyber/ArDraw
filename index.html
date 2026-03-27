@@ -494,7 +494,7 @@
 
     // --- UI и Ползунки ---
     function hasUserImageLoaded() {
-        return hasImageLoaded(userEl);
+        return !!(userEl.src && userEl.src !== '');
     }
 
     function shouldUseReferenceMode() {
