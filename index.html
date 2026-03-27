@@ -367,7 +367,7 @@
         user: { x: window.innerWidth/2, y: window.innerHeight/2, s: 1, r: 0, opacity: 0.8, contrast: 100, brightness: 100 }
     };
     
-    let currentTarget = 'user';
+    let currentTarget = null;
     let isLinked = false;
     let isUserVisible = true;
     let gridVisible = false;
@@ -488,16 +488,25 @@
     }
 
     // --- UI и Ползунки ---
-    function hasUserImageLoaded() {
-        return !!(userEl.src && userEl.src !== '');
+    function hasImageLoaded(el) {
+        return !!(el && el.src && el.src !== '');
     }
 
-    function shouldUseReferenceMode() {
-        return !hasUserImageLoaded() || !isUserVisible || states.user.opacity <= 0;
+    function getAutoFocusMode() {
+        const hasRef = hasImageLoaded(refEl);
+        const hasUser = hasImageLoaded(userEl);
+
+        if (!hasRef && !hasUser) return 'empty';
+        if (!hasRef && hasUser) return 'user';
+        if (hasRef && !hasUser) return 'ref';
+        if (!isUserVisible || states.user.opacity <= 0) return 'ref';
+        if (hasUser) return 'user';
+        return 'empty';
     }
 
     function autoSelectTargetMode() {
-        currentTarget = shouldUseReferenceMode() ? 'ref' : 'user';
+        const mode = getAutoFocusMode();
+        currentTarget = mode === 'empty' ? null : mode;
     }
 
     function manualToggleTarget() {
@@ -506,11 +515,18 @@
     }
 
     function updateTargetUI() {
+        const isEmpty = currentTarget === null;
         const isUser = currentTarget === 'user';
         const ui = document.getElementById('target-ui');
-        ui.innerText = isUser ? 'СЛОЙ: РИСУНОК' : 'СЛОЙ: РЕФЕРЕНС';
-        ui.className = `target-indicator ${isUser ? 'user-mode' : ''}`;
-        document.getElementById('layer-name').innerText = `Настройка: ${isUser ? 'Рисунок' : 'Референс'}`;
+        if (isEmpty) {
+            ui.innerText = 'СЛОЙ: ПУСТО';
+            ui.className = 'target-indicator';
+            document.getElementById('layer-name').innerText = 'Настройка: —';
+        } else {
+            ui.innerText = isUser ? 'СЛОЙ: РИСУНОК' : 'СЛОЙ: РЕФЕРЕНС';
+            ui.className = `target-indicator ${isUser ? 'user-mode' : ''}`;
+            document.getElementById('layer-name').innerText = `Настройка: ${isUser ? 'Рисунок' : 'Референс'}`;
+        }
         syncSliders();
     }
 
@@ -577,6 +593,15 @@
     }
 
     function syncSliders() { 
+        if (!currentTarget) {
+            document.getElementById('op-slider').value = 100;
+            document.getElementById('op-val').innerText = '—';
+            document.getElementById('ct-slider').value = 100;
+            document.getElementById('ct-val').innerText = '—';
+            document.getElementById('br-slider').value = 100;
+            document.getElementById('br-val').innerText = '—';
+            return;
+        }
         const s = states[currentTarget];
         document.getElementById('op-slider').value = s.opacity * 100;
         document.getElementById('op-val').innerText = Math.round(s.opacity * 100) + '%';
@@ -589,6 +614,9 @@
     }
 
     function updateFilters() { 
+        if (!currentTarget) {
+            return;
+        }
         const s = states[currentTarget];
         s.opacity = document.getElementById('op-slider').value / 100; 
         s.contrast = document.getElementById('ct-slider').value;
@@ -618,6 +646,7 @@
         resetIdleTimer();
         activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
         if (activePointers.size === 2) {
+            if (!currentTarget && !isLinked) return;
             const points = Array.from(activePointers.values());
             const dx = points[0].x - points[1].x;
             const dy = points[0].y - points[1].y;
@@ -633,6 +662,7 @@
         if (!activePointers.has(e.pointerId)) return;
         
         const list = isLinked ? ['ref', 'user'] : [currentTarget];
+        if (!currentTarget && !isLinked) return;
         if (activePointers.size >= 2 && pinchState) {
             activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
             const points = Array.from(activePointers.values());
@@ -679,6 +709,7 @@
         resetIdleTimer();
         const step = function() {
             const list = isLinked ? ['ref', 'user'] : [currentTarget];
+            if (!currentTarget && !isLinked) return;
             list.forEach(function(k) {
                 const s = states[k];
                 if (key === 'x') s.x += val;
