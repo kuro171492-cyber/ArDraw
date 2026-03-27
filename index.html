@@ -225,11 +225,7 @@
 
         .crop-modal {
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            height: 100dvh;
+            inset: 0;
             z-index: 5000;
             background: rgba(0,0,0,0.9);
             display: none;
@@ -242,15 +238,12 @@
         }
         .crop-stage {
             position: relative;
-            width: 92vw;
-            max-width: 880px;
-            height: 70vh;
-            max-height: 680px;
+            width: min(92vw, 880px);
+            height: min(70dvh, 680px);
             border: 1px solid rgba(255,255,255,0.2);
             border-radius: 14px;
             overflow: hidden;
             touch-action: none;
-            background: #111;
         }
         #crop-image {
             position: absolute;
@@ -284,8 +277,7 @@
         .crop-actions {
             display: flex;
             gap: 10px;
-            width: 92vw;
-            max-width: 880px;
+            width: min(92vw, 880px);
         }
         .crop-btn {
             flex: 1;
@@ -491,6 +483,23 @@
                 const ctx = canvas.getContext('2d');
                 ctx.drawImage(img, 0, 0, w, h);
                 
+                let preparedCanvas = canvas;
+                if (type === 'ref') {
+                    const shouldCrop = window.confirm('Обрезать референс под пропорции экрана перед загрузкой?');
+                    if (shouldCrop) {
+                        preparedCanvas = cropCanvasToViewportRatio(canvas);
+                    }
+                }
+
+                // Получаем DataURL (JPEG 0.8)
+                const dataUrl = preparedCanvas.toDataURL('image/jpeg', 0.8);
+                
+                // Применяем
+                const el = type === 'ref' ? refEl : userEl;
+                el.src = dataUrl;
+                el.style.display = 'block';
+                document.getElementById('placeholder').style.display = 'none';
+                
                 if (type === 'ref') {
                     openCropTool(canvas, function(preparedCanvas) {
                         if (!preparedCanvas) return;
@@ -561,152 +570,30 @@
         updateTransform(type);
     }
 
-    function applyLoadedImage(preparedCanvas, type) {
-        const dataUrl = preparedCanvas.toDataURL('image/jpeg', 0.8);
-        const el = type === 'ref' ? refEl : userEl;
-        el.src = dataUrl;
-        el.style.display = 'block';
-        document.getElementById('placeholder').style.display = 'none';
+    function cropCanvasToViewportRatio(sourceCanvas) {
+        const viewportRatio = window.innerWidth / window.innerHeight;
+        const srcRatio = sourceCanvas.width / sourceCanvas.height;
 
-        if (type === 'ref') {
-            document.getElementById('user-btn-load').classList.remove('btn-disabled');
-        }
+        let cropWidth = sourceCanvas.width;
+        let cropHeight = sourceCanvas.height;
 
-        fitImageToScreen(el, type);
-        autoSelectTargetMode();
-        updateTargetUI();
-        saveState();
-    }
-
-    function openCropTool(sourceCanvas, onDone) {
-        const modal = document.getElementById('crop-modal');
-        const stage = document.getElementById('crop-stage');
-        const image = document.getElementById('crop-image');
-        if (!modal || !stage || !image) {
-            if (onDone) onDone(sourceCanvas);
-            return;
-        }
-        modal.style.display = 'flex';
-        const stageRect = stage.getBoundingClientRect();
-        if (stageRect.width < 20 || stageRect.height < 20) {
-            modal.style.display = 'none';
-            if (onDone) onDone(sourceCanvas);
-            return;
-        }
-
-        const sourceUrl = sourceCanvas.toDataURL('image/jpeg', 0.92);
-        image.src = sourceUrl;
-        activePointers.clear();
-        pinchState = null;
-
-        const imgRatio = sourceCanvas.width / sourceCanvas.height;
-        const stageRatio = stageRect.width / stageRect.height;
-
-        let displayWidth = stageRect.width;
-        let displayHeight = stageRect.height;
-        let displayX = 0;
-        let displayY = 0;
-
-        if (imgRatio > stageRatio) {
-            displayHeight = stageRect.width / imgRatio;
-            displayY = (stageRect.height - displayHeight) / 2;
+        if (srcRatio > viewportRatio) {
+            cropWidth = Math.round(sourceCanvas.height * viewportRatio);
         } else {
-            displayWidth = stageRect.height * imgRatio;
-            displayX = (stageRect.width - displayWidth) / 2;
+            cropHeight = Math.round(sourceCanvas.width / viewportRatio);
         }
 
-        const startWidth = displayWidth * 0.75;
-        const startHeight = displayHeight * 0.75;
-        const startX = displayX + (displayWidth - startWidth) / 2;
-        const startY = displayY + (displayHeight - startHeight) / 2;
+        const cropX = Math.round((sourceCanvas.width - cropWidth) / 2);
+        const cropY = Math.round((sourceCanvas.height - cropHeight) / 2);
 
-        cropSession = {
-            onDone,
-            sourceCanvas,
-            displayX,
-            displayY,
-            displayWidth,
-            displayHeight,
-            x: startX,
-            y: startY,
-            w: startWidth,
-            h: startHeight,
-            pointerId: null,
-            mode: null,
-            startPointerX: 0,
-            startPointerY: 0,
-            startX,
-            startY,
-            startW: startWidth,
-            startH: startHeight
-        };
+        const croppedCanvas = document.createElement('canvas');
+        croppedCanvas.width = cropWidth;
+        croppedCanvas.height = cropHeight;
 
-        updateCropRect();
-    }
+        const croppedCtx = croppedCanvas.getContext('2d');
+        croppedCtx.drawImage(sourceCanvas, cropX, cropY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
 
-    function cancelCropTool() {
-        if (!cropSession) return;
-        const done = cropSession.onDone;
-        closeCropTool();
-        if (done) done(null);
-    }
-
-    function applyCropTool() {
-        if (!cropSession) return;
-        const c = cropSession;
-        const sx = (c.x - c.displayX) / c.displayWidth;
-        const sy = (c.y - c.displayY) / c.displayHeight;
-        const sw = c.w / c.displayWidth;
-        const sh = c.h / c.displayHeight;
-
-        const sourceX = Math.round(sx * c.sourceCanvas.width);
-        const sourceY = Math.round(sy * c.sourceCanvas.height);
-        const sourceW = Math.round(sw * c.sourceCanvas.width);
-        const sourceH = Math.round(sh * c.sourceCanvas.height);
-
-        const output = document.createElement('canvas');
-        output.width = Math.max(1, sourceW);
-        output.height = Math.max(1, sourceH);
-        const outputCtx = output.getContext('2d');
-        outputCtx.drawImage(c.sourceCanvas, sourceX, sourceY, sourceW, sourceH, 0, 0, output.width, output.height);
-
-        const done = c.onDone;
-        closeCropTool();
-        if (done) done(output);
-    }
-
-    function closeCropTool() {
-        const modal = document.getElementById('crop-modal');
-        modal.style.display = 'none';
-        cropSession = null;
-        activePointers.clear();
-        pinchState = null;
-    }
-
-    function updateCropRect() {
-        if (!cropSession) return;
-        const rect = document.getElementById('crop-rect');
-        rect.style.left = `${cropSession.x}px`;
-        rect.style.top = `${cropSession.y}px`;
-        rect.style.width = `${cropSession.w}px`;
-        rect.style.height = `${cropSession.h}px`;
-    }
-
-    function clampCropRect(x, y, w, h) {
-        const c = cropSession;
-        const minSize = 40;
-        w = Math.max(minSize, w);
-        h = Math.max(minSize, h);
-
-        if (x < c.displayX) x = c.displayX;
-        if (y < c.displayY) y = c.displayY;
-        if (x + w > c.displayX + c.displayWidth) x = c.displayX + c.displayWidth - w;
-        if (y + h > c.displayY + c.displayHeight) y = c.displayY + c.displayHeight - h;
-
-        if (w > c.displayWidth) { w = c.displayWidth; x = c.displayX; }
-        if (h > c.displayHeight) { h = c.displayHeight; y = c.displayY; }
-
-        return { x, y, w, h };
+        return croppedCanvas;
     }
 
     // --- UI и Ползунки ---
@@ -949,15 +836,6 @@
     function initCropToolEvents() {
         const stage = document.getElementById('crop-stage');
         const rect = document.getElementById('crop-rect');
-        const modal = document.getElementById('crop-modal');
-        if (!stage || !rect || !modal) return;
-
-        modal.addEventListener('pointerdown', function(e) {
-            if (!cropSession) return;
-            if (e.target === modal) {
-                cancelCropTool();
-            }
-        });
 
         stage.addEventListener('pointerdown', function(e) {
             if (!cropSession) return;
