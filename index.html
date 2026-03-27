@@ -444,7 +444,7 @@
             states.user = { x: window.innerWidth/2, y: window.innerHeight/2, s: 1, r: 0, opacity: 0.8, contrast: 100, brightness: 100 };
         }
 
-        const hasAnyImage = !!refEl.src || !!userEl.src;
+        const hasAnyImage = hasImageLoaded(refEl) || hasImageLoaded(userEl);
         document.getElementById('placeholder').style.display = hasAnyImage ? 'none' : 'block';
         autoSelectTargetMode();
         updateTargetUI();
@@ -460,7 +460,7 @@
     // --- Трансформации ---
     function updateTransform(type) {
         const el = type === 'ref' ? refEl : userEl;
-        if (!el || !el.src) return;
+        if (!hasImageLoaded(el)) return;
         const s = states[type];
         const cx = window.innerWidth / 2;
         const cy = window.innerHeight / 2;
@@ -574,8 +574,8 @@
 
     function resetAll() {
         resetIdleTimer();
-        if (refEl.src && refEl.src !== '') fitImageToScreen(refEl, 'ref');
-        if (userEl.src && userEl.src !== '') fitImageToScreen(userEl, 'user');
+        if (hasImageLoaded(refEl)) fitImageToScreen(refEl, 'ref');
+        if (hasImageLoaded(userEl)) fitImageToScreen(userEl, 'user');
         
         states.ref.contrast = 100; states.ref.brightness = 100; states.ref.opacity = 1;
         states.user.opacity = 0.8; states.user.contrast = 100; states.user.brightness = 100;
@@ -732,8 +732,8 @@
         const data = {
             states: states,
             isUserVisible: isUserVisible,
-            refData: refEl.src.length > 100 ? refEl.src : null,
-            userData: userEl.src.length > 100 ? userEl.src : null
+            refData: hasImageLoaded(refEl) ? refEl.src : null,
+            userData: hasImageLoaded(userEl) ? userEl.src : null
         };
         try { 
             // Храним данные ключом artref_v5
