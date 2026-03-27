@@ -276,6 +276,10 @@
                     <button onclick="document.getElementById('ref-input').click()" class="py-3 border-2 border-gray-100 rounded-xl text-[10px] font-bold uppercase text-gray-700 hover:bg-gray-50">Референс</button>
                     <button id="user-btn-load" onclick="document.getElementById('user-input').click()" class="py-3 border-2 border-gray-100 rounded-xl text-[10px] font-bold uppercase text-gray-700 hover:bg-gray-50 btn-disabled">Рисунок</button>
                 </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <button onclick="clearLayer('ref')" class="py-3 border-2 border-red-100 rounded-xl text-[10px] font-bold uppercase text-red-500 hover:bg-red-50">Очистить реф</button>
+                    <button onclick="clearLayer('user')" class="py-3 border-2 border-red-100 rounded-xl text-[10px] font-bold uppercase text-red-500 hover:bg-red-50">Очистить рисунок</button>
+                </div>
                 <!-- Загрузка файлов работает через коллбэки (без await) -->
                 <input type="file" id="ref-input" class="hidden" accept="image/*" onchange="loadFile(this, 'ref')">
                 <input type="file" id="user-input" class="hidden" accept="image/*" onchange="loadFile(this, 'user')">
@@ -283,6 +287,7 @@
 
             <div class="space-y-5 pt-4 border-t">
                 <div id="layer-name" class="text-xs font-bold text-red-500 uppercase">Настройка: Референс</div>
+                <button id="switch-layer-btn" onclick="manualToggleTarget()" class="w-full py-2 border-2 border-gray-100 rounded-xl text-[10px] font-bold uppercase text-gray-700 hover:bg-gray-50">Переключить слой</button>
                 
                 <div>
                     <div class="flex justify-between items-center mb-1">
@@ -419,12 +424,16 @@
         updateTargetUI();
     }
 
+    function ensureVisibleTargetForEditing() {
+        if (currentTarget !== 'user') return;
+        if (!isUserVisible || states.user.opacity <= 0) currentTarget = 'ref';
+    }
+
     function updateTargetUI() {
         const isUser = currentTarget === 'user';
-        const ui = document.getElementById('target-ui');
-        ui.innerText = isUser ? 'СЛОЙ: РИСУНОК' : 'СЛОЙ: РЕФЕРЕНС';
-        ui.className = `target-indicator ${isUser ? 'user-mode' : ''}`;
+        const hasUserLayer = !!(userEl.src && userEl.src !== '');
         document.getElementById('layer-name').innerText = `Настройка: ${isUser ? 'Рисунок' : 'Референс'}`;
+        document.getElementById('switch-layer-btn').classList.toggle('btn-disabled', !hasUserLayer);
         syncSliders();
     }
 
@@ -443,6 +452,8 @@
     function toggleUserVisibility() { 
         isUserVisible = !isUserVisible; 
         document.getElementById('vis-btn').classList.toggle('active-btn', !isUserVisible);
+        ensureVisibleTargetForEditing();
+        updateTargetUI();
         updateTransform('user'); 
         resetIdleTimer();
     }
@@ -506,9 +517,45 @@
         s.contrast = document.getElementById('ct-slider').value;
         s.brightness = document.getElementById('br-slider').value;
         
+        ensureVisibleTargetForEditing();
         syncSliders();
         updateTransform(currentTarget); 
+        updateTransform('user');
         resetIdleTimer();
+        saveState();
+    }
+
+    function clearLayer(type) {
+        const el = type === 'ref' ? refEl : userEl;
+        el.src = '';
+        el.style.display = 'none';
+
+        const defaultOpacity = type === 'ref' ? 1 : 0.8;
+        states[type] = {
+            x: window.innerWidth / 2,
+            y: window.innerHeight / 2,
+            s: 1,
+            r: 0,
+            opacity: defaultOpacity,
+            contrast: 100,
+            brightness: 100
+        };
+
+        if (type === 'ref') {
+            document.getElementById('user-btn-load').classList.add('btn-disabled');
+        }
+        if (type === 'user') {
+            isUserVisible = true;
+            document.getElementById('vis-btn').classList.remove('active-btn');
+            if (currentTarget === 'user') currentTarget = 'ref';
+        }
+
+        if (!refEl.src && !userEl.src) {
+            document.getElementById('placeholder').style.display = 'block';
+        }
+
+        ensureVisibleTargetForEditing();
+        updateTargetUI();
         saveState();
     }
 
