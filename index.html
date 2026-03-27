@@ -432,6 +432,15 @@
     let idleTimer = null;
     const IDLE_TIME = 10000;
 
+    const STORAGE_KEY = 'artref_settings_v3';
+    const IMAGE_DB_NAME = 'artref_image_store';
+    const IMAGE_DB_STORE = 'images';
+    const REF_IMAGE_KEY = 'ref';
+    const USER_IMAGE_KEY = 'user';
+    let imageDbPromise = null;
+    let lastSavedRefSrc = null;
+    let lastSavedUserSrc = null;
+
     // Элементы
     const refEl = document.getElementById('ref-image');
     const userEl = document.getElementById('user-image');
@@ -572,6 +581,77 @@
     cropBox.onpointerup = () => cropDrag = null;
 
     // --- ЛОГИКА АВТОСОХРАНЕНИЯ ---
+    function openImageDb() {
+        if (imageDbPromise) return imageDbPromise;
+
+        imageDbPromise = new Promise((resolve, reject) => {
+            const request = indexedDB.open(IMAGE_DB_NAME, 1);
+
+            request.onupgradeneeded = event => {
+                const db = event.target.result;
+                if (!db.objectStoreNames.contains(IMAGE_DB_STORE)) {
+                    db.createObjectStore(IMAGE_DB_STORE);
+                }
+            };
+
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+        });
+
+        return imageDbPromise;
+    }
+
+    async function imageStoreSet(key, value) {
+        const db = await openImageDb();
+        return new Promise((resolve, reject) => {
+            const tx = db.transaction(IMAGE_DB_STORE, 'readwrite');
+            tx.objectStore(IMAGE_DB_STORE).put(value, key);
+            tx.oncomplete = () => resolve();
+            tx.onerror = () => reject(tx.error);
+        });
+    }
+
+    async function imageStoreGet(key) {
+        const db = await openImageDb();
+        return new Promise((resolve, reject) => {
+            const tx = db.transaction(IMAGE_DB_STORE, 'readonly');
+            const req = tx.objectStore(IMAGE_DB_STORE).get(key);
+            req.onsuccess = () => resolve(req.result || null);
+            req.onerror = () => reject(req.error);
+        });
+    }
+
+    async function imageStoreDelete(key) {
+        const db = await openImageDb();
+        return new Promise((resolve, reject) => {
+            const tx = db.transaction(IMAGE_DB_STORE, 'readwrite');
+            tx.objectStore(IMAGE_DB_STORE).delete(key);
+            tx.oncomplete = () => resolve();
+            tx.onerror = () => reject(tx.error);
+        });
+    }
+
+    async function persistImagesIfNeeded() {
+        const refSrc = refEl.src.startsWith('data:') ? refEl.src : null;
+        const userSrc = userEl.src.startsWith('data:') ? userEl.src : null;
+
+        try {
+            if (refSrc !== lastSavedRefSrc) {
+                if (refSrc) await imageStoreSet(REF_IMAGE_KEY, refSrc);
+                else await imageStoreDelete(REF_IMAGE_KEY);
+                lastSavedRefSrc = refSrc;
+            }
+
+            if (userSrc !== lastSavedUserSrc) {
+                if (userSrc) await imageStoreSet(USER_IMAGE_KEY, userSrc);
+                else await imageStoreDelete(USER_IMAGE_KEY);
+                lastSavedUserSrc = userSrc;
+            }
+        } catch (e) {
+            console.warn('Не удалось сохранить изображения в IndexedDB', e);
+        }
+    }
+
     function saveToStorage() {
         const data = {
             states,
@@ -579,24 +659,42 @@
             isCustomPivot,
             isUserVisible,
             pivot,
-            gridVisible,
-            refImg: refEl.src.startsWith('data:') ? refEl.src : null,
-            userImg: userEl.src.startsWith('data:') ? userEl.src : null
+            gridVisible
         };
+
         try {
-            localStorage.setItem('artref_settings_v2', JSON.stringify(data));
-        } catch(e) {
-            data.refImg = null; data.userImg = null;
-            localStorage.setItem('artref_settings_v2', JSON.stringify(data));
+            localStorage.removeItem('artref_settings_v2');
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        } catch (e) {
+            console.warn('Не удалось сохранить настройки в localStorage', e);
+        }
+        persistImagesIfNeeded();
+    }
+
+    function setLayerImage(el, src, type) {
+        if (!src) return;
+        el.src = src;
+        el.style.display = 'block';
+
+        if (type === 'ref') {
+            isRefLoaded = true;
+            userLoadBtn.classList.remove('btn-disabled');
+        } else {
+            isUserLoaded = true;
+            document.getElementById('placeholder').style.display = 'none';
         }
     }
 
-    function loadFromStorage() {
-        const saved = localStorage.getItem('artref_settings_v2');
+    async function loadFromStorage() {
+        const savedV3 = localStorage.getItem(STORAGE_KEY);
+        const savedV2 = localStorage.getItem('artref_settings_v2');
+        const saved = savedV3 || savedV2;
         if (!saved) return;
+
         try {
             const data = JSON.parse(saved);
             states = data.states || states;
+            const isLegacyData = !savedV3 && !!savedV2;
             isLinked = !!data.isLinked;
             isCustomPivot = !!data.isCustomPivot;
             isUserVisible = data.isUserVisible !== undefined ? data.isUserVisible : true;
@@ -607,24 +705,30 @@
             if (gridVisible) toggleGrid(true);
             updatePivotUI();
             updateVisibilityIcon();
-            
-            if (data.refImg) {
-                refEl.src = data.refImg;
-                refEl.style.display = 'block';
-                isRefLoaded = true;
-                userLoadBtn.classList.remove('btn-disabled');
-            }
-            if (data.userImg) {
-                userEl.src = data.userImg;
-                userEl.style.display = 'block';
-                isUserLoaded = true;
-                document.getElementById('placeholder').style.display = 'none';
-            }
-            
+
+            // backward compatibility: older versions stored base64 in localStorage
+            if (data.refImg) setLayerImage(refEl, data.refImg, 'ref');
+            if (data.userImg) setLayerImage(userEl, data.userImg, 'user');
+
+            const [savedRefImg, savedUserImg] = await Promise.all([
+                imageStoreGet(REF_IMAGE_KEY),
+                imageStoreGet(USER_IMAGE_KEY)
+            ]);
+
+            if (!isRefLoaded && savedRefImg) setLayerImage(refEl, savedRefImg, 'ref');
+            if (!isUserLoaded && savedUserImg) setLayerImage(userEl, savedUserImg, 'user');
+
+            lastSavedRefSrc = refEl.src.startsWith('data:') ? refEl.src : null;
+            lastSavedUserSrc = userEl.src.startsWith('data:') ? userEl.src : null;
+
             applyFiltersToElements();
             applyTransforms();
             checkAutoTarget();
-        } catch(e) { console.error(e); }
+
+            if (isLegacyData) saveToStorage();
+        } catch(e) {
+            console.error(e);
+        }
     }
 
     // --- Интерфейс и функции ---
@@ -942,9 +1046,11 @@
         saveToStorage();
     }
 
-    window.addEventListener('load', () => { 
+codex/add-crop-feature-for-reference-loading-t7epdp
+    window.addEventListener('load', async () => { 
+
         drawGrid(); 
-        loadFromStorage();
+        await loadFromStorage();
         updateTargetUI(); 
         resetIdleTimer();
     });
