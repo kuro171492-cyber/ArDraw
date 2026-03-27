@@ -368,7 +368,7 @@
         user: { x: window.innerWidth/2, y: window.innerHeight/2, s: 1, r: 0, opacity: 0.8, contrast: 100, brightness: 100 }
     };
     
-    let currentTarget = 'ref';
+    let currentTarget = 'user';
     let isLinked = false;
     let isUserVisible = true;
     let gridVisible = false;
@@ -423,9 +423,7 @@
                 
                 fitImageToScreen(el, type);
                 
-                if (type === 'user') {
-                    currentTarget = 'user';
-                }
+                autoSelectTargetMode();
                 updateTargetUI();
                 saveState();
             };
@@ -455,7 +453,7 @@
 
         const hasAnyImage = !!refEl.src || !!userEl.src;
         document.getElementById('placeholder').style.display = hasAnyImage ? 'none' : 'block';
-        currentTarget = 'ref';
+        autoSelectTargetMode();
         updateTargetUI();
         updateTransform('ref');
         updateTransform('user');
@@ -487,24 +485,21 @@
     }
 
     // --- UI и Ползунки ---
-    function manualToggleTarget() {
-        if (!userEl.src || userEl.src === '') return;
-        if (!isUserVisible || states.user.opacity <= 0) {
-            currentTarget = 'ref';
-            updateTargetUI();
-            return;
-        }
-        currentTarget = currentTarget === 'ref' ? 'user' : 'ref';
-        updateTargetUI();
+    function hasUserImageLoaded() {
+        return !!(userEl.src && userEl.src !== '');
     }
 
-    function enforceReferenceFocusIfUserNotVisible() {
-        if (currentTarget === 'user' && (!isUserVisible || states.user.opacity <= 0)) {
-            currentTarget = 'ref';
-            updateTargetUI();
-            return true;
-        }
-        return false;
+    function shouldUseReferenceMode() {
+        return !hasUserImageLoaded() || !isUserVisible || states.user.opacity <= 0;
+    }
+
+    function autoSelectTargetMode() {
+        currentTarget = shouldUseReferenceMode() ? 'ref' : 'user';
+    }
+
+    function manualToggleTarget() {
+        autoSelectTargetMode();
+        updateTargetUI();
     }
 
     function updateTargetUI() {
@@ -532,7 +527,8 @@
         isUserVisible = !isUserVisible; 
         document.getElementById('vis-btn').classList.toggle('active-btn', !isUserVisible);
         updateTransform('user'); 
-        enforceReferenceFocusIfUserNotVisible();
+        autoSelectTargetMode();
+        updateTargetUI();
         resetIdleTimer();
     }
 
@@ -597,7 +593,8 @@
         
         syncSliders();
         updateTransform(currentTarget); 
-        enforceReferenceFocusIfUserNotVisible();
+        autoSelectTargetMode();
+        updateTargetUI();
         resetIdleTimer();
         saveState();
     }
@@ -737,17 +734,16 @@
                     userEl.src = d.userData; 
                     userEl.style.display = 'block'; 
                     document.getElementById('placeholder').style.display = 'none';
-                    currentTarget = 'user'; // Если есть пользовательский слой, выбираем его по умолчанию
                 }
                 
                 updateTransform('ref');
                 updateTransform('user');
-                enforceReferenceFocusIfUserNotVisible();
-                updateTargetUI();
             }
         } catch(e) {
             console.error("Error loading state:", e);
         }
+        autoSelectTargetMode();
+        updateTargetUI();
         
         // Перерисовываем элементы при ресайзе
         window.addEventListener('resize', function() {
