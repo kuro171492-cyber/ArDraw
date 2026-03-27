@@ -493,7 +493,7 @@
         if (!hasRef && !hasUser) return 'empty';
         if (!hasRef && hasUser) return 'user';
         if (hasRef && !hasUser) return 'ref';
-        if (!isUserVisible || states.user.opacity <= 0) return 'ref';
+        if (!isUserVisible) return 'ref';
         if (hasUser) return 'user';
         return 'empty';
     }
