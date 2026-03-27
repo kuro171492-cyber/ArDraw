@@ -738,6 +738,7 @@
         const data = {
             states: states,
             isUserVisible: isUserVisible,
+            viewport: { width: window.innerWidth, height: window.innerHeight },
             refData: hasImageLoaded(refEl) ? refEl.src : null,
             userData: hasImageLoaded(userEl) ? userEl.src : null
         };
@@ -757,21 +758,35 @@
                 const d = JSON.parse(saved);
                 if (d.states) states = d.states;
                 if (d.isUserVisible !== undefined) isUserVisible = d.isUserVisible;
-                
-                if (d.refData) { 
-                    refEl.src = d.refData; 
-                    refEl.style.display = 'block'; 
-                    document.getElementById('user-btn-load').classList.remove('btn-disabled'); 
-                    document.getElementById('placeholder').style.display = 'none'; 
-                }
-                if (d.userData) { 
-                    userEl.src = d.userData; 
-                    userEl.style.display = 'block'; 
+
+                const hasViewport = !!(d.viewport && d.viewport.width && d.viewport.height);
+                const viewportChanged = !hasViewport || d.viewport.width !== window.innerWidth || d.viewport.height !== window.innerHeight;
+                const applyLayer = function(el, type, dataUrl) {
+                    if (!dataUrl) return;
+                    el.src = dataUrl;
+                    el.style.display = 'block';
+
+                    const applyPlacement = function() {
+                        if (viewportChanged) fitImageToScreen(el, type);
+                        else updateTransform(type);
+                    };
+
+                    if (el.complete) applyPlacement();
+                    else el.onload = applyPlacement;
+                };
+
+                if (d.refData) {
+                    applyLayer(refEl, 'ref', d.refData);
+                    document.getElementById('user-btn-load').classList.remove('btn-disabled');
                     document.getElementById('placeholder').style.display = 'none';
                 }
-                
-                updateTransform('ref');
-                updateTransform('user');
+                if (d.userData) {
+                    applyLayer(userEl, 'user', d.userData);
+                    document.getElementById('placeholder').style.display = 'none';
+                }
+
+                if (!d.refData) updateTransform('ref');
+                if (!d.userData) updateTransform('user');
             }
         } catch(e) {
             console.error("Error loading state:", e);
