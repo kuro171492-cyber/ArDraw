@@ -321,9 +321,8 @@
                     <button onclick="document.getElementById('ref-input').click()" class="py-3 border-2 border-gray-100 rounded-xl text-[10px] font-bold uppercase text-gray-700 hover:bg-gray-50">Референс</button>
                     <button id="user-btn-load" onclick="document.getElementById('user-input').click()" class="py-3 border-2 border-gray-100 rounded-xl text-[10px] font-bold uppercase text-gray-700 hover:bg-gray-50 btn-disabled">Рисунок</button>
                 </div>
-                <div class="grid grid-cols-2 gap-2">
-                    <button onclick="clearLayer('ref')" class="py-3 border-2 border-gray-100 rounded-xl text-[10px] font-bold uppercase text-red-500 hover:bg-gray-50">Удалить реф</button>
-                    <button onclick="clearLayer('user')" class="py-3 border-2 border-gray-100 rounded-xl text-[10px] font-bold uppercase text-red-500 hover:bg-gray-50">Удалить рисунок</button>
+                <div>
+                    <button onclick="clearAllLayers()" class="py-3 border-2 border-gray-100 rounded-xl text-[10px] font-bold uppercase text-red-500 hover:bg-gray-50" style="width: 100%;">Удалить все</button>
                 </div>
                 <!-- Загрузка файлов работает через коллбэки (без await) -->
                 <input type="file" id="ref-input" class="hidden" accept="image/*" onchange="loadFile(this, 'ref')">
@@ -368,7 +367,7 @@
         user: { x: window.innerWidth/2, y: window.innerHeight/2, s: 1, r: 0, opacity: 0.8, contrast: 100, brightness: 100 }
     };
     
-    let currentTarget = 'ref';
+    let currentTarget = 'user';
     let isLinked = false;
     let isUserVisible = true;
     let gridVisible = false;
@@ -382,6 +381,11 @@
     const refEl = document.getElementById('ref-image');
     const userEl = document.getElementById('user-image');
     const zone = document.getElementById('interaction-zone');
+
+    function hasImageLoaded(el) {
+        const srcAttr = el.getAttribute('src');
+        return !!(srcAttr && srcAttr.trim() !== '');
+    }
 
     // --- Логика файлов и сжатия (без await, полностью на коллбэках) ---
     function loadFile(input, type) {
@@ -423,9 +427,7 @@
                 
                 fitImageToScreen(el, type);
                 
-                if (type === 'user') {
-                    currentTarget = 'user';
-                }
+                autoSelectTargetMode();
                 updateTargetUI();
                 saveState();
             };
@@ -453,13 +455,17 @@
             states.user = { x: window.innerWidth/2, y: window.innerHeight/2, s: 1, r: 0, opacity: 0.8, contrast: 100, brightness: 100 };
         }
 
-        const hasAnyImage = !!refEl.src || !!userEl.src;
+        const hasAnyImage = hasImageLoaded(refEl) || hasImageLoaded(userEl);
         document.getElementById('placeholder').style.display = hasAnyImage ? 'none' : 'block';
-        currentTarget = 'ref';
+        autoSelectTargetMode();
         updateTargetUI();
         updateTransform('ref');
         updateTransform('user');
         saveState();
+    }
+
+    function clearAllLayers() {
+        clearLayer('ref');
     }
 
     // --- Трансформации ---
@@ -487,24 +493,21 @@
     }
 
     // --- UI и Ползунки ---
-    function manualToggleTarget() {
-        if (!userEl.src || userEl.src === '') return;
-        if (!isUserVisible || states.user.opacity <= 0) {
-            currentTarget = 'ref';
-            updateTargetUI();
-            return;
-        }
-        currentTarget = currentTarget === 'ref' ? 'user' : 'ref';
-        updateTargetUI();
+    function hasUserImageLoaded() {
+        return hasImageLoaded(userEl);
     }
 
-    function enforceReferenceFocusIfUserNotVisible() {
-        if (currentTarget === 'user' && (!isUserVisible || states.user.opacity <= 0)) {
-            currentTarget = 'ref';
-            updateTargetUI();
-            return true;
-        }
-        return false;
+    function shouldUseReferenceMode() {
+        return !hasUserImageLoaded() || !isUserVisible || states.user.opacity <= 0;
+    }
+
+    function autoSelectTargetMode() {
+        currentTarget = shouldUseReferenceMode() ? 'ref' : 'user';
+    }
+
+    function manualToggleTarget() {
+        autoSelectTargetMode();
+        updateTargetUI();
     }
 
     function updateTargetUI() {
@@ -532,7 +535,8 @@
         isUserVisible = !isUserVisible; 
         document.getElementById('vis-btn').classList.toggle('active-btn', !isUserVisible);
         updateTransform('user'); 
-        enforceReferenceFocusIfUserNotVisible();
+        autoSelectTargetMode();
+        updateTargetUI();
         resetIdleTimer();
     }
 
@@ -597,7 +601,8 @@
         
         syncSliders();
         updateTransform(currentTarget); 
-        enforceReferenceFocusIfUserNotVisible();
+        autoSelectTargetMode();
+        updateTargetUI();
         resetIdleTimer();
         saveState();
     }
@@ -737,17 +742,16 @@
                     userEl.src = d.userData; 
                     userEl.style.display = 'block'; 
                     document.getElementById('placeholder').style.display = 'none';
-                    currentTarget = 'user'; // Если есть пользовательский слой, выбираем его по умолчанию
                 }
                 
                 updateTransform('ref');
                 updateTransform('user');
-                enforceReferenceFocusIfUserNotVisible();
-                updateTargetUI();
             }
         } catch(e) {
             console.error("Error loading state:", e);
         }
+        autoSelectTargetMode();
+        updateTargetUI();
         
         // Перерисовываем элементы при ресайзе
         window.addEventListener('resize', function() {
