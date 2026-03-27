@@ -651,7 +651,8 @@
             const list = isLinked ? ['ref', 'user'] : [currentTarget];
             pinchState = {
                 startDistance: Math.hypot(dx, dy),
-                startScales: Object.fromEntries(list.map(function(k) { return [k, states[k].s]; }))
+                startScales: Object.fromEntries(list.map(function(k) { return [k, states[k].s]; })),
+                hasStarted: false
             };
         }
     });
@@ -667,6 +668,15 @@
             const dx = points[0].x - points[1].x;
             const dy = points[0].y - points[1].y;
             const distance = Math.hypot(dx, dy);
+            const pinchDelta = Math.abs(distance - pinchState.startDistance);
+            if (!pinchState.hasStarted) {
+                // Игнорируем микродвижение в момент первого касания двумя пальцами,
+                // чтобы избежать скачка масштаба на старте жеста.
+                if (pinchDelta < 8) return;
+                pinchState.hasStarted = true;
+                pinchState.startDistance = distance;
+                pinchState.startScales = Object.fromEntries(list.map(function(k) { return [k, states[k].s]; }));
+            }
             if (pinchState.startDistance > 0) {
                 const zoomRatio = distance / pinchState.startDistance;
                 list.forEach(function(k) {
