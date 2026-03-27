@@ -7,10 +7,16 @@
         <style>
         :root {
             --primary: #FF5F5F;
-            --bg-dark: #111;
+            --bg-dark: #000;
+            --dot-color: rgba(255, 255, 255, 0.9);
+            --dot-size: 4px;
+            --dot-gap: 24px;
         }
         body {
             background-color: var(--bg-dark);
+            background-image: radial-gradient(circle, var(--dot-color) 0 calc(var(--dot-size) / 2), transparent calc(var(--dot-size) / 2 + 1px));
+            background-size: var(--dot-gap) var(--dot-gap);
+            background-position: 0 0;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             touch-action: none;
             user-select: none;
@@ -315,6 +321,10 @@
                     <button onclick="document.getElementById('ref-input').click()" class="py-3 border-2 border-gray-100 rounded-xl text-[10px] font-bold uppercase text-gray-700 hover:bg-gray-50">Референс</button>
                     <button id="user-btn-load" onclick="document.getElementById('user-input').click()" class="py-3 border-2 border-gray-100 rounded-xl text-[10px] font-bold uppercase text-gray-700 hover:bg-gray-50 btn-disabled">Рисунок</button>
                 </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <button onclick="clearLayer('ref')" class="py-3 border-2 border-gray-100 rounded-xl text-[10px] font-bold uppercase text-red-500 hover:bg-gray-50">Удалить реф</button>
+                    <button onclick="clearLayer('user')" class="py-3 border-2 border-gray-100 rounded-xl text-[10px] font-bold uppercase text-red-500 hover:bg-gray-50">Удалить рисунок</button>
+                </div>
                 <!-- Загрузка файлов работает через коллбэки (без await) -->
                 <input type="file" id="ref-input" class="hidden" accept="image/*" onchange="loadFile(this, 'ref')">
                 <input type="file" id="user-input" class="hidden" accept="image/*" onchange="loadFile(this, 'user')">
@@ -427,6 +437,31 @@
         input.value = '';
     }
 
+    function clearLayer(type) {
+        const isRef = type === 'ref';
+        const el = isRef ? refEl : userEl;
+        el.src = '';
+        el.style.display = 'none';
+
+        if (isRef) {
+            userEl.src = '';
+            userEl.style.display = 'none';
+            states.ref = { x: window.innerWidth/2, y: window.innerHeight/2, s: 1, r: 0, opacity: 1, contrast: 100, brightness: 100 };
+            states.user = { x: window.innerWidth/2, y: window.innerHeight/2, s: 1, r: 0, opacity: 0.8, contrast: 100, brightness: 100 };
+            document.getElementById('user-btn-load').classList.add('btn-disabled');
+        } else {
+            states.user = { x: window.innerWidth/2, y: window.innerHeight/2, s: 1, r: 0, opacity: 0.8, contrast: 100, brightness: 100 };
+        }
+
+        const hasAnyImage = !!refEl.src || !!userEl.src;
+        document.getElementById('placeholder').style.display = hasAnyImage ? 'none' : 'block';
+        currentTarget = 'ref';
+        updateTargetUI();
+        updateTransform('ref');
+        updateTransform('user');
+        saveState();
+    }
+
     // --- Трансформации ---
     function updateTransform(type) {
         const el = type === 'ref' ? refEl : userEl;
@@ -454,8 +489,22 @@
     // --- UI и Ползунки ---
     function manualToggleTarget() {
         if (!userEl.src || userEl.src === '') return;
+        if (!isUserVisible || states.user.opacity <= 0) {
+            currentTarget = 'ref';
+            updateTargetUI();
+            return;
+        }
         currentTarget = currentTarget === 'ref' ? 'user' : 'ref';
         updateTargetUI();
+    }
+
+    function enforceReferenceFocusIfUserNotVisible() {
+        if (currentTarget === 'user' && (!isUserVisible || states.user.opacity <= 0)) {
+            currentTarget = 'ref';
+            updateTargetUI();
+            return true;
+        }
+        return false;
     }
 
     function updateTargetUI() {
@@ -483,6 +532,7 @@
         isUserVisible = !isUserVisible; 
         document.getElementById('vis-btn').classList.toggle('active-btn', !isUserVisible);
         updateTransform('user'); 
+        enforceReferenceFocusIfUserNotVisible();
         resetIdleTimer();
     }
 
@@ -547,6 +597,7 @@
         
         syncSliders();
         updateTransform(currentTarget); 
+        enforceReferenceFocusIfUserNotVisible();
         resetIdleTimer();
         saveState();
     }
@@ -691,6 +742,7 @@
                 
                 updateTransform('ref');
                 updateTransform('user');
+                enforceReferenceFocusIfUserNotVisible();
                 updateTargetUI();
             }
         } catch(e) {
