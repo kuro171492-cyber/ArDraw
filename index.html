@@ -483,12 +483,7 @@
 
     // --- UI и Ползунки ---
     function hasImageLoaded(el) {
-        if (!el) return false;
-        const rawSrc = (el.getAttribute('src') || '').trim();
-        if (!rawSrc) return false;
-        if (!el.src) return false;
-        if (el.src === window.location.href) return false;
-        return true;
+        return !!(el && el.src && el.src !== '');
     }
 
     function getAutoFocusMode() {
