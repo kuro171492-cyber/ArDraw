@@ -321,9 +321,8 @@
                     <button onclick="document.getElementById('ref-input').click()" class="py-3 border-2 border-gray-100 rounded-xl text-[10px] font-bold uppercase text-gray-700 hover:bg-gray-50">Референс</button>
                     <button id="user-btn-load" onclick="document.getElementById('user-input').click()" class="py-3 border-2 border-gray-100 rounded-xl text-[10px] font-bold uppercase text-gray-700 hover:bg-gray-50 btn-disabled">Рисунок</button>
                 </div>
-                <div class="grid grid-cols-2 gap-2">
-                    <button onclick="clearLayer('ref')" class="py-3 border-2 border-gray-100 rounded-xl text-[10px] font-bold uppercase text-red-500 hover:bg-gray-50">Удалить реф</button>
-                    <button onclick="clearLayer('user')" class="py-3 border-2 border-gray-100 rounded-xl text-[10px] font-bold uppercase text-red-500 hover:bg-gray-50">Удалить рисунок</button>
+                <div>
+                    <button onclick="clearAllLayers()" class="py-3 border-2 border-gray-100 rounded-xl text-[10px] font-bold uppercase text-red-500 hover:bg-gray-50" style="width: 100%;">Удалить все</button>
                 </div>
                 <!-- Загрузка файлов работает через коллбэки (без await) -->
                 <input type="file" id="ref-input" class="hidden" accept="image/*" onchange="loadFile(this, 'ref')">
@@ -458,6 +457,10 @@
         updateTransform('ref');
         updateTransform('user');
         saveState();
+    }
+
+    function clearAllLayers() {
+        clearLayer('ref');
     }
 
     // --- Трансформации ---
