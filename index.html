@@ -433,13 +433,6 @@
     const IDLE_TIME = 10000;
 
     const STORAGE_KEY = 'artref_settings_v3';
-    const IMAGE_DB_NAME = 'artref_image_store';
-    const IMAGE_DB_STORE = 'images';
-    const REF_IMAGE_KEY = 'ref';
-    const USER_IMAGE_KEY = 'user';
-    let imageDbPromise = null;
-    let lastSavedRefSrc = null;
-    let lastSavedUserSrc = null;
 
     // Элементы
     const refEl = document.getElementById('ref-image');
@@ -668,27 +661,10 @@
         } catch (e) {
             console.warn('Не удалось сохранить настройки в localStorage', e);
         }
-        persistImagesIfNeeded();
     }
 
-    function setLayerImage(el, src, type) {
-        if (!src) return;
-        el.src = src;
-        el.style.display = 'block';
-
-        if (type === 'ref') {
-            isRefLoaded = true;
-            userLoadBtn.classList.remove('btn-disabled');
-        } else {
-            isUserLoaded = true;
-            document.getElementById('placeholder').style.display = 'none';
-        }
-    }
-
-    async function loadFromStorage() {
-        const savedV3 = localStorage.getItem(STORAGE_KEY);
-        const savedV2 = localStorage.getItem('artref_settings_v2');
-        const saved = savedV3 || savedV2;
+    function loadFromStorage() {
+        const saved = localStorage.getItem(STORAGE_KEY) || localStorage.getItem('artref_settings_v2');
         if (!saved) return;
 
         try {
@@ -706,26 +682,12 @@
             updatePivotUI();
             updateVisibilityIcon();
 
-            // backward compatibility: older versions stored base64 in localStorage
-            if (data.refImg) setLayerImage(refEl, data.refImg, 'ref');
-            if (data.userImg) setLayerImage(userEl, data.userImg, 'user');
-
-            const [savedRefImg, savedUserImg] = await Promise.all([
-                imageStoreGet(REF_IMAGE_KEY),
-                imageStoreGet(USER_IMAGE_KEY)
-            ]);
-
-            if (!isRefLoaded && savedRefImg) setLayerImage(refEl, savedRefImg, 'ref');
-            if (!isUserLoaded && savedUserImg) setLayerImage(userEl, savedUserImg, 'user');
-
-            lastSavedRefSrc = refEl.src.startsWith('data:') ? refEl.src : null;
-            lastSavedUserSrc = userEl.src.startsWith('data:') ? userEl.src : null;
-
             applyFiltersToElements();
             applyTransforms();
             checkAutoTarget();
 
-            if (isLegacyData) saveToStorage();
+            localStorage.removeItem('artref_settings_v2');
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
         } catch(e) {
             console.error(e);
         }
@@ -1046,9 +1008,7 @@
         saveToStorage();
     }
 
-codex/add-crop-feature-for-reference-loading-t7epdp
-    window.addEventListener('load', async () => { 
-
+    window.addEventListener('load', () => { 
         drawGrid(); 
         await loadFromStorage();
         updateTargetUI(); 
