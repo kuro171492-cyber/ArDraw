@@ -222,6 +222,75 @@
         .flex { display: flex; }
         .items-center { align-items: center; }
         .justify-between { justify-content: space-between; }
+
+        .crop-modal {
+            position: fixed;
+            inset: 0;
+            z-index: 5000;
+            background: rgba(0,0,0,0.9);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            gap: 12px;
+            padding: 16px;
+            box-sizing: border-box;
+        }
+        .crop-stage {
+            position: relative;
+            width: min(92vw, 880px);
+            height: min(70dvh, 680px);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 14px;
+            overflow: hidden;
+            touch-action: none;
+        }
+        #crop-image {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            pointer-events: none;
+        }
+        #crop-rect {
+            position: absolute;
+            border: 2px solid #ff5f5f;
+            background: rgba(255,95,95,0.12);
+            box-shadow: 0 0 0 9999px rgba(0,0,0,0.45);
+            touch-action: none;
+        }
+        .crop-handle {
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #fff;
+            border: 2px solid #ff5f5f;
+            transform: translate(-50%, -50%);
+            touch-action: none;
+        }
+        .crop-handle[data-handle="nw"] { left: 0; top: 0; cursor: nwse-resize; }
+        .crop-handle[data-handle="ne"] { left: 100%; top: 0; cursor: nesw-resize; }
+        .crop-handle[data-handle="sw"] { left: 0; top: 100%; cursor: nesw-resize; }
+        .crop-handle[data-handle="se"] { left: 100%; top: 100%; cursor: nwse-resize; }
+        .crop-actions {
+            display: flex;
+            gap: 10px;
+            width: min(92vw, 880px);
+        }
+        .crop-btn {
+            flex: 1;
+            border: none;
+            border-radius: 10px;
+            padding: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            font-size: 12px;
+            cursor: pointer;
+        }
+        .crop-btn.cancel { background: #374151; color: #fff; }
+        .crop-btn.apply { background: #ff5f5f; color: #fff; }
     </style>
 </head>
 <body>
@@ -350,6 +419,22 @@
     </aside>
 </div>
 
+<div id="crop-modal" class="crop-modal">
+    <div class="crop-stage" id="crop-stage">
+        <img id="crop-image" alt="Обрезка референса">
+        <div id="crop-rect">
+            <span class="crop-handle" data-handle="nw"></span>
+            <span class="crop-handle" data-handle="ne"></span>
+            <span class="crop-handle" data-handle="sw"></span>
+            <span class="crop-handle" data-handle="se"></span>
+        </div>
+    </div>
+    <div class="crop-actions">
+        <button class="crop-btn cancel" onclick="cancelCropTool()">Отмена</button>
+        <button class="crop-btn apply" onclick="applyCropTool()">Применить обрезку</button>
+    </div>
+</div>
+
 <script>
     // --- Состояние приложения ---
     let states = {
@@ -366,6 +451,7 @@
     let pinchState = null;
     let nudgeInterval = null;
     let idleTimer = null;
+    let cropSession = null;
 
     // Ссылки на DOM
     const refEl = document.getElementById('ref-image');
@@ -397,24 +483,14 @@
                 const ctx = canvas.getContext('2d');
                 ctx.drawImage(img, 0, 0, w, h);
                 
-                // Получаем DataURL (JPEG 0.8)
-                const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
-                
-                // Применяем
-                const el = type === 'ref' ? refEl : userEl;
-                el.src = dataUrl;
-                el.style.display = 'block';
-                document.getElementById('placeholder').style.display = 'none';
-                
                 if (type === 'ref') {
-                    document.getElementById('user-btn-load').classList.remove('btn-disabled');
+                    openCropTool(canvas, function(preparedCanvas) {
+                        if (!preparedCanvas) return;
+                        applyLoadedImage(preparedCanvas, type);
+                    });
+                } else {
+                    applyLoadedImage(canvas, type);
                 }
-                
-                fitImageToScreen(el, type);
-                
-                autoSelectTargetMode();
-                updateTargetUI();
-                saveState();
             };
             img.src = e.target.result;
         };
@@ -475,6 +551,145 @@
         s.s = sc;
         s.r = 0;
         updateTransform(type);
+    }
+
+    function applyLoadedImage(preparedCanvas, type) {
+        const dataUrl = preparedCanvas.toDataURL('image/jpeg', 0.8);
+        const el = type === 'ref' ? refEl : userEl;
+        el.src = dataUrl;
+        el.style.display = 'block';
+        document.getElementById('placeholder').style.display = 'none';
+
+        if (type === 'ref') {
+            document.getElementById('user-btn-load').classList.remove('btn-disabled');
+        }
+
+        fitImageToScreen(el, type);
+        autoSelectTargetMode();
+        updateTargetUI();
+        saveState();
+    }
+
+    function openCropTool(sourceCanvas, onDone) {
+        const modal = document.getElementById('crop-modal');
+        const stage = document.getElementById('crop-stage');
+        const image = document.getElementById('crop-image');
+        modal.style.display = 'flex';
+        const stageRect = stage.getBoundingClientRect();
+
+        const sourceUrl = sourceCanvas.toDataURL('image/jpeg', 0.92);
+        image.src = sourceUrl;
+        activePointers.clear();
+        pinchState = null;
+
+        const imgRatio = sourceCanvas.width / sourceCanvas.height;
+        const stageRatio = stageRect.width / stageRect.height;
+
+        let displayWidth = stageRect.width;
+        let displayHeight = stageRect.height;
+        let displayX = 0;
+        let displayY = 0;
+
+        if (imgRatio > stageRatio) {
+            displayHeight = stageRect.width / imgRatio;
+            displayY = (stageRect.height - displayHeight) / 2;
+        } else {
+            displayWidth = stageRect.height * imgRatio;
+            displayX = (stageRect.width - displayWidth) / 2;
+        }
+
+        const startWidth = displayWidth * 0.75;
+        const startHeight = displayHeight * 0.75;
+        const startX = displayX + (displayWidth - startWidth) / 2;
+        const startY = displayY + (displayHeight - startHeight) / 2;
+
+        cropSession = {
+            onDone,
+            sourceCanvas,
+            displayX,
+            displayY,
+            displayWidth,
+            displayHeight,
+            x: startX,
+            y: startY,
+            w: startWidth,
+            h: startHeight,
+            pointerId: null,
+            mode: null,
+            startPointerX: 0,
+            startPointerY: 0,
+            startX,
+            startY,
+            startW: startWidth,
+            startH: startHeight
+        };
+
+        updateCropRect();
+    }
+
+    function cancelCropTool() {
+        if (!cropSession) return;
+        const done = cropSession.onDone;
+        closeCropTool();
+        if (done) done(null);
+    }
+
+    function applyCropTool() {
+        if (!cropSession) return;
+        const c = cropSession;
+        const sx = (c.x - c.displayX) / c.displayWidth;
+        const sy = (c.y - c.displayY) / c.displayHeight;
+        const sw = c.w / c.displayWidth;
+        const sh = c.h / c.displayHeight;
+
+        const sourceX = Math.round(sx * c.sourceCanvas.width);
+        const sourceY = Math.round(sy * c.sourceCanvas.height);
+        const sourceW = Math.round(sw * c.sourceCanvas.width);
+        const sourceH = Math.round(sh * c.sourceCanvas.height);
+
+        const output = document.createElement('canvas');
+        output.width = Math.max(1, sourceW);
+        output.height = Math.max(1, sourceH);
+        const outputCtx = output.getContext('2d');
+        outputCtx.drawImage(c.sourceCanvas, sourceX, sourceY, sourceW, sourceH, 0, 0, output.width, output.height);
+
+        const done = c.onDone;
+        closeCropTool();
+        if (done) done(output);
+    }
+
+    function closeCropTool() {
+        const modal = document.getElementById('crop-modal');
+        modal.style.display = 'none';
+        cropSession = null;
+        activePointers.clear();
+        pinchState = null;
+    }
+
+    function updateCropRect() {
+        if (!cropSession) return;
+        const rect = document.getElementById('crop-rect');
+        rect.style.left = `${cropSession.x}px`;
+        rect.style.top = `${cropSession.y}px`;
+        rect.style.width = `${cropSession.w}px`;
+        rect.style.height = `${cropSession.h}px`;
+    }
+
+    function clampCropRect(x, y, w, h) {
+        const c = cropSession;
+        const minSize = 40;
+        w = Math.max(minSize, w);
+        h = Math.max(minSize, h);
+
+        if (x < c.displayX) x = c.displayX;
+        if (y < c.displayY) y = c.displayY;
+        if (x + w > c.displayX + c.displayWidth) x = c.displayX + c.displayWidth - w;
+        if (y + h > c.displayY + c.displayHeight) y = c.displayY + c.displayHeight - h;
+
+        if (w > c.displayWidth) { w = c.displayWidth; x = c.displayX; }
+        if (h > c.displayHeight) { h = c.displayHeight; y = c.displayY; }
+
+        return { x, y, w, h };
     }
 
     // --- UI и Ползунки ---
@@ -641,6 +856,7 @@
 
     // --- Жесты и перемещение ---
     zone.addEventListener('pointerdown', function(e) {
+        if (cropSession) return;
         resetIdleTimer();
         activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
         if (activePointers.size === 2) {
@@ -658,6 +874,7 @@
     });
 
     zone.addEventListener('pointermove', function(e) {
+        if (cropSession) return;
         if (!activePointers.has(e.pointerId)) return;
         
         const list = isLinked ? ['ref', 'user'] : [currentTarget];
@@ -701,6 +918,7 @@
     });
 
     function handlePointerUp(e) {
+        if (cropSession) return;
         if (activePointers.has(e.pointerId)) {
             activePointers.delete(e.pointerId);
             if (activePointers.size < 2) pinchState = null;
@@ -710,6 +928,78 @@
     zone.addEventListener('pointerup', handlePointerUp);
     zone.addEventListener('pointercancel', handlePointerUp);
     zone.addEventListener('pointerout', handlePointerUp);
+
+    function initCropToolEvents() {
+        const stage = document.getElementById('crop-stage');
+        const rect = document.getElementById('crop-rect');
+
+        stage.addEventListener('pointerdown', function(e) {
+            if (!cropSession) return;
+            const handle = e.target.dataset && e.target.dataset.handle ? e.target.dataset.handle : null;
+            const isRect = e.target === rect || e.target.classList.contains('crop-handle');
+            if (!isRect) return;
+
+            cropSession.pointerId = e.pointerId;
+            cropSession.mode = handle ? `resize-${handle}` : 'move';
+            cropSession.startPointerX = e.clientX;
+            cropSession.startPointerY = e.clientY;
+            cropSession.startX = cropSession.x;
+            cropSession.startY = cropSession.y;
+            cropSession.startW = cropSession.w;
+            cropSession.startH = cropSession.h;
+            stage.setPointerCapture(e.pointerId);
+            e.preventDefault();
+        });
+
+        stage.addEventListener('pointermove', function(e) {
+            if (!cropSession || cropSession.pointerId !== e.pointerId) return;
+            const dx = e.clientX - cropSession.startPointerX;
+            const dy = e.clientY - cropSession.startPointerY;
+            let x = cropSession.startX;
+            let y = cropSession.startY;
+            let w = cropSession.startW;
+            let h = cropSession.startH;
+
+            if (cropSession.mode === 'move') {
+                x += dx;
+                y += dy;
+            } else if (cropSession.mode === 'resize-se') {
+                w += dx;
+                h += dy;
+            } else if (cropSession.mode === 'resize-sw') {
+                x += dx;
+                w -= dx;
+                h += dy;
+            } else if (cropSession.mode === 'resize-ne') {
+                y += dy;
+                w += dx;
+                h -= dy;
+            } else if (cropSession.mode === 'resize-nw') {
+                x += dx;
+                y += dy;
+                w -= dx;
+                h -= dy;
+            }
+
+            const clamped = clampCropRect(x, y, w, h);
+            cropSession.x = clamped.x;
+            cropSession.y = clamped.y;
+            cropSession.w = clamped.w;
+            cropSession.h = clamped.h;
+            updateCropRect();
+            e.preventDefault();
+        });
+
+        const finishCropPointer = function(e) {
+            if (!cropSession || cropSession.pointerId !== e.pointerId) return;
+            cropSession.pointerId = null;
+            cropSession.mode = null;
+            stage.releasePointerCapture(e.pointerId);
+        };
+
+        stage.addEventListener('pointerup', finishCropPointer);
+        stage.addEventListener('pointercancel', finishCropPointer);
+    }
 
     // --- Управление по краям (Кнопки точной настройки) ---
     function startNudge(key, val) {
@@ -760,6 +1050,7 @@
 
     // --- Инициализация при старте ---
     window.addEventListener('DOMContentLoaded', function() {
+        initCropToolEvents();
         try {
             const saved = localStorage.getItem('artref_v5');
             if (saved) {
