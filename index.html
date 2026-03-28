@@ -223,74 +223,6 @@
         .items-center { align-items: center; }
         .justify-between { justify-content: space-between; }
 
-        .crop-modal {
-            position: fixed;
-            inset: 0;
-            z-index: 5000;
-            background: rgba(0,0,0,0.9);
-            display: none;
-            align-items: center;
-            justify-content: center;
-            flex-direction: column;
-            gap: 12px;
-            padding: 16px;
-            box-sizing: border-box;
-        }
-        .crop-stage {
-            position: relative;
-            width: min(92vw, 880px);
-            height: min(70dvh, 680px);
-            border: 1px solid rgba(255,255,255,0.2);
-            border-radius: 14px;
-            overflow: hidden;
-            touch-action: none;
-        }
-        #crop-image {
-            position: absolute;
-            inset: 0;
-            width: 100%;
-            height: 100%;
-            object-fit: contain;
-            pointer-events: none;
-        }
-        #crop-rect {
-            position: absolute;
-            border: 2px solid #ff5f5f;
-            background: rgba(255,95,95,0.12);
-            box-shadow: 0 0 0 9999px rgba(0,0,0,0.45);
-            touch-action: none;
-        }
-        .crop-handle {
-            position: absolute;
-            width: 16px;
-            height: 16px;
-            border-radius: 50%;
-            background: #fff;
-            border: 2px solid #ff5f5f;
-            transform: translate(-50%, -50%);
-            touch-action: none;
-        }
-        .crop-handle[data-handle="nw"] { left: 0; top: 0; cursor: nwse-resize; }
-        .crop-handle[data-handle="ne"] { left: 100%; top: 0; cursor: nesw-resize; }
-        .crop-handle[data-handle="sw"] { left: 0; top: 100%; cursor: nesw-resize; }
-        .crop-handle[data-handle="se"] { left: 100%; top: 100%; cursor: nwse-resize; }
-        .crop-actions {
-            display: flex;
-            gap: 10px;
-            width: min(92vw, 880px);
-        }
-        .crop-btn {
-            flex: 1;
-            border: none;
-            border-radius: 10px;
-            padding: 12px;
-            font-weight: 700;
-            text-transform: uppercase;
-            font-size: 12px;
-            cursor: pointer;
-        }
-        .crop-btn.cancel { background: #374151; color: #fff; }
-        .crop-btn.apply { background: #ff5f5f; color: #fff; }
     </style>
 </head>
 <body>
@@ -419,22 +351,6 @@
     </aside>
 </div>
 
-<div id="crop-modal" class="crop-modal">
-    <div class="crop-stage" id="crop-stage">
-        <img id="crop-image" alt="Обрезка референса">
-        <div id="crop-rect">
-            <span class="crop-handle" data-handle="nw"></span>
-            <span class="crop-handle" data-handle="ne"></span>
-            <span class="crop-handle" data-handle="sw"></span>
-            <span class="crop-handle" data-handle="se"></span>
-        </div>
-    </div>
-    <div class="crop-actions">
-        <button class="crop-btn cancel" onclick="cancelCropTool()">Отмена</button>
-        <button class="crop-btn apply" onclick="applyCropTool()">Применить обрезку</button>
-    </div>
-</div>
-
 <script>
     // --- Состояние приложения ---
     let states = {
@@ -451,7 +367,6 @@
     let pinchState = null;
     let nudgeInterval = null;
     let idleTimer = null;
-    let cropSession = null;
 
     // Ссылки на DOM
     const refEl = document.getElementById('ref-image');
@@ -508,17 +423,9 @@
                 const ctx = canvas.getContext('2d');
                 ctx.drawImage(img, 0, 0, w, h);
                 
-                let preparedCanvas = canvas;
-                if (type === 'ref') {
-                    const shouldCrop = window.confirm('Обрезать референс под пропорции экрана перед загрузкой?');
-                    if (shouldCrop) {
-                        preparedCanvas = cropCanvasToViewportRatio(canvas);
-                    }
-                }
-
                 // Получаем DataURL (JPEG 0.8)
-                const dataUrl = preparedCanvas.toDataURL('image/jpeg', 0.8);
-                
+                const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+
                 // Применяем
                 const el = type === 'ref' ? refEl : userEl;
                 el.src = dataUrl;
@@ -526,13 +433,14 @@
                 placeholderEl.style.display = 'none';
                 
                 if (type === 'ref') {
-                    openCropTool(canvas, function(preparedCanvas) {
-                        if (!preparedCanvas) return;
-                        applyLoadedImage(preparedCanvas, type);
-                    });
-                } else {
-                    applyLoadedImage(canvas, type);
+                    userBtnLoadEl.classList.remove('btn-disabled');
                 }
+
+                fitImageToScreen(el, type);
+                autoSelectTargetMode();
+                updateTargetUI();
+                updateTransform(type);
+                saveState();
             };
             img.src = e.target.result;
         };
@@ -595,31 +503,6 @@
         updateTransform(type);
     }
 
-    function cropCanvasToViewportRatio(sourceCanvas) {
-        const viewportRatio = window.innerWidth / window.innerHeight;
-        const srcRatio = sourceCanvas.width / sourceCanvas.height;
-
-        let cropWidth = sourceCanvas.width;
-        let cropHeight = sourceCanvas.height;
-
-        if (srcRatio > viewportRatio) {
-            cropWidth = Math.round(sourceCanvas.height * viewportRatio);
-        } else {
-            cropHeight = Math.round(sourceCanvas.width / viewportRatio);
-        }
-
-        const cropX = Math.round((sourceCanvas.width - cropWidth) / 2);
-        const cropY = Math.round((sourceCanvas.height - cropHeight) / 2);
-
-        const croppedCanvas = document.createElement('canvas');
-        croppedCanvas.width = cropWidth;
-        croppedCanvas.height = cropHeight;
-
-        const croppedCtx = croppedCanvas.getContext('2d');
-        croppedCtx.drawImage(sourceCanvas, cropX, cropY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
-
-        return croppedCanvas;
-    }
 
     // --- UI и Ползунки ---
     function hasImageLoaded(el) {
@@ -784,7 +667,6 @@
 
     // --- Жесты и перемещение ---
     zone.addEventListener('pointerdown', function(e) {
-        if (cropSession) return;
         resetIdleTimer();
         activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
         if (activePointers.size === 2) {
@@ -802,7 +684,6 @@
     });
 
     zone.addEventListener('pointermove', function(e) {
-        if (cropSession) return;
         if (!activePointers.has(e.pointerId)) return;
         
         const list = isLinked ? ['ref', 'user'] : [currentTarget];
@@ -846,7 +727,6 @@
     });
 
     function handlePointerUp(e) {
-        if (cropSession) return;
         if (activePointers.has(e.pointerId)) {
             activePointers.delete(e.pointerId);
             if (activePointers.size < 2) pinchState = null;
@@ -857,77 +737,6 @@
     zone.addEventListener('pointercancel', handlePointerUp);
     zone.addEventListener('pointerout', handlePointerUp);
 
-    function initCropToolEvents() {
-        const stage = document.getElementById('crop-stage');
-        const rect = document.getElementById('crop-rect');
-
-        stage.addEventListener('pointerdown', function(e) {
-            if (!cropSession) return;
-            const handle = e.target.dataset && e.target.dataset.handle ? e.target.dataset.handle : null;
-            const isRect = e.target === rect || e.target.classList.contains('crop-handle');
-            if (!isRect) return;
-
-            cropSession.pointerId = e.pointerId;
-            cropSession.mode = handle ? `resize-${handle}` : 'move';
-            cropSession.startPointerX = e.clientX;
-            cropSession.startPointerY = e.clientY;
-            cropSession.startX = cropSession.x;
-            cropSession.startY = cropSession.y;
-            cropSession.startW = cropSession.w;
-            cropSession.startH = cropSession.h;
-            stage.setPointerCapture(e.pointerId);
-            e.preventDefault();
-        });
-
-        stage.addEventListener('pointermove', function(e) {
-            if (!cropSession || cropSession.pointerId !== e.pointerId) return;
-            const dx = e.clientX - cropSession.startPointerX;
-            const dy = e.clientY - cropSession.startPointerY;
-            let x = cropSession.startX;
-            let y = cropSession.startY;
-            let w = cropSession.startW;
-            let h = cropSession.startH;
-
-            if (cropSession.mode === 'move') {
-                x += dx;
-                y += dy;
-            } else if (cropSession.mode === 'resize-se') {
-                w += dx;
-                h += dy;
-            } else if (cropSession.mode === 'resize-sw') {
-                x += dx;
-                w -= dx;
-                h += dy;
-            } else if (cropSession.mode === 'resize-ne') {
-                y += dy;
-                w += dx;
-                h -= dy;
-            } else if (cropSession.mode === 'resize-nw') {
-                x += dx;
-                y += dy;
-                w -= dx;
-                h -= dy;
-            }
-
-            const clamped = clampCropRect(x, y, w, h);
-            cropSession.x = clamped.x;
-            cropSession.y = clamped.y;
-            cropSession.w = clamped.w;
-            cropSession.h = clamped.h;
-            updateCropRect();
-            e.preventDefault();
-        });
-
-        const finishCropPointer = function(e) {
-            if (!cropSession || cropSession.pointerId !== e.pointerId) return;
-            cropSession.pointerId = null;
-            cropSession.mode = null;
-            stage.releasePointerCapture(e.pointerId);
-        };
-
-        stage.addEventListener('pointerup', finishCropPointer);
-        stage.addEventListener('pointercancel', finishCropPointer);
-    }
 
     // --- Управление по краям (Кнопки точной настройки) ---
     function startNudge(key, val) {
@@ -978,7 +787,6 @@
 
     // --- Инициализация при старте ---
     window.addEventListener('DOMContentLoaded', function() {
-        initCropToolEvents();
         try {
             const saved = localStorage.getItem('artref_v5');
             if (saved) {
