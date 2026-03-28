@@ -223,74 +223,6 @@
         .items-center { align-items: center; }
         .justify-between { justify-content: space-between; }
 
-        .crop-modal {
-            position: fixed;
-            inset: 0;
-            z-index: 5000;
-            background: rgba(0,0,0,0.9);
-            display: none;
-            align-items: center;
-            justify-content: center;
-            flex-direction: column;
-            gap: 12px;
-            padding: 16px;
-            box-sizing: border-box;
-        }
-        .crop-stage {
-            position: relative;
-            width: min(92vw, 880px);
-            height: min(70dvh, 680px);
-            border: 1px solid rgba(255,255,255,0.2);
-            border-radius: 14px;
-            overflow: hidden;
-            touch-action: none;
-        }
-        #crop-image {
-            position: absolute;
-            inset: 0;
-            width: 100%;
-            height: 100%;
-            object-fit: contain;
-            pointer-events: none;
-        }
-        #crop-rect {
-            position: absolute;
-            border: 2px solid #ff5f5f;
-            background: rgba(255,95,95,0.12);
-            box-shadow: 0 0 0 9999px rgba(0,0,0,0.45);
-            touch-action: none;
-        }
-        .crop-handle {
-            position: absolute;
-            width: 16px;
-            height: 16px;
-            border-radius: 50%;
-            background: #fff;
-            border: 2px solid #ff5f5f;
-            transform: translate(-50%, -50%);
-            touch-action: none;
-        }
-        .crop-handle[data-handle="nw"] { left: 0; top: 0; cursor: nwse-resize; }
-        .crop-handle[data-handle="ne"] { left: 100%; top: 0; cursor: nesw-resize; }
-        .crop-handle[data-handle="sw"] { left: 0; top: 100%; cursor: nesw-resize; }
-        .crop-handle[data-handle="se"] { left: 100%; top: 100%; cursor: nwse-resize; }
-        .crop-actions {
-            display: flex;
-            gap: 10px;
-            width: min(92vw, 880px);
-        }
-        .crop-btn {
-            flex: 1;
-            border: none;
-            border-radius: 10px;
-            padding: 12px;
-            font-weight: 700;
-            text-transform: uppercase;
-            font-size: 12px;
-            cursor: pointer;
-        }
-        .crop-btn.cancel { background: #374151; color: #fff; }
-        .crop-btn.apply { background: #ff5f5f; color: #fff; }
     </style>
 </head>
 <body>
@@ -419,22 +351,6 @@
     </aside>
 </div>
 
-<div id="crop-modal" class="crop-modal">
-    <div class="crop-stage" id="crop-stage">
-        <img id="crop-image" alt="Обрезка референса">
-        <div id="crop-rect">
-            <span class="crop-handle" data-handle="nw"></span>
-            <span class="crop-handle" data-handle="ne"></span>
-            <span class="crop-handle" data-handle="sw"></span>
-            <span class="crop-handle" data-handle="se"></span>
-        </div>
-    </div>
-    <div class="crop-actions">
-        <button class="crop-btn cancel" onclick="cancelCropTool()">Отмена</button>
-        <button class="crop-btn apply" onclick="applyCropTool()">Применить обрезку</button>
-    </div>
-</div>
-
 <script>
     // --- Состояние приложения ---
     let states = {
@@ -451,12 +367,36 @@
     let pinchState = null;
     let nudgeInterval = null;
     let idleTimer = null;
-    let cropSession = null;
 
     // Ссылки на DOM
     const refEl = document.getElementById('ref-image');
     const userEl = document.getElementById('user-image');
     const zone = document.getElementById('interaction-zone');
+    const placeholderEl = document.getElementById('placeholder');
+    const userBtnLoadEl = document.getElementById('user-btn-load');
+    const drawerEl = document.getElementById('drawer');
+    const gridBtnEl = document.getElementById('grid-btn');
+    const gridOverlayEl = document.getElementById('grid-overlay');
+    const layerNameEl = document.getElementById('layer-name');
+    const opSliderEl = document.getElementById('op-slider');
+    const opValEl = document.getElementById('op-val');
+    const ctSliderEl = document.getElementById('ct-slider');
+    const ctValEl = document.getElementById('ct-val');
+    const brSliderEl = document.getElementById('br-slider');
+    const brValEl = document.getElementById('br-val');
+    const nudgeButtons = document.querySelectorAll('.nudge-btn');
+
+    function createDefaultState(type) {
+        return {
+            x: window.innerWidth / 2,
+            y: window.innerHeight / 2,
+            s: 1,
+            r: 0,
+            opacity: type === 'user' ? 0.8 : 1,
+            contrast: 100,
+            brightness: 100
+        };
+    }
 
     // --- Логика файлов и сжатия (без await, полностью на коллбэках) ---
     function loadFile(input, type) {
@@ -483,31 +423,24 @@
                 const ctx = canvas.getContext('2d');
                 ctx.drawImage(img, 0, 0, w, h);
                 
-                let preparedCanvas = canvas;
-                if (type === 'ref') {
-                    const shouldCrop = window.confirm('Обрезать референс под пропорции экрана перед загрузкой?');
-                    if (shouldCrop) {
-                        preparedCanvas = cropCanvasToViewportRatio(canvas);
-                    }
-                }
-
                 // Получаем DataURL (JPEG 0.8)
-                const dataUrl = preparedCanvas.toDataURL('image/jpeg', 0.8);
-                
+                const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+
                 // Применяем
                 const el = type === 'ref' ? refEl : userEl;
                 el.src = dataUrl;
                 el.style.display = 'block';
-                document.getElementById('placeholder').style.display = 'none';
-                
+                placeholderEl.style.display = 'none';
+
                 if (type === 'ref') {
-                    openCropTool(canvas, function(preparedCanvas) {
-                        if (!preparedCanvas) return;
-                        applyLoadedImage(preparedCanvas, type);
-                    });
-                } else {
-                    applyLoadedImage(canvas, type);
+                    userBtnLoadEl.classList.remove('btn-disabled');
                 }
+
+                fitImageToScreen(el, type);
+                autoSelectTargetMode();
+                updateTargetUI();
+                updateTransform(type);
+                saveState();
             };
             img.src = e.target.result;
         };
@@ -526,15 +459,15 @@
         if (isRef) {
             userEl.removeAttribute('src');
             userEl.style.display = 'none';
-            states.ref = { x: window.innerWidth/2, y: window.innerHeight/2, s: 1, r: 0, opacity: 1, contrast: 100, brightness: 100 };
-            states.user = { x: window.innerWidth/2, y: window.innerHeight/2, s: 1, r: 0, opacity: 0.8, contrast: 100, brightness: 100 };
-            document.getElementById('user-btn-load').classList.add('btn-disabled');
+            states.ref = createDefaultState('ref');
+            states.user = createDefaultState('user');
+            userBtnLoadEl.classList.add('btn-disabled');
         } else {
-            states.user = { x: window.innerWidth/2, y: window.innerHeight/2, s: 1, r: 0, opacity: 0.8, contrast: 100, brightness: 100 };
+            states.user = createDefaultState('user');
         }
 
         const hasAnyImage = hasImageLoaded(refEl) || hasImageLoaded(userEl);
-        document.getElementById('placeholder').style.display = hasAnyImage ? 'none' : 'block';
+        placeholderEl.style.display = hasAnyImage ? 'none' : 'block';
         autoSelectTargetMode();
         updateTargetUI();
         updateTransform('ref');
@@ -570,31 +503,6 @@
         updateTransform(type);
     }
 
-    function cropCanvasToViewportRatio(sourceCanvas) {
-        const viewportRatio = window.innerWidth / window.innerHeight;
-        const srcRatio = sourceCanvas.width / sourceCanvas.height;
-
-        let cropWidth = sourceCanvas.width;
-        let cropHeight = sourceCanvas.height;
-
-        if (srcRatio > viewportRatio) {
-            cropWidth = Math.round(sourceCanvas.height * viewportRatio);
-        } else {
-            cropHeight = Math.round(sourceCanvas.width / viewportRatio);
-        }
-
-        const cropX = Math.round((sourceCanvas.width - cropWidth) / 2);
-        const cropY = Math.round((sourceCanvas.height - cropHeight) / 2);
-
-        const croppedCanvas = document.createElement('canvas');
-        croppedCanvas.width = cropWidth;
-        croppedCanvas.height = cropHeight;
-
-        const croppedCtx = croppedCanvas.getContext('2d');
-        croppedCtx.drawImage(sourceCanvas, cropX, cropY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
-
-        return croppedCanvas;
-    }
 
     // --- UI и Ползунки ---
     function hasImageLoaded(el) {
@@ -636,11 +544,11 @@
                 ui.className = `target-indicator ${isUser ? 'user-mode' : ''}`;
             }
         }
-        document.getElementById('layer-name').innerText = isEmpty
+        layerNameEl.innerText = isEmpty
             ? 'Настройка: —'
             : `Настройка: ${isUser ? 'Рисунок' : 'Референс'}`;
 
-        document.querySelectorAll('.nudge-btn').forEach(function(btn) {
+        nudgeButtons.forEach(function(btn) {
             btn.classList.toggle('user-mode', isUser);
         });
 
@@ -648,7 +556,7 @@
     }
 
     function toggleDrawer() { 
-        document.getElementById('drawer').classList.toggle('open'); 
+        drawerEl.classList.toggle('open'); 
         syncSliders(); 
         resetIdleTimer();
     }
@@ -670,28 +578,27 @@
 
     function toggleGrid() {
         gridVisible = !gridVisible;
-        document.getElementById('grid-btn').classList.toggle('active-btn', gridVisible);
-        const svg = document.getElementById('grid-overlay');
+        gridBtnEl.classList.toggle('active-btn', gridVisible);
+        const svg = gridOverlayEl;
         if (!gridVisible) {
             svg.style.display = 'none';
             return;
         }
         svg.style.display = 'block';
-        svg.innerHTML = '';
-        const w = window.innerWidth, h = window.innerHeight;
+        const w = window.innerWidth;
+        const h = window.innerHeight;
         const step = w / 10;
         const gridStrokeColor = 'rgba(255, 255, 255, 0.2)';
-        
-        for(let x=0; x<=w; x+=step) {
-            const l = document.createElementNS("http://www.w3.org/2000/svg", "line");
-            l.setAttribute("x1", x); l.setAttribute("y1", 0); l.setAttribute("x2", x); l.setAttribute("y2", h);
-            l.setAttribute("stroke", gridStrokeColor); svg.appendChild(l);
+        let linesMarkup = '';
+
+        for (let x = 0; x <= w; x += step) {
+            linesMarkup += `<line x1="${x}" y1="0" x2="${x}" y2="${h}" stroke="${gridStrokeColor}" />`;
         }
-        for(let y=0; y<=h; y+=step) {
-            const l = document.createElementNS("http://www.w3.org/2000/svg", "line");
-            l.setAttribute("x1", 0); l.setAttribute("y1", y); l.setAttribute("x2", w); l.setAttribute("y2", y);
-            l.setAttribute("stroke", gridStrokeColor); svg.appendChild(l);
+        for (let y = 0; y <= h; y += step) {
+            linesMarkup += `<line x1="0" y1="${y}" x2="${w}" y2="${y}" stroke="${gridStrokeColor}" />`;
         }
+
+        svg.innerHTML = linesMarkup;
         resetIdleTimer();
     }
 
@@ -711,23 +618,23 @@
 
     function syncSliders() { 
         if (!currentTarget) {
-            document.getElementById('op-slider').value = 100;
-            document.getElementById('op-val').innerText = '—';
-            document.getElementById('ct-slider').value = 100;
-            document.getElementById('ct-val').innerText = '—';
-            document.getElementById('br-slider').value = 100;
-            document.getElementById('br-val').innerText = '—';
+            opSliderEl.value = 100;
+            opValEl.innerText = '—';
+            ctSliderEl.value = 100;
+            ctValEl.innerText = '—';
+            brSliderEl.value = 100;
+            brValEl.innerText = '—';
             return;
         }
         const s = states[currentTarget];
-        document.getElementById('op-slider').value = s.opacity * 100;
-        document.getElementById('op-val').innerText = Math.round(s.opacity * 100) + '%';
-        
-        document.getElementById('ct-slider').value = s.contrast;
-        document.getElementById('ct-val').innerText = Math.round(s.contrast) + '%';
-        
-        document.getElementById('br-slider').value = s.brightness;
-        document.getElementById('br-val').innerText = Math.round(s.brightness) + '%';
+        opSliderEl.value = s.opacity * 100;
+        opValEl.innerText = Math.round(s.opacity * 100) + '%';
+
+        ctSliderEl.value = s.contrast;
+        ctValEl.innerText = Math.round(s.contrast) + '%';
+
+        brSliderEl.value = s.brightness;
+        brValEl.innerText = Math.round(s.brightness) + '%';
     }
 
     function updateFilters() { 
@@ -735,9 +642,9 @@
             return;
         }
         const s = states[currentTarget];
-        s.opacity = document.getElementById('op-slider').value / 100; 
-        s.contrast = document.getElementById('ct-slider').value;
-        s.brightness = document.getElementById('br-slider').value;
+        s.opacity = opSliderEl.value / 100; 
+        s.contrast = ctSliderEl.value;
+        s.brightness = brSliderEl.value;
         
         syncSliders();
         updateTransform(currentTarget); 
@@ -752,7 +659,7 @@
         document.body.classList.remove('ui-hidden-state'); 
         if (idleTimer) clearTimeout(idleTimer); 
         idleTimer = setTimeout(function() {
-            if (!document.getElementById('drawer').classList.contains('open')) {
+            if (!drawerEl.classList.contains('open')) {
                 document.body.classList.add('ui-hidden-state');
             }
         }, 6000); 
@@ -760,7 +667,6 @@
 
     // --- Жесты и перемещение ---
     zone.addEventListener('pointerdown', function(e) {
-        if (cropSession) return;
         resetIdleTimer();
         activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
         if (activePointers.size === 2) {
@@ -778,7 +684,6 @@
     });
 
     zone.addEventListener('pointermove', function(e) {
-        if (cropSession) return;
         if (!activePointers.has(e.pointerId)) return;
         
         const list = isLinked ? ['ref', 'user'] : [currentTarget];
@@ -822,7 +727,6 @@
     });
 
     function handlePointerUp(e) {
-        if (cropSession) return;
         if (activePointers.has(e.pointerId)) {
             activePointers.delete(e.pointerId);
             if (activePointers.size < 2) pinchState = null;
@@ -833,77 +737,6 @@
     zone.addEventListener('pointercancel', handlePointerUp);
     zone.addEventListener('pointerout', handlePointerUp);
 
-    function initCropToolEvents() {
-        const stage = document.getElementById('crop-stage');
-        const rect = document.getElementById('crop-rect');
-
-        stage.addEventListener('pointerdown', function(e) {
-            if (!cropSession) return;
-            const handle = e.target.dataset && e.target.dataset.handle ? e.target.dataset.handle : null;
-            const isRect = e.target === rect || e.target.classList.contains('crop-handle');
-            if (!isRect) return;
-
-            cropSession.pointerId = e.pointerId;
-            cropSession.mode = handle ? `resize-${handle}` : 'move';
-            cropSession.startPointerX = e.clientX;
-            cropSession.startPointerY = e.clientY;
-            cropSession.startX = cropSession.x;
-            cropSession.startY = cropSession.y;
-            cropSession.startW = cropSession.w;
-            cropSession.startH = cropSession.h;
-            stage.setPointerCapture(e.pointerId);
-            e.preventDefault();
-        });
-
-        stage.addEventListener('pointermove', function(e) {
-            if (!cropSession || cropSession.pointerId !== e.pointerId) return;
-            const dx = e.clientX - cropSession.startPointerX;
-            const dy = e.clientY - cropSession.startPointerY;
-            let x = cropSession.startX;
-            let y = cropSession.startY;
-            let w = cropSession.startW;
-            let h = cropSession.startH;
-
-            if (cropSession.mode === 'move') {
-                x += dx;
-                y += dy;
-            } else if (cropSession.mode === 'resize-se') {
-                w += dx;
-                h += dy;
-            } else if (cropSession.mode === 'resize-sw') {
-                x += dx;
-                w -= dx;
-                h += dy;
-            } else if (cropSession.mode === 'resize-ne') {
-                y += dy;
-                w += dx;
-                h -= dy;
-            } else if (cropSession.mode === 'resize-nw') {
-                x += dx;
-                y += dy;
-                w -= dx;
-                h -= dy;
-            }
-
-            const clamped = clampCropRect(x, y, w, h);
-            cropSession.x = clamped.x;
-            cropSession.y = clamped.y;
-            cropSession.w = clamped.w;
-            cropSession.h = clamped.h;
-            updateCropRect();
-            e.preventDefault();
-        });
-
-        const finishCropPointer = function(e) {
-            if (!cropSession || cropSession.pointerId !== e.pointerId) return;
-            cropSession.pointerId = null;
-            cropSession.mode = null;
-            stage.releasePointerCapture(e.pointerId);
-        };
-
-        stage.addEventListener('pointerup', finishCropPointer);
-        stage.addEventListener('pointercancel', finishCropPointer);
-    }
 
     // --- Управление по краям (Кнопки точной настройки) ---
     function startNudge(key, val) {
@@ -954,7 +787,6 @@
 
     // --- Инициализация при старте ---
     window.addEventListener('DOMContentLoaded', function() {
-        initCropToolEvents();
         try {
             const saved = localStorage.getItem('artref_v5');
             if (saved) {
@@ -980,12 +812,12 @@
 
                 if (d.refData) {
                     applyLayer(refEl, 'ref', d.refData);
-                    document.getElementById('user-btn-load').classList.remove('btn-disabled');
-                    document.getElementById('placeholder').style.display = 'none';
+                    userBtnLoadEl.classList.remove('btn-disabled');
+                    placeholderEl.style.display = 'none';
                 }
                 if (d.userData) {
                     applyLayer(userEl, 'user', d.userData);
-                    document.getElementById('placeholder').style.display = 'none';
+                    placeholderEl.style.display = 'none';
                 }
 
                 if (!d.refData) updateTransform('ref');
